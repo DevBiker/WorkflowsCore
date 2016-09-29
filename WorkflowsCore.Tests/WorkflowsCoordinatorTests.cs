@@ -138,6 +138,36 @@ namespace WorkflowsCore.Tests
         }
 
         [TestMethod]
+        public void IfActionOnSrcWorkflowWasExecutedForRegisteredDependencyBeforeWorkflowAddedThenDependencyHandlerShouldNotBeCalledIfInitializeDependenciesIsFalse()
+        {
+            var srcWorkflow = new TestWorkflow();
+            var dstWorkflow = new TestWorkflow();
+            var dependencyHandlerWasCalled = false;
+            _workflowsCoordinator.RegisterWorkflowDependency(
+                WorkflowNames.Name1,
+                TestWorkflow.Action1,
+                WorkflowNames.Name2,
+                (s, d) =>
+                {
+                    dependencyHandlerWasCalled = true;
+                    return Task.CompletedTask;
+                });
+
+            _workflowsCoordinator.AddWorkflow(WorkflowNames.Name1, srcWorkflow);
+
+            srcWorkflow.StartWorkflow();
+            srcWorkflow.ExecuteActionAsync(TestWorkflow.Action1).WaitWithTimeout(100).Wait();
+
+            dstWorkflow.StartWorkflow();
+            _workflowsCoordinator.AddWorkflow(WorkflowNames.Name2, dstWorkflow, initializeDependencies: false);
+
+            srcWorkflow.CompletedTask.Wait();
+            dstWorkflow.CompletedTask.Wait();
+
+            Assert.IsFalse(dependencyHandlerWasCalled);
+        }
+
+        [TestMethod]
         public void IfSrcWorkflowEntersRequiredStateForRegisteredDependencyThenDependencyHandlerShouldBeCalled()
         {
             var srcWorkflow = new TestWorkflow();
