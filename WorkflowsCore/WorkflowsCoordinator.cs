@@ -69,14 +69,15 @@ namespace WorkflowsCore
 
         public void SetWorkflows(
             IWorkflowEngine workflowEngine,
-            IEnumerable<KeyValuePair<TWorkflowName, object>> workflows)
+            IEnumerable<KeyValuePair<TWorkflowName, object>> workflows,
+            bool initializeDependencies = true)
         {
             foreach (var pair in workflows)
             {
                 var workflow = workflowEngine.GetActiveWorkflowById(pair.Value);
                 if (workflow != null)
                 {
-                    AddWorkflow(pair.Key, workflow);
+                    AddWorkflow(pair.Key, workflow, initializeDependencies);
                 }
             }
         }
@@ -84,8 +85,8 @@ namespace WorkflowsCore
         public WorkflowBase GetWorkflow(TWorkflowName workflowName) =>
             GetWorkflowDefinition(workflowName).Workflow;
 
-        public void AddWorkflow(TWorkflowName workflowName, WorkflowBase workflow) =>
-            GetWorkflowDefinition(workflowName).SetWorkflow(workflow);
+        public void AddWorkflow(TWorkflowName workflowName, WorkflowBase workflow, bool initializeDependencies = true) =>
+            GetWorkflowDefinition(workflowName).SetWorkflow(workflow, initializeDependencies);
 
         public void CancelWorkflow(TWorkflowName workflowName) =>
             GetWorkflowDefinition(workflowName).CancelWorkflow();
@@ -352,7 +353,7 @@ namespace WorkflowsCore
 
             public IList<Dependency> IngoingDependencies { get; } = new List<Dependency>();
 
-            public void SetWorkflow(WorkflowBase workflow)
+            public void SetWorkflow(WorkflowBase workflow, bool initializeDependencies)
             {
                 if (workflow == null)
                 {
@@ -365,9 +366,14 @@ namespace WorkflowsCore
                 }
 
                 Workflow = workflow;
+                if (!initializeDependencies)
+                {
+                    return;
+                }
+
                 foreach (var dependency in IngoingDependencies)
                 {
-                    dependency.InitializeDependentWorkflow();    
+                    dependency.InitializeDependentWorkflow();
                 }
 
                 foreach (var dependency in OutgoingDependencies)
