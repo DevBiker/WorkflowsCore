@@ -507,7 +507,7 @@ namespace WorkflowsCore.Tests
         [ExpectedException(typeof(TimeoutException))]
         public async Task WaitForTimeoutShouldThrowTimeoutExceptionIfTimeoutOccurrs()
         {
-            await Task.Delay(30).WaitWithTimeout(1);
+            await Task.Delay(100).WaitWithTimeout(1);
         }
 
         [TestMethod]
