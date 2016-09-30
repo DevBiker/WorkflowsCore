@@ -245,7 +245,7 @@ namespace WorkflowsCore
                         action(this);
                     },
                     forceExecution ? CancellationToken.None : Utilities.CurrentCancellationToken,
-                    TaskCreationOptions.None,
+                    TaskCreationOptions.PreferFairness,
                     WorkflowTaskScheduler)).Unwrap();
         }
 
@@ -264,7 +264,7 @@ namespace WorkflowsCore
                         return func(this);
                     },
                     forceExecution ? CancellationToken.None : Utilities.CurrentCancellationToken,
-                    TaskCreationOptions.None,
+                    TaskCreationOptions.PreferFairness,
                     WorkflowTaskScheduler)).Unwrap();
         }
 
