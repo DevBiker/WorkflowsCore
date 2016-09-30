@@ -385,7 +385,8 @@ namespace WorkflowsCore
                         tcs,
                         cts,
                         parentCancellationToken);
-                });
+                },
+                TaskContinuationOptions.ExecuteSynchronously);
         }
 
         private static bool IsNonOptionalTaskCompleted(Task t) => 
