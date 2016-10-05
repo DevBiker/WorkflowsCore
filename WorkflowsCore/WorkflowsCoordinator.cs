@@ -366,14 +366,12 @@ namespace WorkflowsCore
                 }
 
                 Workflow = workflow;
-                if (!initializeDependencies)
+                if (initializeDependencies)
                 {
-                    return;
-                }
-
-                foreach (var dependency in IngoingDependencies)
-                {
-                    dependency.InitializeDependentWorkflow();
+                    foreach (var dependency in IngoingDependencies)
+                    {
+                        dependency.InitializeDependentWorkflow();
+                    }
                 }
 
                 foreach (var dependency in OutgoingDependencies)

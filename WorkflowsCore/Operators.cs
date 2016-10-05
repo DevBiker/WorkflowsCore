@@ -44,7 +44,8 @@ namespace WorkflowsCore
                         cts.Cancel();
 
                         // ReSharper disable once MethodSupportsCancellation
-                        Task.WhenAll(tasks).ContinueWith(t => tcs.SetException(ex));
+                        Task.WhenAll(tasks)
+                            .ContinueWith(t => tcs.SetException(ex), TaskContinuationOptions.ExecuteSynchronously);
                         return tcs.Task;
                     }
 
@@ -73,7 +74,8 @@ namespace WorkflowsCore
                     }
 
                     tcs.SetResult(true);
-                });
+                },
+                TaskContinuationOptions.ExecuteSynchronously);
             return tcs.Task;
         }
 
@@ -348,7 +350,9 @@ namespace WorkflowsCore
                         // ReSharper disable once PossibleNullReferenceException
                         // ReSharper disable once MethodSupportsCancellation
                         Task.WhenAll(tasks)
-                            .ContinueWith(t => tcs.SetException(faultedTask.Exception.GetBaseException()));
+                            .ContinueWith(
+                                t => tcs.SetException(faultedTask.Exception.GetBaseException()),
+                                TaskContinuationOptions.ExecuteSynchronously);
                         return;
                     }
 
@@ -376,7 +380,8 @@ namespace WorkflowsCore
                                 }
 
                                 tcs.SetResult(((Dictionary<int, int>)tcs.Task.AsyncState)[completedTask.Id]);
-                            });
+                            },
+                            TaskContinuationOptions.ExecuteSynchronously);
                         return;
                     }
 
