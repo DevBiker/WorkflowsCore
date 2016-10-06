@@ -333,6 +333,16 @@ namespace WorkflowsCore
 
         void IWorkflowData.SetTransientData(IReadOnlyDictionary<string, object> newData) => SetTransientData(newData);
 
+        internal Task ClearTimesExecutedAsync(string action)
+        {
+            return DoWorkflowTaskAsync(
+                () =>
+                {
+                    ClearTimesExecuted(action);
+                    SaveWorkflowData();
+                });
+        }
+
         protected internal bool WasExecuted(string action) => TimesExecuted(action) > 0;
 
         protected NamedValues GetActionMetadata(string action) => GetActionDefinition(action).Metadata;

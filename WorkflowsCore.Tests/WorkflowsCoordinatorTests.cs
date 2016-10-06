@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
@@ -29,7 +30,7 @@ namespace WorkflowsCore.Tests
         }
 
         [TestMethod]
-        public void AddWorkflowShouldAddWorkflow()
+        public async Task AddWorkflowShouldAddWorkflow()
         {
             var workflow = new TestWorkflow();
             _workflowsCoordinator.RegisterWorkflowDependency(
@@ -37,21 +38,21 @@ namespace WorkflowsCore.Tests
                 TestWorkflow.Action1,
                 WorkflowNames.Name2,
                 (s, d) => Task.CompletedTask);
-            _workflowsCoordinator.AddWorkflow(WorkflowNames.Name1, workflow);
+            await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name1, workflow);
             var newWorkflow = _workflowsCoordinator.GetWorkflow(WorkflowNames.Name1);
             Assert.AreSame(workflow, newWorkflow);
         }
 
         [TestMethod]
         [ExpectedException(typeof(InvalidOperationException))]
-        public void WorkflowWithSameNameCannotBeAddedTwice()
+        public async Task WorkflowWithSameNameCannotBeAddedTwice()
         {
-            _workflowsCoordinator.AddWorkflow(WorkflowNames.Name1, new TestWorkflow());
-            _workflowsCoordinator.AddWorkflow(WorkflowNames.Name1, new TestWorkflow());
+            await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name1, new TestWorkflow());
+            await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name1, new TestWorkflow());
         }
 
         [TestMethod]
-        public void IfActionOnSrcWorkflowIsExecutedForRegisteredDependencyThenDependencyHandlerShouldBeCalled()
+        public async Task IfActionOnSrcWorkflowIsExecutedForRegisteredDependencyThenDependencyHandlerShouldBeCalled()
         {
             var srcWorkflow = new TestWorkflow();
             var dstWorkflow = new TestWorkflow();
@@ -66,16 +67,16 @@ namespace WorkflowsCore.Tests
                     return d.ExecuteActionAsync(TestWorkflow.Action2);
                 });
 
-            _workflowsCoordinator.AddWorkflow(WorkflowNames.Name1, srcWorkflow);
-            _workflowsCoordinator.AddWorkflow(WorkflowNames.Name2, dstWorkflow);
-
             srcWorkflow.StartWorkflow();
             dstWorkflow.StartWorkflow();
-            srcWorkflow.ExecuteActionAsync(TestWorkflow.Action1).WaitWithTimeout(100).Wait();
-            dstWorkflow.WaitForState(WorkflowStates.State2).WaitWithTimeout(100).Wait();
+            await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name1, srcWorkflow);
+            await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name2, dstWorkflow);
 
-            srcWorkflow.CompletedTask.Wait();
-            dstWorkflow.CompletedTask.Wait();
+            await srcWorkflow.ExecuteActionAsync(TestWorkflow.Action1).WaitWithTimeout(100);
+            await dstWorkflow.WaitForState(WorkflowStates.State2).WaitWithTimeout(100);
+
+            await srcWorkflow.CompletedTask;
+            await dstWorkflow.CompletedTask;
         }
 
         [TestMethod]
@@ -83,7 +84,7 @@ namespace WorkflowsCore.Tests
         {
             var srcWorkflow = new TestWorkflow();
             var dstWorkflow = new TestWorkflow();
-            var called = false;
+            var called = 1;
             _workflowsCoordinator.RegisterWorkflowDependency(
                 WorkflowNames.Name1,
                 TestWorkflow.Action1,
@@ -96,20 +97,80 @@ namespace WorkflowsCore.Tests
                 {
                     Assert.AreSame(srcWorkflow, s);
                     Assert.AreSame(dstWorkflow, d);
-                    called = true;
+                    Interlocked.Exchange(ref called, 1);
                     return Task.CompletedTask;
                 });
 
-            _workflowsCoordinator.AddWorkflow(WorkflowNames.Name1, srcWorkflow);
-            _workflowsCoordinator.AddWorkflow(WorkflowNames.Name2, dstWorkflow);
+            srcWorkflow.StartWorkflow();
+            dstWorkflow.StartWorkflow();
+            await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name1, srcWorkflow);
+            await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name2, dstWorkflow);
 
-            _workflowsCoordinator.CancelWorkflow(WorkflowNames.Name1);
-            await Task.Delay(10);
-            Assert.IsTrue(called);
+            await _workflowsCoordinator.CancelWorkflowAsync(WorkflowNames.Name1);
+            await Task.Delay(30);
+            Assert.AreEqual(1, called);
         }
 
         [TestMethod]
-        public void IfActionOnSrcWorkflowWasExecutedForRegisteredDependencyBeforeWorkflowAddedThenDependencyHandlerShouldBeCalled()
+        [ExpectedException(typeof(ArgumentException))]
+        public void CannotRegisterTwoCancelHandlers()
+        {
+            _workflowsCoordinator.RegisterWorkflowDependency(
+                WorkflowNames.Name1,
+                TestWorkflow.Action1,
+                WorkflowNames.Name2,
+                (s, d) =>
+                {
+                    throw new NotImplementedException();
+                },
+                (s, d) =>
+                {
+                    throw new NotImplementedException();
+                },
+                onSrcWorkflowCanceledClearTimesExecutedForAction: "SomeAction");
+        }
+
+        [TestMethod]
+        public async Task IfSrcWorkflowIsCanceledForRegisteredDependencyThenTimesExecutedShouldBeClearedIfActionToClearSpecified()
+        {
+            var srcWorkflow = new TestWorkflow();
+            var dstWorkflow = new TestWorkflow();
+            _workflowsCoordinator.RegisterWorkflowDependency(
+                WorkflowNames.Name1,
+                TestWorkflow.Action1,
+                WorkflowNames.Name2,
+                (s, d) => d.ExecuteActionAsync(TestWorkflow.Action2),
+                onSrcWorkflowCanceledClearTimesExecutedForAction: TestWorkflow.Action2);
+
+            srcWorkflow.StartWorkflow();
+            dstWorkflow.StartWorkflow();
+            await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name1, srcWorkflow);
+            await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name2, dstWorkflow);
+
+            await srcWorkflow.ExecuteActionAsync(TestWorkflow.Action1).WaitWithTimeout(100);
+            await dstWorkflow.WaitForState(WorkflowStates.State2).WaitWithTimeout(100);
+
+            await _workflowsCoordinator.CancelWorkflowAsync(WorkflowNames.Name1);
+
+            var wasExecuted = await srcWorkflow.DoWorkflowTaskAsync(
+                () => dstWorkflow.WasExecuted(TestWorkflow.Action2),
+                forceExecution: true);
+
+            Assert.AreEqual(false, wasExecuted);
+
+            try
+            {
+                await srcWorkflow.CompletedTask;
+            }
+            catch (TaskCanceledException)
+            {
+            }
+
+            await dstWorkflow.CompletedTask;
+        }
+
+        [TestMethod]
+        public async Task IfActionOnSrcWorkflowWasExecutedForRegisteredDependencyBeforeWorkflowAddedThenDependencyHandlerShouldBeCalled()
         {
             var srcWorkflow = new TestWorkflow();
             var dstWorkflow = new TestWorkflow();
@@ -124,51 +185,52 @@ namespace WorkflowsCore.Tests
                     return d.ExecuteActionAsync(TestWorkflow.Action2);
                 });
 
-            _workflowsCoordinator.AddWorkflow(WorkflowNames.Name1, srcWorkflow);
+            await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name1, srcWorkflow);
 
             srcWorkflow.StartWorkflow();
-            srcWorkflow.ExecuteActionAsync(TestWorkflow.Action1).WaitWithTimeout(100).Wait();
+            await srcWorkflow.ExecuteActionAsync(TestWorkflow.Action1).WaitWithTimeout(100);
+            await srcWorkflow.WaitForState(WorkflowStates.State1).WaitWithTimeout(100);
 
             dstWorkflow.StartWorkflow();
-            _workflowsCoordinator.AddWorkflow(WorkflowNames.Name2, dstWorkflow);
-            dstWorkflow.WaitForState(WorkflowStates.State2).WaitWithTimeout(100).Wait();
+            await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name2, dstWorkflow);
+            await dstWorkflow.WaitForState(WorkflowStates.State2).WaitWithTimeout(100);
 
-            srcWorkflow.CompletedTask.Wait();
-            dstWorkflow.CompletedTask.Wait();
+            await srcWorkflow.CompletedTask;
+            await dstWorkflow.CompletedTask;
         }
 
         [TestMethod]
-        public void IfActionOnSrcWorkflowWasExecutedForRegisteredDependencyBeforeWorkflowAddedThenDependencyHandlerShouldNotBeCalledIfInitializeDependenciesIsFalse()
+        public async Task IfActionOnSrcWorkflowWasExecutedForRegisteredDependencyBeforeWorkflowAddedThenDependencyHandlerShouldNotBeCalledIfInitializeDependenciesIsFalse()
         {
             var srcWorkflow = new TestWorkflow();
             var dstWorkflow = new TestWorkflow();
-            var dependencyHandlerWasCalled = false;
+            var dependencyHandlerWasCalled = 1;
             _workflowsCoordinator.RegisterWorkflowDependency(
                 WorkflowNames.Name1,
                 TestWorkflow.Action1,
                 WorkflowNames.Name2,
                 (s, d) =>
                 {
-                    dependencyHandlerWasCalled = true;
+                    Interlocked.Exchange(ref dependencyHandlerWasCalled, 1);
                     return Task.CompletedTask;
                 });
 
-            _workflowsCoordinator.AddWorkflow(WorkflowNames.Name1, srcWorkflow);
+            await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name1, srcWorkflow);
 
             srcWorkflow.StartWorkflow();
-            srcWorkflow.ExecuteActionAsync(TestWorkflow.Action1).WaitWithTimeout(100).Wait();
+            await srcWorkflow.ExecuteActionAsync(TestWorkflow.Action1).WaitWithTimeout(100);
 
             dstWorkflow.StartWorkflow();
-            _workflowsCoordinator.AddWorkflow(WorkflowNames.Name2, dstWorkflow, initializeDependencies: false);
+            await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name2, dstWorkflow, initializeDependencies: false);
 
-            srcWorkflow.CompletedTask.Wait();
-            dstWorkflow.CompletedTask.Wait();
+            await srcWorkflow.CompletedTask;
+            await dstWorkflow.CompletedTask;
 
-            Assert.IsFalse(dependencyHandlerWasCalled);
+            Assert.AreEqual(1, dependencyHandlerWasCalled);
         }
 
         [TestMethod]
-        public void IfSrcWorkflowEntersRequiredStateForRegisteredDependencyThenDependencyHandlerShouldBeCalled()
+        public async Task IfSrcWorkflowEntersRequiredStateForRegisteredDependencyThenDependencyHandlerShouldBeCalled()
         {
             var srcWorkflow = new TestWorkflow();
             var dstWorkflow = new TestWorkflow();
@@ -183,16 +245,16 @@ namespace WorkflowsCore.Tests
                     return d.ExecuteActionAsync(TestWorkflow.Action2);
                 });
 
-            _workflowsCoordinator.AddWorkflow(WorkflowNames.Name1, srcWorkflow);
-            _workflowsCoordinator.AddWorkflow(WorkflowNames.Name2, dstWorkflow);
-
             srcWorkflow.StartWorkflow();
             dstWorkflow.StartWorkflow();
-            srcWorkflow.ExecuteActionAsync(TestWorkflow.Action1).WaitWithTimeout(100).Wait();
-            dstWorkflow.WaitForState(WorkflowStates.State2).WaitWithTimeout(100).Wait();
+            await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name1, srcWorkflow);
+            await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name2, dstWorkflow);
+            
+            await srcWorkflow.ExecuteActionAsync(TestWorkflow.Action1).WaitWithTimeout(100);
+            await dstWorkflow.WaitForState(WorkflowStates.State2).WaitWithTimeout(100);
 
-            srcWorkflow.CompletedTask.Wait();
-            dstWorkflow.CompletedTask.Wait();
+            await srcWorkflow.CompletedTask;
+            await dstWorkflow.CompletedTask;
         }
 
         [TestMethod]
@@ -200,7 +262,7 @@ namespace WorkflowsCore.Tests
         {
             var srcWorkflow = new TestWorkflow();
             var dstWorkflow = new TestWorkflow();
-            var called = false;
+            var called = 1;
             _workflowsCoordinator.RegisterWorkflowDependency(
                 WorkflowNames.Name1,
                 WorkflowStates.State1, 
@@ -213,20 +275,80 @@ namespace WorkflowsCore.Tests
                 {
                     Assert.AreSame(srcWorkflow, s);
                     Assert.AreSame(dstWorkflow, d);
-                    called = true;
+                    Interlocked.Exchange(ref called, 1);
                     return Task.CompletedTask;
                 });
 
-            _workflowsCoordinator.AddWorkflow(WorkflowNames.Name1, srcWorkflow);
-            _workflowsCoordinator.AddWorkflow(WorkflowNames.Name2, dstWorkflow);
+            srcWorkflow.StartWorkflow();
+            dstWorkflow.StartWorkflow();
+            await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name1, srcWorkflow);
+            await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name2, dstWorkflow);
 
-            _workflowsCoordinator.CancelWorkflow(WorkflowNames.Name1);
-            await Task.Delay(10);
-            Assert.IsTrue(called);
+            await _workflowsCoordinator.CancelWorkflowAsync(WorkflowNames.Name1);
+            await Task.Delay(30);
+            Assert.AreEqual(1, called);
         }
 
         [TestMethod]
-        public void IfSrcWorkflowEnteredRequiredStateForRegisteredDependencyBeforeWorkflowAddedThenDependencyHandlerShouldBeCalled()
+        [ExpectedException(typeof(ArgumentException))]
+        public void CannotRegisterTwoCancelHandlersForStateDependencies()
+        {
+            _workflowsCoordinator.RegisterWorkflowDependency(
+                WorkflowNames.Name1,
+                WorkflowStates.State1,
+                WorkflowNames.Name2,
+                (s, d) =>
+                {
+                    throw new NotImplementedException();
+                },
+                (s, d) =>
+                {
+                    throw new NotImplementedException();
+                },
+                onSrcWorkflowCanceledClearTimesExecutedForAction: "SomeAction");
+        }
+
+        [TestMethod]
+        public async Task IfSrcWorkflowIsCanceledForRegisteredStateDependencyThenTimesExecutedShouldBeClearedIfActionToClearSpecified()
+        {
+            var srcWorkflow = new TestWorkflow();
+            var dstWorkflow = new TestWorkflow();
+            _workflowsCoordinator.RegisterWorkflowDependency(
+                WorkflowNames.Name1,
+                WorkflowStates.State1,
+                WorkflowNames.Name2,
+                (s, d) => d.ExecuteActionAsync(TestWorkflow.Action2),
+                onSrcWorkflowCanceledClearTimesExecutedForAction: TestWorkflow.Action2);
+
+            srcWorkflow.StartWorkflow();
+            dstWorkflow.StartWorkflow();
+            await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name1, srcWorkflow);
+            await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name2, dstWorkflow);
+
+            await srcWorkflow.ExecuteActionAsync(TestWorkflow.Action1).WaitWithTimeout(100);
+            await dstWorkflow.WaitForState(WorkflowStates.State2).WaitWithTimeout(100);
+
+            await _workflowsCoordinator.CancelWorkflowAsync(WorkflowNames.Name1);
+
+            var wasExecuted = await srcWorkflow.DoWorkflowTaskAsync(
+                () => dstWorkflow.WasExecuted(TestWorkflow.Action2),
+                forceExecution: true);
+
+            Assert.AreEqual(false, wasExecuted);
+
+            try
+            {
+                await srcWorkflow.CompletedTask;
+            }
+            catch (TaskCanceledException)
+            {
+            }
+
+            await dstWorkflow.CompletedTask;
+        }
+
+        [TestMethod]
+        public async Task IfSrcWorkflowEnteredRequiredStateForRegisteredDependencyBeforeWorkflowAddedThenDependencyHandlerShouldBeCalled()
         {
             var srcWorkflow = new TestWorkflow();
             var dstWorkflow = new TestWorkflow();
@@ -241,22 +363,22 @@ namespace WorkflowsCore.Tests
                     return d.ExecuteActionAsync(TestWorkflow.Action2);
                 });
 
-            _workflowsCoordinator.AddWorkflow(WorkflowNames.Name1, srcWorkflow);
+            await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name1, srcWorkflow);
 
             srcWorkflow.StartWorkflow();            
-            srcWorkflow.ExecuteActionAsync(TestWorkflow.Action1).WaitWithTimeout(100).Wait();
-            srcWorkflow.WaitForState(WorkflowStates.State1).WaitWithTimeout(100).Wait();
+            await srcWorkflow.ExecuteActionAsync(TestWorkflow.Action1).WaitWithTimeout(100);
+            await srcWorkflow.WaitForState(WorkflowStates.State1).WaitWithTimeout(100);
 
             dstWorkflow.StartWorkflow();
-            _workflowsCoordinator.AddWorkflow(WorkflowNames.Name2, dstWorkflow);
-            dstWorkflow.WaitForState(WorkflowStates.State2).WaitWithTimeout(100).Wait();
+            await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name2, dstWorkflow);
+            await dstWorkflow.WaitForState(WorkflowStates.State2).WaitWithTimeout(100);
 
-            srcWorkflow.CompletedTask.Wait();
-            dstWorkflow.CompletedTask.Wait();
+            await srcWorkflow.CompletedTask;
+            await dstWorkflow.CompletedTask;
         }
 
         [TestMethod]
-        public void UnhandledExceptionEventShouldBeFiredInCaseOfUnhandledException()
+        public async Task UnhandledExceptionEventShouldBeFiredInCaseOfUnhandledException()
         {
             var srcWorkflow = new TestWorkflow();
             var dstWorkflow = new TestWorkflow();
@@ -271,17 +393,17 @@ namespace WorkflowsCore.Tests
                     throw new InvalidOperationException();
                 });
 
-            _workflowsCoordinator.AddWorkflow(WorkflowNames.Name1, srcWorkflow);
-            _workflowsCoordinator.AddWorkflow(WorkflowNames.Name2, dstWorkflow);
-
-            Assert.IsNull(exception);
             srcWorkflow.StartWorkflow();
             dstWorkflow.StartWorkflow();
-            srcWorkflow.ExecuteActionAsync(TestWorkflow.Action1).WaitWithTimeout(100).Wait();
-            Task.Delay(10).Wait();
+            await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name1, srcWorkflow);
+            await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name2, dstWorkflow);
 
-            srcWorkflow.CompletedTask.Wait();
-            dstWorkflow.CompletedTask.Wait();
+            Assert.IsNull(exception);
+            await srcWorkflow.ExecuteActionAsync(TestWorkflow.Action1).WaitWithTimeout(100);
+            await Task.Delay(10);
+
+            await srcWorkflow.CompletedTask;
+            await dstWorkflow.CompletedTask;
 
             // ReSharper disable once IsExpressionAlwaysTrue
             Assert.IsTrue(exception is InvalidOperationException);
@@ -296,6 +418,9 @@ namespace WorkflowsCore.Tests
                 : base(() => new WorkflowRepository())
             {
             }
+
+            // ReSharper disable once UnusedParameter.Local
+            public new bool WasExecuted(string action) => base.WasExecuted(action);
 
             protected override void OnInit()
             {
@@ -314,7 +439,7 @@ namespace WorkflowsCore.Tests
             protected override Task RunAsync()
             {
                 SetState(WorkflowStates.None);
-                return Task.Delay(20);
+                return Task.Delay(30);
             }
         }
 
@@ -335,7 +460,6 @@ namespace WorkflowsCore.Tests
 
             public void MarkWorkflowAsCanceled(WorkflowBase workflow)
             {
-                throw new NotImplementedException();
             }
 
             public void MarkWorkflowAsSleeping(WorkflowBase workflow)
