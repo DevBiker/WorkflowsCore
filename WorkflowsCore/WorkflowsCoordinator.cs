@@ -42,7 +42,7 @@ namespace WorkflowsCore
             if (onSrcWorkflowCanceledClearTimesExecutedForAction != null)
             {
                 onSrcWorkflowCanceled =
-                    (src, dst) => dst.ClearTimesExecutedAsync(onSrcWorkflowCanceledClearTimesExecutedForAction);
+                    (src, dst) => dst?.ClearTimesExecutedAsync(onSrcWorkflowCanceledClearTimesExecutedForAction);
             }
 
             var srcWorkflowDefinition = GetWorkflowDefinition(srcWorkflowName);
@@ -76,7 +76,7 @@ namespace WorkflowsCore
             if (onSrcWorkflowCanceledClearTimesExecutedForAction != null)
             {
                 onSrcWorkflowCanceled =
-                    (src, dst) => dst.ClearTimesExecutedAsync(onSrcWorkflowCanceledClearTimesExecutedForAction);
+                    (src, dst) => dst?.ClearTimesExecutedAsync(onSrcWorkflowCanceledClearTimesExecutedForAction);
             }
 
             var srcWorkflowDefinition = GetWorkflowDefinition(srcWorkflowName);
