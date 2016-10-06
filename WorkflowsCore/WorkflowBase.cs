@@ -349,7 +349,15 @@ namespace WorkflowsCore
 
         protected void SaveWorkflowData() => _workflowRepoFactory().SaveWorkflowData(this);
 
-        protected virtual void OnInit() => SetData(nameof(ActionStats), new Dictionary<string, int>());
+        protected virtual void OnInit()
+        {
+            SetData(nameof(ActionStats), new Dictionary<string, int>());
+            OnActionsInit();
+        }
+
+        protected virtual void OnActionsInit()
+        {
+        }
 
         protected virtual void OnCreated()
         {

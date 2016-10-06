@@ -69,7 +69,7 @@ namespace WorkflowsCore
             SetData(nameof(StatesHistory), new List<TState>());
             SetData(nameof(FullStatesHistory), new List<Tuple<TState, DateTime>>());
             SetData(nameof(StatesStats), new Dictionary<TState, StateStats>());
-            OnStatesInit(); // TODO: Actions should be configured before states
+            OnStatesInit();
         }
 
         protected override void OnLoaded()
