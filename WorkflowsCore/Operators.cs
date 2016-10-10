@@ -121,6 +121,23 @@ namespace WorkflowsCore
             return tcs.Task;
         }
 
+        public static async Task WaitForActionWithWasExecutedCheck(this WorkflowBase workflow, string action)
+        {
+            var currentCancellationToken = Utilities.CurrentCancellationToken;
+            if (currentCancellationToken.IsCancellationRequested)
+            {
+                await Task.FromCanceled(currentCancellationToken);
+            }
+
+            var wasExecuted = await workflow.RunViaWorkflowTaskScheduler(() => workflow.WasExecuted(action));
+            if (wasExecuted)
+            {
+                return;
+            }
+
+            await workflow.WaitForAction(action);
+        }
+
         public static Task WaitForAction<TState>(
             this WorkflowBase<TState> workflow,
             string action,

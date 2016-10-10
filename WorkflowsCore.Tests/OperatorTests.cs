@@ -299,6 +299,23 @@ namespace WorkflowsCore.Tests
         }
 
         [TestMethod]
+        public async Task WaitForActionWithCheckWasExecutedShouldReturnImmediatelyIfActionWasExecutedBefore()
+        {
+            var testWorkflow = new TestWorkflow(new CancellationTokenSource(100).Token, doInit: false);
+            testWorkflow.StartWorkflow();
+            await testWorkflow.DoWorkflowTaskAsync(
+                async w =>
+                {
+                    await testWorkflow.ExecuteActionAsync("Contacted");
+                    await testWorkflow.WaitForActionWithWasExecutedCheck("Contacted");
+
+                    Assert.AreEqual("Contacted", testWorkflow.Action);
+                }).Unwrap();
+
+            await testWorkflow.CompletedTask;
+        }
+
+        [TestMethod]
         public async Task WaitForActionShouldReturnImmediatelyIfStateIsSpecifiedAndThatStateIsFirstInStatesHistory()
         {
             var testWorkflow = new TestWorkflowWithState(
