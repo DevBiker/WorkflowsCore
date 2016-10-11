@@ -258,11 +258,11 @@ namespace WorkflowsCore.Tests
             _workflow.SetState(States.Due);
             Assert.IsFalse(_workflow.IsRestoringState);
             Assert.AreEqual(TaskStatus.RanToCompletion, _workflow.StateInitializedTask.Status);
-            Assert.AreEqual(0, _workflowRepo.SaveWorkflowDataCounter);
+            Assert.AreEqual(1, _workflowRepo.SaveWorkflowDataCounter);
             Assert.IsTrue(
                 new List<States> { States.Outstanding, States.Due }.SequenceEqual(_workflow.StatesHistory));
             _workflow.SetState(States.Contacted);
-            Assert.AreEqual(1, _workflowRepo.SaveWorkflowDataCounter);
+            Assert.AreEqual(2, _workflowRepo.SaveWorkflowDataCounter);
         }
 
         [TestMethod]
@@ -354,12 +354,17 @@ namespace WorkflowsCore.Tests
             protected override void OnInit()
             {
                 base.OnInit();
+
+                StateChanged += OnStateChanged;
+            }
+
+            protected override void OnActionsInit()
+            {
+                base.OnActionsInit();
                 ConfigureAction("Outstanding Action 1", synonyms: new[] { "Outstanding 1" });
                 ConfigureAction("Outstanding Action 2");
                 ConfigureAction("Due Action 1");
                 ConfigureAction("Contacted Action 1");
-
-                StateChanged += OnStateChanged;
             }
 
             protected override void OnStatesInit()

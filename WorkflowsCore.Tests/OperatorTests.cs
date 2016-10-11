@@ -563,7 +563,6 @@ namespace WorkflowsCore.Tests
         private sealed class TestWorkflow : WorkflowBase
         {
             public TestWorkflow()
-                : this(() => null)
             {
             }
 

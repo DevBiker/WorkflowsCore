@@ -29,6 +29,11 @@ namespace WorkflowsCore
         private Exception _exception;
         private bool _wasStared;
 
+        protected WorkflowBase()
+            : this(null, true)
+        {
+        }
+
         protected WorkflowBase(Func<IWorkflowStateRepository> workflowRepoFactory)
             : this(workflowRepoFactory, true)
         {
@@ -49,7 +54,7 @@ namespace WorkflowsCore
             _concurrentExclusiveSchedulerPair = Utilities.WorkflowsTaskScheduler == null
                 ? new ConcurrentExclusiveSchedulerPair()
                 : new ConcurrentExclusiveSchedulerPair(Utilities.WorkflowsTaskScheduler);
-            _workflowRepoFactory = workflowRepoFactory;
+            _workflowRepoFactory = workflowRepoFactory ?? (() => new DummyWorkflowStateRepository());
             if (isStateInitializedImmediatelyAfterStart)
             {
                 StateInitializedTask = StartedTask;
@@ -130,36 +135,41 @@ namespace WorkflowsCore
                 DoWorkflowTaskAsync(
                     w =>
                     {
-                        try
+                        var wasCreated = false;
+                        if (initialWorkflowData != null)
                         {
-                            if (initialWorkflowData != null)
-                            {
-                                w.SetData(initialWorkflowData);
-                            }
-
-                            OnInit();
-
-                            if (loadedWorkflowData == null)
-                            {
-                                OnCreated();
-                                SaveWorkflowData();
-                            }
-                            else
-                            {
-                                if (id != null)
-                                {
-                                    Id = id;
-                                }
-
-                                w.SetData(loadedWorkflowData);
-                                OnLoaded();
-                            }
-
-                            beforeWorkflowStarted?.Invoke();
+                            w.SetData(initialWorkflowData);
                         }
-                        finally
+
+                        OnInit();
+
+                        if (loadedWorkflowData == null)
                         {
-                            _startedTaskCompletionSource.TrySetResult(true);
+                            wasCreated = true;
+                            OnCreated();
+                            SaveWorkflowData();
+                        }
+                        else
+                        {
+                            if (id != null)
+                            {
+                                Id = id;
+                            }
+
+                            w.SetData(loadedWorkflowData);
+                            OnLoaded();
+                        }
+
+                        beforeWorkflowStarted?.Invoke();
+
+                        if (!_startedTaskCompletionSource.TrySetResult(true))
+                        {
+                            return Task.CompletedTask;
+                        }
+
+                        if (!wasCreated && ReferenceEquals(StateInitializedTask, StartedTask))
+                        {
+                            SaveWorkflowData();
                         }
 
                         return RunAsync();
@@ -412,7 +422,10 @@ namespace WorkflowsCore
                 throw new InvalidOperationException();
             }
 
-            StateInitializedTaskCompletionSource.TrySetResult(true);
+            if (StateInitializedTaskCompletionSource.TrySetResult(true))
+            {
+                SaveWorkflowData();
+            }
         }
 
         protected void ConfigureAction(
@@ -740,6 +753,33 @@ namespace WorkflowsCore
             public IList<string> Synonyms { get; set; }
 
             public bool IsHidden { get; set; }
+        }
+
+        private class DummyWorkflowStateRepository : IWorkflowStateRepository
+        {
+            public void SaveWorkflowData(WorkflowBase workflow)
+            {
+            }
+
+            public void MarkWorkflowAsCompleted(WorkflowBase workflow)
+            {
+            }
+
+            public void MarkWorkflowAsFailed(WorkflowBase workflow, Exception exception)
+            {
+            }
+
+            public void MarkWorkflowAsCanceled(WorkflowBase workflow)
+            {
+            }
+
+            public void MarkWorkflowAsSleeping(WorkflowBase workflow)
+            {
+            }
+
+            public void MarkWorkflowAsInProgress(WorkflowBase workflow)
+            {
+            }
         }
     }
 }

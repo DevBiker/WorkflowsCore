@@ -166,7 +166,7 @@ namespace WorkflowsCore
             UpdateFullStatesHistory(state);
             stateDefinition.Handler(IsRestoringState);
             UpdateStatesStatsAndHistory(state, stateDefinition);
-            if (!IsRestoringState)
+            if (!IsRestoringState && StateInitializedTask.Status == TaskStatus.RanToCompletion)
             {
                 SaveWorkflowData();
             }

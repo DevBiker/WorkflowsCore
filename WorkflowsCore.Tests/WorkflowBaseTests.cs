@@ -31,14 +31,14 @@ namespace WorkflowsCore.Tests
         }
 
         [TestMethod]
-        public async Task StartedTaskShouldBeCompletedEvenIfStartingIsFailed()
+        public async Task StartedTaskShouldBeCanceledIfStartingIsFailed()
         {
             Assert.AreNotEqual(TaskStatus.RanToCompletion, _workflow.StartedTask.Status);
             _workflow.StartWorkflow(
                 initialWorkflowData: new Dictionary<string, object>(),
                 beforeWorkflowStarted: () => { throw new InvalidOperationException(); });
             await Task.WhenAny(_workflow.StartedTask, Task.Delay(100));
-            Assert.AreEqual(TaskStatus.RanToCompletion, _workflow.StartedTask.Status);
+            Assert.AreEqual(TaskStatus.Canceled, _workflow.StartedTask.Status);
         }
 
         [TestMethod]
@@ -211,77 +211,70 @@ namespace WorkflowsCore.Tests
         [TestMethod]
         public async Task ConfiguredActionShouldBeExecutedOnRequest()
         {
-            var workflow = new TestWorkflow(() => _workflowRepo);
-            workflow.ConfigureAction("Action 1", () => 2);
-            workflow.StartWorkflow();
-            var res = await workflow.ExecuteActionAsync<int>("Action 1");
+            _workflow.ConfigureAction("Action 1", () => 2);
+            _workflow.StartWorkflow();
+            var res = await _workflow.ExecuteActionAsync<int>("Action 1");
             Assert.AreEqual(2, res);
-            await workflow.CompletedTask;
+            await _workflow.CompletedTask;
         }
 
         [TestMethod]
         public async Task ConfiguredActionHandlerShouldBeInvokedWithPassedParameters()
         {
-            var workflow = new TestWorkflow(() => _workflowRepo);
             NamedValues invocationParameters = null;
-            workflow.ConfigureAction("Action 1", p => invocationParameters = p, synonym: "Action Synonym");
-            workflow.StartWorkflow();
+            _workflow.ConfigureAction("Action 1", p => invocationParameters = p, synonym: "Action Synonym");
+            _workflow.StartWorkflow();
             var parameters = new Dictionary<string, object> { ["Id"] = 1 };
-            await workflow.ExecuteActionAsync("Action Synonym", parameters);
+            await _workflow.ExecuteActionAsync("Action Synonym", parameters);
             Assert.IsTrue(parameters.SequenceEqual(invocationParameters.Data));
-            await workflow.CompletedTask;
+            await _workflow.CompletedTask;
         }
 
         [TestMethod]
         [ExpectedException(typeof(ArgumentOutOfRangeException))]
         public async Task NonConfiguredActionsShouldThrowAoore()
         {
-            var workflow = new TestWorkflow(() => _workflowRepo);
-            workflow.ConfigureAction("Action 1", () => 2);
-            workflow.StartWorkflow();
-            await workflow.ExecuteActionAsync("Action 2");
+            _workflow.ConfigureAction("Action 1", () => 2);
+            _workflow.StartWorkflow();
+            await _workflow.ExecuteActionAsync("Action 2");
         }
 
         [TestMethod]
         [ExpectedException(typeof(InvalidOperationException))]
         public async Task IfActionNotAllowedAndThrowNotAllowedSpecifiedThenActionExecutionShouldThrowIoe()
         {
-            var workflow = new TestWorkflow(() => _workflowRepo);
-            workflow.ConfigureAction("Action 1", () => 2);
-            workflow.StartWorkflow();
-            workflow.ActionsAllowed = false;
-            await workflow.ExecuteActionAsync("Action 1");
+            _workflow.ConfigureAction("Action 1", () => 2);
+            _workflow.StartWorkflow();
+            _workflow.ActionsAllowed = false;
+            await _workflow.ExecuteActionAsync("Action 1");
         }
 
         [TestMethod]
         public async Task IfActionNotAllowedAndThrowNotAllowedDisabledThenActionExecutionShouldSkipAction()
         {
-            var workflow = new TestWorkflow(() => _workflowRepo);
-            workflow.ConfigureAction("Action 1", () => 2);
-            workflow.StartWorkflow();
-            workflow.ActionsAllowed = false;
-            await workflow.ExecuteActionAsync("Action 1", throwNotAllowed: false);
-            await workflow.CompletedTask;
+            _workflow.ConfigureAction("Action 1", () => 2);
+            _workflow.StartWorkflow();
+            _workflow.ActionsAllowed = false;
+            await _workflow.ExecuteActionAsync("Action 1", throwNotAllowed: false);
+            await _workflow.CompletedTask;
         }
 
         [TestMethod]
         [ExpectedException(typeof(InvalidOperationException))]
         public void ConfiguringTheSameActionMultipleTimesShouldThrowIoe()
         {
-            var workflow = new TestWorkflow(() => _workflowRepo);
-            workflow.ConfigureAction("Action 1", () => 2);
-            workflow.ConfigureAction("Action 1", () => 3);
+            _workflow.ConfigureAction("Action 1", () => 2);
+            _workflow.ConfigureAction("Action 1", () => 3);
         }
 
         [TestMethod]
         public async Task ActionCouldBeInvokedViaSynonym()
         {
-            var workflow = new TestWorkflow(() => _workflowRepo);
-            workflow.ConfigureAction("Action 1", () => 3, synonyms: new[] { "Action First" });
-            workflow.StartWorkflow();
-            var res = await workflow.ExecuteActionAsync<int>("Action First");
+            _workflow.ConfigureAction("Action 1", () => 3, synonyms: new[] { "Action First" });
+            _workflow.StartWorkflow();
+            var res = await _workflow.ExecuteActionAsync<int>("Action First");
             Assert.AreEqual(3, res);
-            await workflow.CompletedTask;
+            await _workflow.CompletedTask;
         }
 
         [TestMethod]
@@ -301,54 +294,50 @@ namespace WorkflowsCore.Tests
         [TestMethod]
         public async Task GetAvailableActionsShouldReturnActionsInOrderOfConfiguringOfThem()
         {
-            var workflow = new TestWorkflow(() => _workflowRepo);
-            workflow.ConfigureAction("Action 1", () => 1);
-            workflow.ConfigureAction("Action 2", () => 2);
-            workflow.ConfigureAction("Action 0", () => 0);
-            workflow.StartWorkflow();
-            var res = await workflow.GetAvailableActionsAsync();
+            _workflow.ConfigureAction("Action 1", () => 1);
+            _workflow.ConfigureAction("Action 2", () => 2);
+            _workflow.ConfigureAction("Action 0", () => 0);
+            _workflow.StartWorkflow();
+            var res = await _workflow.GetAvailableActionsAsync();
             Assert.IsTrue(res.SequenceEqual(new[] { "Action 1", "Action 2", "Action 0" }));
-            await workflow.CompletedTask;
+            await _workflow.CompletedTask;
         }
 
         [TestMethod]
         public async Task GetAvailableActionsShouldSkipNotAllowedActions()
         {
-            var workflow = new TestWorkflow(() => _workflowRepo);
-            workflow.ConfigureAction("Action 1", () => 1);
-            workflow.ConfigureAction("Action 2", () => 2);
-            workflow.ConfigureAction("Action 0", () => 0);
-            workflow.NotAllowedAction = "Action 2";
-            workflow.StartWorkflow();
-            var res = await workflow.GetAvailableActionsAsync();
+            _workflow.ConfigureAction("Action 1", () => 1);
+            _workflow.ConfigureAction("Action 2", () => 2);
+            _workflow.ConfigureAction("Action 0", () => 0);
+            _workflow.NotAllowedAction = "Action 2";
+            _workflow.StartWorkflow();
+            var res = await _workflow.GetAvailableActionsAsync();
             Assert.IsTrue(res.SequenceEqual(new[] { "Action 1", "Action 0" }));
-            await workflow.CompletedTask;
+            await _workflow.CompletedTask;
         }
 
         [TestMethod]
         public async Task GetAvailableActionsShouldNotReturnSynonyms()
         {
-            var workflow = new TestWorkflow(() => _workflowRepo);
-            workflow.ConfigureAction("Action 1", () => 1, synonyms: new[] { "Action First" });
-            workflow.StartWorkflow();
-            var res = await workflow.GetAvailableActionsAsync();
+            _workflow.ConfigureAction("Action 1", () => 1, synonyms: new[] { "Action First" });
+            _workflow.StartWorkflow();
+            var res = await _workflow.GetAvailableActionsAsync();
             Assert.IsTrue(res.SequenceEqual(new[] { "Action 1" }));
-            await workflow.CompletedTask;
+            await _workflow.CompletedTask;
         }
 
         [TestMethod]
         public async Task GetAvailableActionsShouldNotReturnHiddenActions()
         {
-            var workflow = new TestWorkflow(() => _workflowRepo);
-            workflow.ConfigureAction("Action 0", () => 0);
-            workflow.ConfigureAction("Action 1", () => 1, isHidden: true);
-            workflow.ConfigureAction("Action 2", () => 2);
-            workflow.StartWorkflow();
+            _workflow.ConfigureAction("Action 0", () => 0);
+            _workflow.ConfigureAction("Action 1", () => 1, isHidden: true);
+            _workflow.ConfigureAction("Action 2", () => 2);
+            _workflow.StartWorkflow();
 
-            var res = await workflow.GetAvailableActionsAsync();
+            var res = await _workflow.GetAvailableActionsAsync();
 
             Assert.IsTrue(res.SequenceEqual(new[] { "Action 0", "Action 2" }));
-            await workflow.CompletedTask;
+            await _workflow.CompletedTask;
         }
 
         [TestMethod]
@@ -368,13 +357,12 @@ namespace WorkflowsCore.Tests
         [TestMethod]
         public void ActionMetadataIsAvailableInActionHandler()
         {
-            var workflow = new TestWorkflow(() => _workflowRepo);
-            workflow.ConfigureAction(
+            _workflow.ConfigureAction(
                 "Action 1",
                 () => 0,
                 metadata: new Dictionary<string, object> { ["Metadata1"] = "Something" });
 
-            var metadata = workflow.GetActionMetadata("Action 1");
+            var metadata = _workflow.GetActionMetadata("Action 1");
 
             Assert.IsTrue(metadata.GetData<string>("Metadata1") == "Something");
         }
@@ -382,16 +370,17 @@ namespace WorkflowsCore.Tests
         [TestMethod]
         public async Task WhenActionExecutedSaveWorkflowDataShouldBeCalled()
         {
-            var workflow = new TestWorkflow(() => _workflowRepo);
+            var workflowRepo = new WorkflowRepository();
+            var workflow = new TestWorkflow(() => workflowRepo, true);
             workflow.ConfigureAction("Action 1", () => 0);
             workflow.StartWorkflow();
 
             await workflow.StartedTask;
-            Assert.AreEqual(1, _workflowRepo.SaveWorkflowDataCounter);
+            Assert.AreEqual(1, workflowRepo.SaveWorkflowDataCounter);
 
             await workflow.ExecuteActionAsync("Action 1");
 
-            Assert.AreEqual(2, _workflowRepo.SaveWorkflowDataCounter);
+            Assert.AreEqual(2, workflowRepo.SaveWorkflowDataCounter);
             await workflow.CompletedTask;
         }
 
@@ -443,44 +432,42 @@ namespace WorkflowsCore.Tests
         [TestMethod]
         public async Task WhenActionExecutedItsCounterShouldBeIncremented()
         {
-            var workflow = new TestWorkflow(() => _workflowRepo);
-            workflow.ConfigureAction("Action 1", _ => { });
-            workflow.StartWorkflow();
+            _workflow.ConfigureAction("Action 1", _ => { });
+            _workflow.StartWorkflow();
 
-            Assert.AreEqual(false, workflow.WasExecuted("Action 1"));
-            Assert.AreEqual(0, workflow.TimesExecuted("Action 1"));
+            Assert.AreEqual(false, _workflow.WasExecuted("Action 1"));
+            Assert.AreEqual(0, _workflow.TimesExecuted("Action 1"));
 
-            await workflow.ExecuteActionAsync("Action 1");
+            await _workflow.ExecuteActionAsync("Action 1");
 
-            Assert.AreEqual(true, workflow.WasExecuted("Action 1"));
-            Assert.AreEqual(1, workflow.TimesExecuted("Action 1"));
+            Assert.AreEqual(true, _workflow.WasExecuted("Action 1"));
+            Assert.AreEqual(1, _workflow.TimesExecuted("Action 1"));
 
-            await workflow.ExecuteActionAsync("Action 1");
+            await _workflow.ExecuteActionAsync("Action 1");
 
-            Assert.AreEqual(true, workflow.WasExecuted("Action 1"));
-            Assert.AreEqual(2, workflow.TimesExecuted("Action 1"));
+            Assert.AreEqual(true, _workflow.WasExecuted("Action 1"));
+            Assert.AreEqual(2, _workflow.TimesExecuted("Action 1"));
 
-            await workflow.CompletedTask;
+            await _workflow.CompletedTask;
         }
 
         [TestMethod]
         public async Task ClearTimesExecutedShouldRestActionCounter()
         {
-            var workflow = new TestWorkflow(() => _workflowRepo);
-            workflow.ConfigureAction("Action 1", _ => { });
-            workflow.StartWorkflow();
+            _workflow.ConfigureAction("Action 1", _ => { });
+            _workflow.StartWorkflow();
 
-            await workflow.ExecuteActionAsync("Action 1");
+            await _workflow.ExecuteActionAsync("Action 1");
 
-            Assert.AreEqual(true, workflow.WasExecuted("Action 1"));
-            Assert.AreEqual(1, workflow.TimesExecuted("Action 1"));
+            Assert.AreEqual(true, _workflow.WasExecuted("Action 1"));
+            Assert.AreEqual(1, _workflow.TimesExecuted("Action 1"));
 
-            workflow.ClearTimesExecuted("Action 1");
+            _workflow.ClearTimesExecuted("Action 1");
 
-            Assert.AreEqual(false, workflow.WasExecuted("Action 1"));
-            Assert.AreEqual(0, workflow.TimesExecuted("Action 1"));
+            Assert.AreEqual(false, _workflow.WasExecuted("Action 1"));
+            Assert.AreEqual(0, _workflow.TimesExecuted("Action 1"));
 
-            await workflow.CompletedTask;
+            await _workflow.CompletedTask;
         }
 
         private sealed class TestWorkflow : WorkflowBase
