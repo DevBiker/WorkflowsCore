@@ -171,7 +171,6 @@ namespace WorkflowsCore
                 SaveWorkflowData();
             }
 
-            StateChanged?.Invoke(this, new StateChangedEventArgs(oldState, State));
             if (IsRestoringState)
             {
                 IsRestoringState = TransientStatesHistory.Any();
@@ -186,6 +185,8 @@ namespace WorkflowsCore
                 SetTransientData(nameof(StatesHistory), (IList<TState>)null);
                 SetStateInitialized();
             }
+
+            StateChanged?.Invoke(this, new StateChangedEventArgs(oldState, State));
         }
 
         protected int TimesIn(TState state, bool ignoreSuppression = false)
