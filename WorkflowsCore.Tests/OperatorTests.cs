@@ -587,9 +587,9 @@ namespace WorkflowsCore.Tests
 
             public NamedValues Parameters { get; private set; }
 
-            protected override void OnInit()
+            protected override void OnActionsInit()
             {
-                base.OnInit();
+                base.OnActionsInit();
                 ConfigureAction(
                     "Contacted",
                     p =>

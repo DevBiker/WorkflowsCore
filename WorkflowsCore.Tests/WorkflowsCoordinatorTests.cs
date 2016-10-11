@@ -422,9 +422,9 @@ namespace WorkflowsCore.Tests
             // ReSharper disable once UnusedParameter.Local
             public new bool WasExecuted(string action) => base.WasExecuted(action);
 
-            protected override void OnInit()
+            protected override void OnActionsInit()
             {
-                base.OnInit();
+                base.OnActionsInit();
                 ConfigureAction(Action1, () => SetState(WorkflowStates.State1));
                 ConfigureAction(Action2, () => SetState(WorkflowStates.State2));
             }

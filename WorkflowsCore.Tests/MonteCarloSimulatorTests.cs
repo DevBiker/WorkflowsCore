@@ -603,9 +603,9 @@ namespace WorkflowsCore.Tests
             {
             }
 
-            protected override void OnInit()
+            protected override void OnActionsInit()
             {
-                base.OnInit();
+                base.OnActionsInit();
                 ConfigureAction("Action 1");
                 ConfigureAction("Action 2");
                 ConfigureAction("Action 3");
