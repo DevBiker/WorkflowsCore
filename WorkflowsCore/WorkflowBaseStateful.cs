@@ -9,6 +9,10 @@ namespace WorkflowsCore
     public abstract class WorkflowBase<TState> : WorkflowBase
     {
         private readonly int _fullStatesHistoryLimit;
+
+        private readonly IDictionary<string, StateCategoryDefinition> _stateCategoryDefinitions =
+            new Dictionary<string, StateCategoryDefinition>();
+
         private readonly IDictionary<TState, StateDefinition> _stateDefinitions = new Dictionary<TState, StateDefinition>();
 
         protected WorkflowBase(Func<IWorkflowStateRepository> workflowRepoFactory, int fullStatesHistoryLimit = 100)
@@ -91,13 +95,30 @@ namespace WorkflowsCore
         protected override bool IsActionAllowed(string action) =>
             _stateDefinitions[State].AllowedActions.Intersect(GetActionSynonyms(action)).Any();
 
+        protected void ConfigureStateCategory(string categoryName = null, IEnumerable<string> availableActions = null)
+        {
+            categoryName = categoryName ?? string.Empty;
+            StateCategoryDefinition stateCategoryDefinition;
+            if (_stateCategoryDefinitions.TryGetValue(categoryName, out stateCategoryDefinition))
+            {
+                throw new InvalidOperationException();
+            }
+
+            _stateCategoryDefinitions[categoryName] = new StateCategoryDefinition
+            {
+                AllowedActions = availableActions?.ToList() ?? new List<string>()
+            };
+        }
+        
         protected void ConfigureState(
             TState state,
             Action onStateHandler = null,
             IEnumerable<TState> suppressStates = null,
             bool suppressAll = false,
-            IEnumerable<string> availableActions = null)
-        { // TODO: Check availableActions are all configured actions
+            IEnumerable<string> availableActions = null,
+            IEnumerable<string> disallowedActions = null,
+            IEnumerable<string> stateCategories = null)
+        {
             ConfigureState(
                 state,
                 isRestoringState =>
@@ -109,7 +130,9 @@ namespace WorkflowsCore
                 },
                 suppressStates,
                 suppressAll,
-                availableActions);
+                availableActions,
+                disallowedActions,
+                stateCategories);
         }
 
         protected void ConfigureState(
@@ -117,7 +140,9 @@ namespace WorkflowsCore
             Action<bool> onStateHandler,
             IEnumerable<TState> suppressStates = null,
             bool suppressAll = false,
-            IEnumerable<string> availableActions = null)
+            IEnumerable<string> availableActions = null,
+            IEnumerable<string> disallowedActions = null,
+            IEnumerable<string> stateCategories = null)
         {
             StateDefinition existing;
             if (_stateDefinitions.TryGetValue(state, out existing))
@@ -125,12 +150,18 @@ namespace WorkflowsCore
                 throw new InvalidOperationException();
             }
 
+            var allowedActions = GetStateCategoriesAllowedActions(stateCategories ?? Enumerable.Empty<string>())
+                .Union(availableActions ?? Enumerable.Empty<string>())
+                .Except(disallowedActions ?? Enumerable.Empty<string>())
+                .ToList();
+            EnsureActionsConfigured(allowedActions);
+
             _stateDefinitions[state] = new StateDefinition
             {
                 Handler = onStateHandler,
                 SuppressStates = suppressStates?.ToList() ?? new List<TState>(),
                 SuppressAll = suppressAll,
-                AllowedActions = availableActions?.ToList() ?? new List<string>()
+                AllowedActions = allowedActions
             };
         }
 
@@ -263,6 +294,38 @@ namespace WorkflowsCore
             StatesHistory.Add(state);
         }
 
+        private IEnumerable<string> GetStateCategoriesAllowedActions(IEnumerable<string> stateCategories) =>
+            stateCategories.Aggregate(
+                GetStateCategoryAllowedActions(),
+                (r, c) => r.Union(GetStateCategoryAllowedActions(c)));
+
+        private IEnumerable<string> GetStateCategoryAllowedActions(string categoryName = null)
+        {
+            categoryName = categoryName ?? string.Empty;
+            StateCategoryDefinition stateCategoryDefinition;
+            if (!_stateCategoryDefinitions.TryGetValue(categoryName, out stateCategoryDefinition))
+            {
+                if (categoryName != string.Empty)
+                {
+                    throw new ArgumentOutOfRangeException(
+                        nameof(categoryName),
+                        $"State category {categoryName} is not configured");
+                }
+
+                return Enumerable.Empty<string>();
+            }
+
+            return stateCategoryDefinition.AllowedActions;
+        }
+
+        private void EnsureActionsConfigured(IEnumerable<string> actions)
+        {
+            foreach (var action in actions)
+            {
+                GetActionMetadata(action);
+            }
+        }
+
         protected internal class StateChangedEventArgs : EventArgs
         {
             public StateChangedEventArgs(TState oldState, TState newState)
@@ -274,6 +337,11 @@ namespace WorkflowsCore
             public TState OldState { get; }
 
             public TState NewState { get; }
+        }
+
+        private class StateCategoryDefinition
+        {
+            public IList<string> AllowedActions { get; set; }
         }
 
         private class StateDefinition

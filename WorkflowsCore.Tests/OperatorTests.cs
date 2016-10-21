@@ -224,7 +224,7 @@ namespace WorkflowsCore.Tests
                         await testWorkflow.WaitForAny(
                             () =>
                             {
-                                task = Task.Delay(50, Utilities.CurrentCancellationToken);
+                                task = Task.Delay(100, Utilities.CurrentCancellationToken);
                                 return task;
                             });
                     }

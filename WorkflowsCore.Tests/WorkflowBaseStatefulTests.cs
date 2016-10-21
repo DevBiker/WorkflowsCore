@@ -296,6 +296,57 @@ namespace WorkflowsCore.Tests
             await _workflow.CompletedTask;
         }
 
+        [TestMethod]
+        [ExpectedException(typeof(InvalidOperationException))]
+        public void IfStateCategoryIsConfiguredSecondTimeIoeShouldBeThrown()
+        {
+            _workflow.ConfigureStateCategory("Due");
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(ArgumentOutOfRangeException))]
+        public void IfForStateUnconfiguredStateCategoryIsSpecifiedThenAoorShouldBeThrown()
+        {
+            _workflow.ConfigureState(
+                States.None,
+                () => { },
+                stateCategories: new[] { "Due 2" });
+        }
+
+        [TestMethod]
+        [ExpectedException(typeof(ArgumentOutOfRangeException))]
+        public void IfForStateUnconfiguredActionIsSpecifiedThenAoorShouldBeThrown()
+        {
+            _workflow.ConfigureState(
+                States.None,
+                () => { },
+                availableActions: new[] { "Bad action" });
+        }
+
+        [TestMethod]
+        public async Task GetAvailableActionsShouldReturnActionsConfiguredForStateCategoriesOfCurrentState()
+        {
+            _workflow = new TestWorkflow(() => _workflowRepo, doInit: false);
+            _workflow.StartWorkflow();
+            await _workflow.StartedTask;
+            _workflow.SetState(States.Due);
+            var actions = await _workflow.GetAvailableActionsAsync();
+            Assert.IsTrue(actions.SequenceEqual(new[] { "Outstanding Action 1", "Due Action 1" }));
+            await _workflow.CompletedTask;
+        }
+
+        [TestMethod]
+        public async Task GetAvailableActionsShouldIgnoreActionsDisallowedForCurrentState()
+        {
+            _workflow = new TestWorkflow(() => _workflowRepo, doInit: false);
+            _workflow.StartWorkflow();
+            await _workflow.StartedTask;
+            _workflow.SetState(States.Contacted);
+            var actions = await _workflow.GetAvailableActionsAsync();
+            Assert.IsTrue(actions.SequenceEqual(new[] { "Due Action 1" }));
+            await _workflow.CompletedTask;
+        }
+
         private sealed class TestWorkflow : WorkflowBase<States>
         {
             public TestWorkflow(Func<IWorkflowStateRepository> workflowRepoFactory, bool doInit = true) 
@@ -343,8 +394,24 @@ namespace WorkflowsCore.Tests
             public new void SetData<T>(string key, T value) => base.SetData(key, value);
 
             [SuppressMessage("ReSharper", "UnusedParameter.Local", Justification = "It is OK")]
-            public void ConfigureState(States state, Action onStateHandler) => 
-                base.ConfigureState(state, onStateHandler);
+            public new void ConfigureStateCategory(
+                string categoryName = null,
+                IEnumerable<string> availableActions = null) =>
+                    base.ConfigureStateCategory(categoryName, availableActions);
+
+            [SuppressMessage("ReSharper", "UnusedParameter.Local", Justification = "It is OK")]
+            public void ConfigureState(
+                States state,
+                Action onStateHandler,
+                IEnumerable<string> availableActions = null,
+                IEnumerable<string> stateCategories = null)
+            {
+                base.ConfigureState(
+                    state,
+                    onStateHandler,
+                    availableActions: availableActions,
+                    stateCategories: stateCategories);
+            }
 
             protected override async Task RunAsync()
             {
@@ -369,13 +436,25 @@ namespace WorkflowsCore.Tests
 
             protected override void OnStatesInit()
             {
+                ConfigureStateCategory(availableActions: new[] { "Outstanding Action 1" });
+                ConfigureStateCategory("Due", new[] { "Due Action 1" });
+
                 ConfigureState(
                     States.Outstanding,
                     OnOutstandingState,
                     suppressAll: true,
                     availableActions: new[] { "Outstanding Action 2", "Outstanding Action 1" });
-                ConfigureState(States.Due, OnDueState, suppressStates: new[] { States.Contacted });
-                ConfigureState(States.Contacted, OnContactedState, suppressStates: new[] { States.Due });
+                ConfigureState(
+                    States.Due,
+                    OnDueState,
+                    suppressStates: new[] { States.Contacted },
+                    stateCategories: new[] { "Due" });
+                ConfigureState(
+                    States.Contacted,
+                    OnContactedState,
+                    suppressStates: new[] { States.Due },
+                    disallowedActions: new[] { "Outstanding Action 1" },
+                    stateCategories: new[] { "Due" });
             }
 
             private void OnStateChanged(object sender, StateChangedEventArgs args)

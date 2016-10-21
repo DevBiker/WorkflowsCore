@@ -557,6 +557,8 @@ namespace WorkflowsCore.Tests
                 initialWorkflowData: new Dictionary<string, object> { ["NoActions"] = true, ["CompleteFast"] = true });
             await workflow.StateInitializedTask;
 
+            var state = await workflow.GetStateAsync();
+            Assert.AreEqual(States.Contacted, state);
             await new WorkflowActionsAvailabilityAwaiter<States>(workflow).Task;
 
             Assert.AreEqual(TaskStatus.RanToCompletion, workflow.CompletedTask.Status);
