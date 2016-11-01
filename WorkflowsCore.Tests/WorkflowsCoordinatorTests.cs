@@ -112,25 +112,6 @@ namespace WorkflowsCore.Tests
         }
 
         [TestMethod]
-        [ExpectedException(typeof(ArgumentException))]
-        public void CannotRegisterTwoCancelHandlers()
-        {
-            _workflowsCoordinator.RegisterWorkflowDependency(
-                WorkflowNames.Name1,
-                TestWorkflow.Action1,
-                WorkflowNames.Name2,
-                (s, d) =>
-                {
-                    throw new NotImplementedException();
-                },
-                (s, d) =>
-                {
-                    throw new NotImplementedException();
-                },
-                onSrcWorkflowCanceledClearTimesExecutedForAction: "SomeAction");
-        }
-
-        [TestMethod]
         public async Task IfSrcWorkflowIsCanceledForRegisteredDependencyThenTimesExecutedShouldBeClearedIfActionToClearSpecified()
         {
             var srcWorkflow = new TestWorkflow();
@@ -287,25 +268,6 @@ namespace WorkflowsCore.Tests
             await _workflowsCoordinator.CancelWorkflowAsync(WorkflowNames.Name1);
             await Task.Delay(30);
             Assert.AreEqual(1, called);
-        }
-
-        [TestMethod]
-        [ExpectedException(typeof(ArgumentException))]
-        public void CannotRegisterTwoCancelHandlersForStateDependencies()
-        {
-            _workflowsCoordinator.RegisterWorkflowDependency(
-                WorkflowNames.Name1,
-                WorkflowStates.State1,
-                WorkflowNames.Name2,
-                (s, d) =>
-                {
-                    throw new NotImplementedException();
-                },
-                (s, d) =>
-                {
-                    throw new NotImplementedException();
-                },
-                onSrcWorkflowCanceledClearTimesExecutedForAction: "SomeAction");
         }
 
         [TestMethod]

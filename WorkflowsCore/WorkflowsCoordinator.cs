@@ -32,18 +32,9 @@ namespace WorkflowsCore
             Func<WorkflowBase, WorkflowBase, Task> onSrcWorkflowCanceled = null,
             string onSrcWorkflowCanceledClearTimesExecutedForAction = null)
         {
-            if (onSrcWorkflowCanceled != null && onSrcWorkflowCanceledClearTimesExecutedForAction != null)
-            {
-                throw new ArgumentException(
-                    "Cannot register two cancel handlers",
-                    nameof(onSrcWorkflowCanceledClearTimesExecutedForAction));
-            }
-
-            if (onSrcWorkflowCanceledClearTimesExecutedForAction != null)
-            {
-                onSrcWorkflowCanceled =
-                    (src, dst) => dst?.ClearTimesExecutedAsync(onSrcWorkflowCanceledClearTimesExecutedForAction);
-            }
+            onSrcWorkflowCanceled = ProcessCancelHandlers(
+                onSrcWorkflowCanceled,
+                onSrcWorkflowCanceledClearTimesExecutedForAction);
 
             var srcWorkflowDefinition = GetWorkflowDefinition(srcWorkflowName);
             var dstWorkflowDefinition = GetWorkflowDefinition(dstWorkflowName);
@@ -52,7 +43,7 @@ namespace WorkflowsCore
                 srcWorkflowAction,
                 dstWorkflowDefinition,
                 dependencyHandler,
-                (src, dst) => onSrcWorkflowCanceled?.Invoke(src, dst) ?? Task.CompletedTask,
+                onSrcWorkflowCanceled,
                 OnUnhandledException);
 
             _dependencies.Add(dependency);
@@ -66,18 +57,9 @@ namespace WorkflowsCore
             Func<WorkflowBase, WorkflowBase, Task> onSrcWorkflowCanceled = null,
             string onSrcWorkflowCanceledClearTimesExecutedForAction = null)
         {
-            if (onSrcWorkflowCanceled != null && onSrcWorkflowCanceledClearTimesExecutedForAction != null)
-            {
-                throw new ArgumentException(
-                    "Cannot register two cancel handlers",
-                    nameof(onSrcWorkflowCanceledClearTimesExecutedForAction));
-            }
-
-            if (onSrcWorkflowCanceledClearTimesExecutedForAction != null)
-            {
-                onSrcWorkflowCanceled =
-                    (src, dst) => dst?.ClearTimesExecutedAsync(onSrcWorkflowCanceledClearTimesExecutedForAction);
-            }
+            onSrcWorkflowCanceled = ProcessCancelHandlers(
+                onSrcWorkflowCanceled,
+                onSrcWorkflowCanceledClearTimesExecutedForAction);
 
             var srcWorkflowDefinition = GetWorkflowDefinition(srcWorkflowName);
             var dstWorkflowDefinition = GetWorkflowDefinition(dstWorkflowName);
@@ -86,7 +68,7 @@ namespace WorkflowsCore
                 srcWorkflowState,
                 dstWorkflowDefinition,
                 dependencyHandler,
-                (src, dst) => onSrcWorkflowCanceled?.Invoke(src, dst) ?? Task.CompletedTask,
+                onSrcWorkflowCanceled,
                 OnUnhandledException);
 
             _dependencies.Add(dependency);
@@ -122,7 +104,24 @@ namespace WorkflowsCore
         public Task CancelWorkflowAsync(TWorkflowName workflowName) =>
             GetWorkflowDefinition(workflowName).CancelWorkflowAsync();
 
-        // ReSharper disable once UnusedParameter.Local
+        private static Func<WorkflowBase, WorkflowBase, Task> ProcessCancelHandlers(
+            Func<WorkflowBase, WorkflowBase, Task> onSrcWorkflowCanceled,
+            string onSrcWorkflowCanceledClearTimesExecutedForAction)
+        {
+            return async (src, dst) =>
+            {
+                if (onSrcWorkflowCanceledClearTimesExecutedForAction != null)
+                {
+                    await dst.ClearTimesExecutedAsync(onSrcWorkflowCanceledClearTimesExecutedForAction);
+                }
+
+                if (onSrcWorkflowCanceled != null)
+                {
+                    await onSrcWorkflowCanceled(src, dst);
+                }
+            };
+        }
+
         private WorkflowDefinition GetWorkflowDefinition(TWorkflowName workflowName)
         {
             WorkflowDefinition definition;
@@ -261,6 +260,12 @@ namespace WorkflowsCore
             {
                 _cancellationTokenSource.Cancel();
                 await _observerTask;
+
+                if (DstWorkflowDefinition.Workflow == null)
+                {
+                    return;
+                }
+
                 await OnSrcWorkflowCanceledHandler(SrcWorkflowDefinition.Workflow, DstWorkflowDefinition.Workflow);
             }
 
@@ -336,6 +341,12 @@ namespace WorkflowsCore
             {
                 _cancellationTokenSource.Cancel();
                 await _observerTask;
+
+                if (DstWorkflowDefinition.Workflow == null)
+                {
+                    return;
+                }
+
                 await OnSrcWorkflowCanceledHandler(SrcWorkflowDefinition.Workflow, DstWorkflowDefinition.Workflow);
             }
 
