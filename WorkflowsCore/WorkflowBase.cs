@@ -135,12 +135,11 @@ namespace WorkflowsCore
                 DoWorkflowTaskAsync(
                     w =>
                     {
+                        OnInit();
                         if (initialWorkflowData != null)
                         {
                             w.SetData(initialWorkflowData);
                         }
-
-                        OnInit();
 
                         var wasCreated = false;
                         if (loadedWorkflowData == null)
