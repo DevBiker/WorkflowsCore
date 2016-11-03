@@ -328,7 +328,7 @@ namespace WorkflowsCore
                 }).Unwrap();
         }
 
-        public Task<T> GetDataAsync<T>(string key) => DoWorkflowTaskAsync(() => GetData<T>(key));
+        public Task<T> GetDataAsync<T>(string key) => RunViaWorkflowTaskScheduler(() => GetData<T>(key));
 
         T IWorkflowData.GetData<T>(string key) => GetData<T>(key);
 
