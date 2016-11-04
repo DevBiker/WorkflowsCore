@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -206,9 +205,8 @@ namespace WorkflowsCore.Tests
         [Fact]
         public async Task DoWorkflowTaskShouldExecuteTaskEvenIfWorkflowIsInCacellationIfForceIsSpecified()
         {
-            var cts = new CancellationTokenSource();
-            var workflow = new TestWorkflow(() => _workflowRepo, cts.Token);
-            cts.Cancel();
+            var workflow = new TestWorkflow(() => _workflowRepo);
+            workflow.CancelWorkflow();
             await workflow.DoWorkflowTaskAsync(_ => { }, true);
             await workflow.DoWorkflowTaskAsync(_ => 1, true);
         }
@@ -486,9 +484,8 @@ namespace WorkflowsCore.Tests
         private sealed class TestWorkflow : WorkflowBase
         {
             public TestWorkflow(
-                Func<IWorkflowStateRepository> workflowRepoFactory,
-                CancellationToken parentCancellationToken = default(CancellationToken))
-                : base(workflowRepoFactory, false, parentCancellationToken)
+                Func<IWorkflowStateRepository> workflowRepoFactory)
+                : base(workflowRepoFactory, false)
             {
                 OnInit();
                 SetStateInitialized();
