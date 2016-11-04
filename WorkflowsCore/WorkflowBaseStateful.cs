@@ -15,6 +15,12 @@ namespace WorkflowsCore
 
         private readonly IDictionary<TState, StateDefinition> _stateDefinitions = new Dictionary<TState, StateDefinition>();
 
+        protected WorkflowBase(int fullStatesHistoryLimit = 100)
+            : base(null, false)
+        {
+            _fullStatesHistoryLimit = fullStatesHistoryLimit;
+        }
+
         protected WorkflowBase(Func<IWorkflowStateRepository> workflowRepoFactory, int fullStatesHistoryLimit = 100)
             : base(workflowRepoFactory, false)
         {

@@ -1,111 +1,105 @@
 ﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 using WorkflowsCore.Time;
+using Xunit;
 
 namespace WorkflowsCore.Tests.RealTime
 {
-    [TestClass]
     public class TimeOperatorsTests
     {
-        [TestMethod]
+        private readonly WorkflowBase _workflow = new TestWorkflow();
+
+        [Fact]
         public async Task WaitForDateShouldWaitUntilSpecifiedDateInFuture()
         {
-            await Utilities.SetCurrentCancellationTokenTemporarily(
-                new CancellationTokenSource().Token,
-                async () =>
-                {
-                    var date = Utilities.TimeProvider.Now.AddSeconds(1);
-                    await new TestWorkflow(() => null).WaitForDate(date);
-                    var now = Utilities.TimeProvider.Now;
-                    Assert.IsTrue((now - date).TotalMilliseconds < 50);
-                });
+            var date = Utilities.TimeProvider.Now.AddSeconds(1);
+            await _workflow.WaitForDate(date);
+            var now = Utilities.TimeProvider.Now;
+            Assert.True((now - date).TotalMilliseconds < 50);
         }
 
-        [TestMethod]
+        [Fact]
         public async Task WaitForDateShouldReturnImmediatelyForPastDates()
         {
             var before = Utilities.TimeProvider.Now;
             var date = before.AddSeconds(-1);
-            await new TestWorkflow(() => null).WaitForDate(date);
+            await _workflow.WaitForDate(date);
             var now = Utilities.TimeProvider.Now;
-            Assert.IsTrue((now - before).TotalMilliseconds < 10);
+            Assert.True((now - before).TotalMilliseconds < 10);
         }
 
-        [TestMethod]
-        [ExpectedException(typeof(TaskCanceledException))]
+        [Fact]
         public async Task WaitForDateShouldWaitInfinitelyForDateTimeMaxValue()
         {
-            await Utilities.SetCurrentCancellationTokenTemporarily(
-                new CancellationTokenSource(10).Token,
-                async () =>
-                {
-                    await new TestWorkflow(() => null).WaitForDate(DateTime.MaxValue);
-                    Assert.Fail();
-                });
+            // ReSharper disable once PossibleNullReferenceException
+            var ex = await Record.ExceptionAsync(
+                () => Utilities.SetCurrentCancellationTokenTemporarily(
+                    new CancellationTokenSource(10).Token,
+                    () => _workflow.WaitForDate(DateTime.MaxValue)));
+
+            Assert.IsType(typeof(TaskCanceledException), ex);
         }
 
-        [TestMethod]
-        [ExpectedException(typeof(TaskCanceledException))]
+        [Fact]
         public async Task WaitForDateShouldBeCanceledIfWorkflowCanceled()
         {
             var cts = new CancellationTokenSource();
-            await Utilities.SetCurrentCancellationTokenTemporarily(
-                cts.Token,
-                async () =>
-                {
-#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
-                    Task.Delay(1).ContinueWith(t => cts.Cancel());
-#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
-                    await new TestWorkflow(() => null).WaitForDate(Utilities.TimeProvider.Now.AddSeconds(1));
-                    Assert.Fail();
-                });
+
+            // ReSharper disable once PossibleNullReferenceException
+            var ex = await Record.ExceptionAsync(
+                () => Utilities.SetCurrentCancellationTokenTemporarily(
+                    cts.Token,
+                    async () =>
+                    {
+                        TestUtils.DoAsync(() => cts.Cancel());
+                        await _workflow.WaitForDate(Utilities.TimeProvider.Now.AddSeconds(1));
+                    }));
+
+            Assert.IsType(typeof(TaskCanceledException), ex);
         }
 
-        [TestMethod]
-        [ExpectedException(typeof(TaskCanceledException))]
+        [Fact]
         public async Task WaitForDateShouldBeCanceledImmediatelyIfWorkflowIsAlreadyCanceled()
         {
             var cts = new CancellationTokenSource();
-            await Utilities.SetCurrentCancellationTokenTemporarily(
-                cts.Token,
-                async () =>
-                {
-                    cts.Cancel();
-                    await new TestWorkflow(() => null).WaitForDate(Utilities.TimeProvider.Now.AddDays(-1));
-                    Assert.Fail();
-                });
+
+            // ReSharper disable once PossibleNullReferenceException
+            var ex = await Record.ExceptionAsync(
+                () => Utilities.SetCurrentCancellationTokenTemporarily(
+                    cts.Token,
+                    async () =>
+                    {
+                        cts.Cancel();
+                        await _workflow.WaitForDate(Utilities.TimeProvider.Now.AddDays(-1));
+                    }));
+
+            Assert.IsType(typeof(TaskCanceledException), ex);
         }
 
-        [TestMethod]
-        [ExpectedException(typeof(TaskCanceledException))]
+        [Fact]
         public async Task WaitForDateShouldWorkForFarFutureDates()
         {
             var cts = new CancellationTokenSource();
-            await Utilities.SetCurrentCancellationTokenTemporarily(
-                cts.Token,
-                async () =>
-                {
-#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
-                    Task.Delay(10).ContinueWith(t => cts.Cancel());
-#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
-                    await new TestWorkflow(() => null).WaitForDate(Utilities.TimeProvider.Now.AddDays(60));
-                    Assert.Fail();
-                });
+
+            // ReSharper disable once PossibleNullReferenceException
+            var ex = await Record.ExceptionAsync(
+                () => Utilities.SetCurrentCancellationTokenTemporarily(
+                    cts.Token,
+                    async () =>
+                    {
+                        TestUtils.DoAsync(() => cts.Cancel());
+                        await _workflow.WaitForDate(Utilities.TimeProvider.Now.AddDays(60));
+                    }));
+
+            Assert.IsType(typeof(TaskCanceledException), ex);
         }
 
         private class TestWorkflow : WorkflowBase<int>
         {
-            public TestWorkflow(
-                Func<IWorkflowStateRepository> workflowRepoFactory,
-                CancellationToken parentCancellationToken = default(CancellationToken))
-                : base(workflowRepoFactory, parentCancellationToken)
-            {
-            }
-
             protected override void OnStatesInit()
             {
+                throw new NotImplementedException();
             }
 
             protected override Task RunAsync()
