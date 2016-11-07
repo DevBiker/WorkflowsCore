@@ -6,9 +6,14 @@ using Xunit;
 
 namespace WorkflowsCore.Tests
 {
-    public class RealTimeOperatorsTests : IClassFixture<RealTimeProviderFixture>
+    public class RealTimeOperatorsTests
     {
         private readonly WorkflowBase _workflow = new TestWorkflow();
+
+        public RealTimeOperatorsTests()
+        {
+            Utilities.TimeProvider = null;
+        }
 
         [Fact]
         public async Task WaitForDateShouldWaitUntilSpecifiedDateInFuture()
