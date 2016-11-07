@@ -43,7 +43,7 @@ namespace WorkflowsCore.Tests
                     new CancellationTokenSource(10).Token,
                     () => _workflow.WaitForDate(DateTime.MaxValue)));
 
-            Assert.IsType(typeof(TaskCanceledException), ex);
+            Assert.IsType<TaskCanceledException>(ex);
         }
 
         [Fact]
@@ -61,7 +61,7 @@ namespace WorkflowsCore.Tests
                         await _workflow.WaitForDate(Utilities.TimeProvider.Now.AddSeconds(1));
                     }));
 
-            Assert.IsType(typeof(TaskCanceledException), ex);
+            Assert.IsType<TaskCanceledException>(ex);
         }
 
         [Fact]
@@ -79,7 +79,7 @@ namespace WorkflowsCore.Tests
                         await _workflow.WaitForDate(Utilities.TimeProvider.Now.AddDays(-1));
                     }));
 
-            Assert.IsType(typeof(TaskCanceledException), ex);
+            Assert.IsType<TaskCanceledException>(ex);
         }
 
         [Fact]
@@ -97,7 +97,7 @@ namespace WorkflowsCore.Tests
                         await _workflow.WaitForDate(Utilities.TimeProvider.Now.AddDays(60));
                     }));
 
-            Assert.IsType(typeof(TaskCanceledException), ex);
+            Assert.IsType<TaskCanceledException>(ex);
         }
 
         private class TestWorkflow : WorkflowBase<int>

@@ -43,7 +43,7 @@ namespace WorkflowsCore.Tests
             // ReSharper disable once PossibleNullReferenceException
             var ex = await Record.ExceptionAsync(() => Workflow.CompletedTask.WaitWithTimeout(1000));
 
-            Assert.IsType(typeof(TaskCanceledException), ex);
+            Assert.IsType<TaskCanceledException>(ex);
         }
 
         public virtual void Dispose()

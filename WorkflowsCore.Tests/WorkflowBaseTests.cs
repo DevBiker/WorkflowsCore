@@ -37,7 +37,7 @@ namespace WorkflowsCore.Tests
                 var ex = await Record.ExceptionAsync(() => Workflow.CompletedTask);
 
                 Assert.Equal(TaskStatus.Canceled, Workflow.StartedTask.Status);
-                Assert.IsType(typeof(InvalidOperationException), ex);
+                Assert.IsType<InvalidOperationException>(ex);
             }
 
             [Fact]
@@ -49,7 +49,7 @@ namespace WorkflowsCore.Tests
                 // ReSharper disable once PossibleNullReferenceException
                 var ex = await Record.ExceptionAsync(() => Task.WhenAny(Workflow.StartedTask, Task.Delay(100)).Unwrap());
 
-                Assert.IsType(typeof(TaskCanceledException), ex);
+                Assert.IsType<TaskCanceledException>(ex);
             }
 
             [Fact]
@@ -62,7 +62,7 @@ namespace WorkflowsCore.Tests
                 var ex = await Record.ExceptionAsync(
                     () => Task.WhenAny(Workflow.StateInitializedTask, Task.Delay(100)).Unwrap());
 
-                Assert.IsType(typeof(TaskCanceledException), ex);
+                Assert.IsType<TaskCanceledException>(ex);
             }
         }
 
@@ -81,7 +81,7 @@ namespace WorkflowsCore.Tests
                 var ex = Record.Exception(() => Workflow.Id = 2);
 
                 Assert.Equal(1, Workflow.Id);
-                Assert.IsType(typeof(InvalidOperationException), ex);
+                Assert.IsType<InvalidOperationException>(ex);
             }
 
             [Fact]
@@ -326,7 +326,7 @@ namespace WorkflowsCore.Tests
                 // ReSharper disable once PossibleNullReferenceException
                 var ex = await Record.ExceptionAsync(() => Workflow.ExecuteActionAsync("Action 2"));
 
-                Assert.IsType(typeof(ArgumentOutOfRangeException), ex);
+                Assert.IsType<ArgumentOutOfRangeException>(ex);
                 await CancelWorkflowAsync();
             }
 
@@ -340,7 +340,7 @@ namespace WorkflowsCore.Tests
                 // ReSharper disable once PossibleNullReferenceException
                 var ex = await Record.ExceptionAsync(() => Workflow.ExecuteActionAsync("Action 1"));
 
-                Assert.IsType(typeof(InvalidOperationException), ex);
+                Assert.IsType<InvalidOperationException>(ex);
                 await CancelWorkflowAsync();
             }
 
@@ -362,7 +362,7 @@ namespace WorkflowsCore.Tests
 
                 var ex = Record.Exception(() => Workflow.ConfigureAction("Action 1", () => 3));
 
-                Assert.IsType(typeof(InvalidOperationException), ex);
+                Assert.IsType<InvalidOperationException>(ex);
             }
 
             [Fact]
