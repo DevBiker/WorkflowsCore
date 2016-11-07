@@ -107,63 +107,6 @@ namespace WorkflowsCore
             }
         }
 
-        public async Task GetWorkflowCompletedTaskById(object workflowId)
-        {
-            var status = _workflowRepoFactory().GetWorkflowStatusById(workflowId);
-            switch (status)
-            {
-                case WorkflowStatus.Completed:
-                    return;
-                case WorkflowStatus.Canceled:
-                {
-                    var tcs = new TaskCompletionSource<bool>();
-                    tcs.SetCanceled();
-                    await tcs.Task;
-                    return;
-                }
-            }
-
-            Task loadingTask;
-            lock (_loadingTaskLock)
-            {
-                loadingTask = _loadingTask;
-            }
-
-            if (loadingTask != null)
-            {
-                await loadingTask;
-            }
-
-            var workflow = GetActiveWorkflowById(workflowId);
-            if (workflow != null)
-            {
-                await workflow.CompletedTask;
-                return;
-            }
-
-            status = _workflowRepoFactory().GetWorkflowStatusById(workflowId);
-            switch (status)
-            {
-                case WorkflowStatus.Completed:
-                    break;
-                case WorkflowStatus.Canceled:
-                {
-                    var tcs = new TaskCompletionSource<bool>();
-                    tcs.SetCanceled();
-                    await tcs.Task;
-                    break;
-                }
-
-                case WorkflowStatus.Failed:
-                    await Task.FromException(
-                        new InvalidOperationException($"Workflow with id '{workflowId}' has failed"));
-                    break;
-
-                default:
-                    throw new ArgumentOutOfRangeException();
-            }
-        }
-
         protected WorkflowBase CreateWorkflowCore(
             string fullTypeName,
             IReadOnlyDictionary<string, object> initialWorkflowData = null,

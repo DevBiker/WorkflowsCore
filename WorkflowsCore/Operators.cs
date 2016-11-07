@@ -164,48 +164,6 @@ namespace WorkflowsCore
             return workflow.WaitForAction(action);
         }
 
-        public static Task WaitForWorkflow(this WorkflowBase workflow, IWorkflowEngine workflowEngine, object workflowId)
-        {
-            var tcs = new TaskCompletionSource<bool>();
-
-            if (Utilities.CurrentCancellationToken.IsCancellationRequested)
-            {
-                tcs.SetCanceled();
-                return tcs.Task;
-            }
-
-            return Task.WhenAny(
-                Task.Delay(Timeout.Infinite, Utilities.CurrentCancellationToken),
-                workflowEngine.GetWorkflowCompletedTaskById(workflowId)).Unwrap();
-        }
-
-        public static Task WaitForWorkflow<TState>(
-            this WorkflowBase<TState> workflow,
-            IWorkflowEngine workflowEngine,
-            object workflowId,
-            TState state)
-            where TState : struct
-        {
-            EnsureWorkflowTaskScheduler(workflow);
-
-            var tcs = new TaskCompletionSource<bool>();
-
-            if (Utilities.CurrentCancellationToken.IsCancellationRequested)
-            {
-                tcs.SetCanceled();
-                return tcs.Task;
-            }
-
-            var statesHistory = workflow.TransientStatesHistory;
-            if (EqualityComparer<TState?>.Default.Equals(statesHistory?.FirstOrDefault(), state))
-            {
-                tcs.SetResult(true);
-                return tcs.Task;
-            }
-
-            return workflow.WaitForWorkflow(workflowEngine, workflowId);
-        }
-
         public static Task WaitForState<TState>(
             this WorkflowBase<TState> workflow,
             TState state = default(TState),

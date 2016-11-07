@@ -79,8 +79,6 @@ namespace WorkflowsCore
         Task LoadAndExecuteActiveWorkflowsAsync();
 
         WorkflowBase GetActiveWorkflowById(object id);
-
-        Task GetWorkflowCompletedTaskById(object workflowId);
     }
 
     public static class Utilities

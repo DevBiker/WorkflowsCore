@@ -350,68 +350,6 @@ namespace WorkflowsCore.Tests
         }
 
         [TestMethod]
-        [ExpectedException(typeof(TaskCanceledException))]
-        public async Task WaitForWorkflowShouldBeCanceledImmediatelyIfWorkflowIsAlreadyCanceled()
-        {
-            var testWorkflow = new TestWorkflow(() => new WorkflowRepository());
-            await testWorkflow.DoWorkflowTaskAsync(
-                async w =>
-                {
-                    testWorkflow.CancelWorkflow();
-                    await testWorkflow.WaitForWorkflow(new WorkflowEngine(), 1);
-                    Assert.Fail();
-                },
-                forceExecution: true).Unwrap();
-        }
-
-        [TestMethod]
-        public async Task WaitForWorkflowShouldWaitUntilSpecifiedWorkflowIsFinished()
-        {
-            var testWorkflow = new TestWorkflow(new CancellationTokenSource(100).Token);
-            await testWorkflow.DoWorkflowTaskAsync(
-                async w =>
-                {
-                    await testWorkflow.WaitForWorkflow(new WorkflowEngine(), 1000);
-                },
-                forceExecution: true).Unwrap();
-        }
-
-        [TestMethod]
-        [ExpectedException(typeof(TaskCanceledException))]
-        public async Task WaitForWorkflowShouldBeCanceledIfWorkflowIsCanceled()
-        {
-            var testWorkflow = new TestWorkflow(new CancellationTokenSource(100).Token);
-            await testWorkflow.DoWorkflowTaskAsync(
-                async w =>
-                {
-#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
-                    Task.Delay(1).ContinueWith(_ => testWorkflow.CancelWorkflow());
-#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
-                    await testWorkflow.WaitForWorkflow(new WorkflowEngine(), 1001);
-                    Assert.Fail();
-                },
-                forceExecution: true).Unwrap();
-        }
-
-        [TestMethod]
-        public async Task WaitForWorkflowShouldReturnImmediatelyIfStateIsSpecifiedAndThatStateIsFirstInStatesHistory()
-        {
-            var testWorkflow = new TestWorkflowWithState(
-                () => new WorkflowRepository(),
-                new CancellationTokenSource(100).Token);
-            await testWorkflow.DoWorkflowTaskAsync(
-                async w =>
-                {
-                    w.SetTransientData("StatesHistory", new[] { States.Due });
-                    await testWorkflow.WaitForWorkflow(new WorkflowEngine(), 1, state: States.Due);
-
-                    Assert.IsNull(testWorkflow.Action);
-                    Assert.IsNull(testWorkflow.Parameters);
-                },
-                forceExecution: true).Unwrap();
-        }
-
-        [TestMethod]
         public async Task WaitForStateShouldWaitUntilWorkflowEntersSpecifiedState()
         {
             var testWorkflow = new TestWorkflowWithState(
@@ -566,13 +504,6 @@ namespace WorkflowsCore.Tests
             {
             }
 
-            public TestWorkflow(Func<IWorkflowStateRepository> workflowRepoFactory)
-                : base(workflowRepoFactory, false)
-            {
-                OnInit();
-                SetStateInitialized();
-            }
-
             public TestWorkflow(CancellationToken parentCancellationToken, bool doInit = true) 
                 : base(() => new WorkflowRepository(), !doInit, parentCancellationToken)
             {
@@ -672,50 +603,6 @@ namespace WorkflowsCore.Tests
 
             public void MarkWorkflowAsInProgress(WorkflowBase workflow)
             {
-                throw new NotImplementedException();
-            }
-        }
-
-        private class WorkflowEngine : IWorkflowEngine
-        {
-            public Task LoadingTask { get; } = null;
-
-            public IList<WorkflowBase> RunningWorkflows { get; } = null;
-
-            public WorkflowBase CreateWorkflow(string fullTypeName)
-            {
-                throw new NotImplementedException();
-            }
-
-            public WorkflowBase CreateWorkflow(
-                string fullTypeName,
-                IReadOnlyDictionary<string, object> initialWorkflowData)
-            {
-                throw new NotImplementedException();
-            }
-
-            public Task LoadAndExecuteActiveWorkflowsAsync()
-            {
-                throw new NotImplementedException();
-            }
-
-            public WorkflowBase GetActiveWorkflowById(object id)
-            {
-                throw new NotImplementedException();
-            }
-
-            public Task GetWorkflowCompletedTaskById(object workflowId)
-            {
-                if (workflowId.Equals(1000))
-                {
-                    return Task.Delay(1);
-                }
-
-                if (workflowId.Equals(1001))
-                {
-                    return Task.Delay(1000);
-                }
-
                 throw new NotImplementedException();
             }
         }
