@@ -7,8 +7,6 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WorkflowsCore", "WorkflowsC
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WorkflowsCore.Tests", "WorkflowsCore.Tests\WorkflowsCore.Tests.csproj", "{E89DE8CF-6098-4001-AA9E-8342F6A5782E}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "WorkflowsCore.Tests.RealTime", "WorkflowsCore.Tests.RealTime\WorkflowsCore.Tests.RealTime.csproj", "{BE036DFF-915D-414B-BF73-1CD11F41A189}"
-EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{9DFA29BA-1D1A-4487-AE8C-DD514BE3A81F}"
 	ProjectSection(SolutionItems) = preProject
 		NuGet.config = NuGet.config
@@ -28,10 +26,6 @@ Global
 		{E89DE8CF-6098-4001-AA9E-8342F6A5782E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E89DE8CF-6098-4001-AA9E-8342F6A5782E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E89DE8CF-6098-4001-AA9E-8342F6A5782E}.Release|Any CPU.Build.0 = Release|Any CPU
-		{BE036DFF-915D-414B-BF73-1CD11F41A189}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{BE036DFF-915D-414B-BF73-1CD11F41A189}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{BE036DFF-915D-414B-BF73-1CD11F41A189}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{BE036DFF-915D-414B-BF73-1CD11F41A189}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

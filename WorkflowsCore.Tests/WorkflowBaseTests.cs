@@ -276,6 +276,7 @@ namespace WorkflowsCore.Tests
             [Fact]
             public async Task RunViaWorkflowTaskScheduler2ShouldCompleteASyncIfRunOutsideOfWorkflowThread()
             {
+                Assert.False(Workflow.IsWorkflowTaskScheduler);
                 var task = Workflow.RunViaWorkflowTaskScheduler(() => true, forceExecution: true);
                 Assert.NotEqual(TaskStatus.RanToCompletion, task.Status);
                 var res = await task;

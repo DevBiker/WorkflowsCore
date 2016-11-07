@@ -368,7 +368,7 @@ namespace WorkflowsCore.Tests
         }
 
         [TestMethod]
-        public async Task WaitForStateCalleAnyStateAsTrueShouldWaitUntilWorkflowStateIsChanged()
+        public async Task WaitForStateCalledWithAnyStateAsTrueShouldWaitUntilWorkflowStateIsChanged()
         {
             var testWorkflow = new TestWorkflowWithState(
                 () => new WorkflowRepository(),

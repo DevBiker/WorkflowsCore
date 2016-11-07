@@ -4,9 +4,9 @@ using System.Threading.Tasks;
 using WorkflowsCore.Time;
 using Xunit;
 
-namespace WorkflowsCore.Tests.RealTime
+namespace WorkflowsCore.Tests
 {
-    public class TimeOperatorsTests
+    public class RealTimeOperatorsTests : IClassFixture<RealTimeProviderFixture>
     {
         private readonly WorkflowBase _workflow = new TestWorkflow();
 
