@@ -74,6 +74,8 @@
     </Otherwise>
   </Choose>
   <ItemGroup>
+    <Compile Include="BaseWorkflowTest.cs" />
+    <Compile Include="DummyWorkflowStateRepository.cs" />
     <Compile Include="MonteCarloSimulatorTests.cs" />
     <Compile Include="OperatorTests.cs" />
     <Compile Include="TimeOperatorsTests.cs" />
