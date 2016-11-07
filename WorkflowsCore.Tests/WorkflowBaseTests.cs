@@ -563,8 +563,10 @@ namespace WorkflowsCore.Tests
                 IReadOnlyDictionary<string, object> metadata = null,
                 string synonym = null,
                 IEnumerable<string> synonyms = null,
-                bool isHidden = false) =>
-                    base.ConfigureAction(action, actionHandler, metadata, synonym, synonyms, isHidden);
+                bool isHidden = false)
+            {
+                base.ConfigureAction(action, actionHandler, metadata, synonym, synonyms, isHidden);
+            }
 
             [SuppressMessage("ReSharper", "UnusedParameter.Local", Justification = "It is OK")]
             public new void ConfigureAction<T>(
@@ -573,8 +575,10 @@ namespace WorkflowsCore.Tests
                 IReadOnlyDictionary<string, object> metadata = null,
                 string synonym = null,
                 IEnumerable<string> synonyms = null,
-                bool isHidden = false) =>
-                    base.ConfigureAction(action, actionHandler, metadata, synonym, synonyms, isHidden);
+                bool isHidden = false)
+            {
+                base.ConfigureAction(action, actionHandler, metadata, synonym, synonyms, isHidden);
+            }
 
             // ReSharper disable once UnusedParameter.Local
             public new NamedValues GetActionMetadata(string action) => base.GetActionMetadata(action);

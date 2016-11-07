@@ -404,15 +404,7 @@ namespace WorkflowsCore.Tests
 
             public IList<WorkflowInstance> ActiveWorkflows { get; set; }
 
-            public object CompletedWorkflowId { get; set; }
-
-            public object CanceledWorkflowId { get; set; }
-
-            public object FailedWorkflowId { get; set; }
-
             public object SleepingWorkflowId { get; set; }
-
-            public int NumberOfGetWorkflowStatusByIdCalls { get; private set; }
 
             public IList<WorkflowInstance> GetActiveWorkflows()
             {
@@ -441,29 +433,7 @@ namespace WorkflowsCore.Tests
 
             public WorkflowStatus GetWorkflowStatusById(object workflowId)
             {
-                try
-                {
-                    if (Equals(workflowId, CompletedWorkflowId))
-                    {
-                        return WorkflowStatus.Completed;
-                    }
-
-                    if (Equals(workflowId, CanceledWorkflowId))
-                    {
-                        return WorkflowStatus.Canceled;
-                    }
-
-                    if (Equals(workflowId, FailedWorkflowId))
-                    {
-                        return WorkflowStatus.Failed;
-                    }
-
-                    return WorkflowStatus.InProgress;
-                }
-                finally
-                {
-                    ++NumberOfGetWorkflowStatusByIdCalls;
-                }
+                throw new NotImplementedException();
             }
 
             public void SaveWorkflowData(WorkflowBase workflow)
