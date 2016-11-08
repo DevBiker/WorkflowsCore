@@ -200,8 +200,8 @@ namespace WorkflowsCore.Tests
             [Fact]
             public async Task DoWorkflowTaskShouldWaitUntilWorkflowIsStarted()
             {
-                TestUtils.DoAsync(() => StartWorkflow(), delay: 100);
                 Assert.NotEqual(TaskStatus.RanToCompletion, Workflow.StartedTask.Status);
+                TestUtils.DoAsync(() => StartWorkflow(), delay: 100);
                 await Workflow.DoWorkflowTaskAsync(
                     w => Assert.Equal(TaskStatus.RanToCompletion, Workflow.StartedTask.Status));
 
@@ -211,8 +211,8 @@ namespace WorkflowsCore.Tests
             [Fact]
             public async Task DoWorkflowTask2ShouldWaitUntilWorkflowIsStarted()
             {
-                TestUtils.DoAsync(() => StartWorkflow(), delay: 100);
                 Assert.NotEqual(TaskStatus.RanToCompletion, Workflow.StartedTask.Status);
+                TestUtils.DoAsync(() => StartWorkflow(), delay: 100);
                 await Workflow.DoWorkflowTaskAsync(
                     w =>
                     {
@@ -278,7 +278,7 @@ namespace WorkflowsCore.Tests
             {
                 Assert.False(Workflow.IsWorkflowTaskScheduler);
                 var task = Workflow.RunViaWorkflowTaskScheduler(() => true, forceExecution: true);
-                Assert.NotEqual(TaskStatus.RanToCompletion, task.Status);
+                Assert.NotEqual(Task.CompletedTask, task);
                 var res = await task;
                 Assert.True(res);
             }
@@ -382,9 +382,9 @@ namespace WorkflowsCore.Tests
                 Workflow = new TestWorkflow(null, false);
                 Workflow.ConfigureAction("Action 1", () => 1);
                 StartWorkflow();
+                Assert.NotEqual(TaskStatus.RanToCompletion, Workflow.StateInitializedTask.Status);
                 TestUtils.DoAsync(() => Workflow.SetStateInitialized(), delay: 100);
 
-                Assert.NotEqual(TaskStatus.RanToCompletion, Workflow.StateInitializedTask.Status);
                 await Workflow.ExecuteActionAsync<int>("Action 1");
 
                 Assert.Equal(TaskStatus.RanToCompletion, Workflow.StateInitializedTask.Status);
@@ -451,9 +451,9 @@ namespace WorkflowsCore.Tests
                 Workflow.ConfigureAction("Action 1", () => 1);
                 StartWorkflow();
 
+                Assert.NotEqual(TaskStatus.RanToCompletion, Workflow.StateInitializedTask.Status);
                 TestUtils.DoAsync(() => Workflow.SetStateInitialized(), delay: 100);
 
-                Assert.NotEqual(TaskStatus.RanToCompletion, Workflow.StateInitializedTask.Status);
                 await Workflow.GetAvailableActionsAsync();
 
                 Assert.Equal(TaskStatus.RanToCompletion, Workflow.StateInitializedTask.Status);
