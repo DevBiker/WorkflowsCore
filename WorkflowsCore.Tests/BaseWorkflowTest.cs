@@ -10,8 +10,9 @@ namespace WorkflowsCore.Tests
         private bool _wasStarted;
         private T _workflow;
         private bool _wasCanceled;
+        private bool _wasCompleted;
 
-        protected T Workflow
+        public T Workflow
         {
             get
             {
@@ -46,6 +47,23 @@ namespace WorkflowsCore.Tests
             Assert.IsType<TaskCanceledException>(ex);
         }
 
+        public async Task WaitUntilWorkflowCompleted()
+        {
+            Assert.True(_wasStarted);
+            _wasCompleted = true;
+            await Workflow.CompletedTask;
+        }
+
+        public async Task WaitUntilWorkflowFailed<TEx>()
+        {
+            Assert.True(_wasStarted);
+
+            // ReSharper disable once PossibleNullReferenceException
+            var ex = await Record.ExceptionAsync(() => Workflow.CompletedTask);
+
+            Assert.IsType(typeof(TEx), ex);
+        }
+
         public virtual void Dispose()
         {
             if (!_wasStarted)
@@ -53,7 +71,11 @@ namespace WorkflowsCore.Tests
                 return;
             }
 
-            Assert.Equal(_wasCanceled ? TaskStatus.Canceled : TaskStatus.Faulted, Workflow.CompletedTask.Status);
+            var taskStatus = _wasCompleted
+                ? TaskStatus.RanToCompletion
+                : (_wasCanceled ? TaskStatus.Canceled : TaskStatus.Faulted);
+
+            Assert.Equal(taskStatus, Workflow.CompletedTask.Status);
         }
     }
 }

@@ -43,15 +43,10 @@ namespace WorkflowsCore
             }
         }
 
-        public WorkflowBase CreateWorkflow(string fullTypeName)
-        {
-            return CreateWorkflow(fullTypeName, null);
-        }
+        public WorkflowBase CreateWorkflow(string fullTypeName) => CreateWorkflow(fullTypeName, null);
 
-        public WorkflowBase CreateWorkflow(string fullTypeName, IReadOnlyDictionary<string, object> initialWorkflowData)
-        {
-            return CreateWorkflowCore(fullTypeName, initialWorkflowData: initialWorkflowData);
-        }
+        public WorkflowBase CreateWorkflow(string fullTypeName, IReadOnlyDictionary<string, object> initialWorkflowData) => 
+            CreateWorkflowCore(fullTypeName, initialWorkflowData: initialWorkflowData);
 
         public Task LoadAndExecuteActiveWorkflowsAsync()
         {
