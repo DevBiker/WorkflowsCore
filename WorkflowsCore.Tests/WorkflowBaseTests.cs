@@ -201,9 +201,11 @@ namespace WorkflowsCore.Tests
             public async Task DoWorkflowTaskShouldWaitUntilWorkflowIsStarted()
             {
                 Assert.NotEqual(TaskStatus.RanToCompletion, Workflow.StartedTask.Status);
-                TestUtils.DoAsync(() => StartWorkflow(), delay: 100);
-                await Workflow.DoWorkflowTaskAsync(
-                    w => Assert.Equal(TaskStatus.RanToCompletion, Workflow.StartedTask.Status));
+                var t = Workflow.DoWorkflowTaskAsync(
+                    () => Assert.Equal(TaskStatus.RanToCompletion, Workflow.StartedTask.Status));
+                await Task.Delay(100);
+                StartWorkflow();
+                await t;
 
                 await CancelWorkflowAsync();
             }
@@ -212,13 +214,15 @@ namespace WorkflowsCore.Tests
             public async Task DoWorkflowTask2ShouldWaitUntilWorkflowIsStarted()
             {
                 Assert.NotEqual(TaskStatus.RanToCompletion, Workflow.StartedTask.Status);
-                TestUtils.DoAsync(() => StartWorkflow(), delay: 100);
-                await Workflow.DoWorkflowTaskAsync(
+                var t = Workflow.DoWorkflowTaskAsync(
                     w =>
                     {
                         Assert.Equal(TaskStatus.RanToCompletion, Workflow.StartedTask.Status);
                         return 1;
                     });
+                await Task.Delay(100);
+                StartWorkflow();
+                await t;
 
                 await CancelWorkflowAsync();
             }
@@ -380,14 +384,21 @@ namespace WorkflowsCore.Tests
             public async Task ExecuteActionShouldWaitUntilWorkflowInitializationCompleted()
             {
                 Workflow = new TestWorkflow(null, false);
-                Workflow.ConfigureAction("Action 1", () => 1);
+                Workflow.ConfigureAction(
+                    "Action 1",
+                    () =>
+                    {
+                        Assert.Equal(TaskStatus.RanToCompletion, Workflow.StateInitializedTask.Status);
+                        return 1;
+                    });
                 StartWorkflow();
                 Assert.NotEqual(TaskStatus.RanToCompletion, Workflow.StateInitializedTask.Status);
-                TestUtils.DoAsync(() => Workflow.SetStateInitialized(), delay: 100);
 
-                await Workflow.ExecuteActionAsync<int>("Action 1");
+                var t = Workflow.ExecuteActionAsync<int>("Action 1");
+                await Task.Delay(100);
+                Workflow.SetStateInitialized();
+                await t;
 
-                Assert.Equal(TaskStatus.RanToCompletion, Workflow.StateInitializedTask.Status);
                 await CancelWorkflowAsync();
             }
 
@@ -452,9 +463,12 @@ namespace WorkflowsCore.Tests
                 StartWorkflow();
 
                 Assert.NotEqual(TaskStatus.RanToCompletion, Workflow.StateInitializedTask.Status);
-                TestUtils.DoAsync(() => Workflow.SetStateInitialized(), delay: 100);
 
-                await Workflow.GetAvailableActionsAsync();
+                var t = Workflow.GetAvailableActionsAsync();
+                await Task.Delay(100);
+                Assert.NotEqual(TaskStatus.RanToCompletion, Workflow.StateInitializedTask.Status);
+                Workflow.SetStateInitialized();
+                await t;
 
                 Assert.Equal(TaskStatus.RanToCompletion, Workflow.StateInitializedTask.Status);
                 await CancelWorkflowAsync();

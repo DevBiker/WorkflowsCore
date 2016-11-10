@@ -229,13 +229,12 @@ namespace WorkflowsCore.Tests
                             var testWorkflow = _workflow;
                             try
                             {
-                                await testWorkflow.WaitForAny(
-                                    () =>
-                                    {
-                                        task = Task.Delay(100, Utilities.CurrentCancellationToken);
-                                        TestUtils.DoAsync(() => cts.Cancel());
-                                        return task;
-                                    });
+                                var t = testWorkflow.WaitForAny(
+                                    () => task = Task.Delay(100, Utilities.CurrentCancellationToken));
+
+                                Assert.NotEqual(TaskStatus.Canceled, t.Status);
+                                cts.Cancel();
+                                await t;
                             }
                             catch (TaskCanceledException)
                             {
@@ -500,7 +499,7 @@ namespace WorkflowsCore.Tests
             [Fact]
             public async Task WaitForTimeoutShouldWaitUntilTaskFinished()
             {
-                var task = Task.Delay(10);
+                var task = Task.Delay(1);
                 await task.WaitWithTimeout(100);
                 Assert.Equal(TaskStatus.RanToCompletion, task.Status);
             }

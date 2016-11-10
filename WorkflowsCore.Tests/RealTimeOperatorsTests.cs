@@ -57,8 +57,10 @@ namespace WorkflowsCore.Tests
                     cts.Token,
                     async () =>
                     {
-                        TestUtils.DoAsync(() => cts.Cancel());
-                        await _workflow.WaitForDate(Utilities.TimeProvider.Now.AddSeconds(1));
+                        var t = _workflow.WaitForDate(Utilities.TimeProvider.Now.AddSeconds(1));
+                        Assert.NotEqual(TaskStatus.Canceled, t.Status);
+                        cts.Cancel();
+                        await t;
                     }));
 
             Assert.IsType<TaskCanceledException>(ex);
@@ -93,8 +95,10 @@ namespace WorkflowsCore.Tests
                     cts.Token,
                     async () =>
                     {
-                        TestUtils.DoAsync(() => cts.Cancel());
-                        await _workflow.WaitForDate(Utilities.TimeProvider.Now.AddDays(60));
+                        var t = _workflow.WaitForDate(Utilities.TimeProvider.Now.AddDays(60));
+                        Assert.NotEqual(TaskStatus.Canceled, t.Status);
+                        cts.Cancel();
+                        await t;
                     }));
 
             Assert.IsType<TaskCanceledException>(ex);

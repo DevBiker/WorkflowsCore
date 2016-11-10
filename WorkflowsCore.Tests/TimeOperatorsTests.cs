@@ -23,8 +23,10 @@ namespace WorkflowsCore.Tests
                 async () =>
                 {
                     var date = TestingTimeProvider.Current.Now.AddDays(1);
-                    TestUtils.DoAsync(() => TestingTimeProvider.Current.SetCurrentTime(date));
-                    await _workflow.WaitForDate(date);
+                    var t = _workflow.WaitForDate(date);
+                    Assert.False(t.IsCompleted);
+                    TestingTimeProvider.Current.SetCurrentTime(date);
+                    await t;
                 });
         }
 
@@ -61,8 +63,10 @@ namespace WorkflowsCore.Tests
                     cts.Token,
                     async () =>
                     {
-                        TestUtils.DoAsync(() => cts.Cancel());
-                        await _workflow.WaitForDate(TestingTimeProvider.Current.Now.AddDays(1));
+                        var t = _workflow.WaitForDate(TestingTimeProvider.Current.Now.AddDays(1));
+                        Assert.False(t.IsCompleted);
+                        cts.Cancel();
+                        await t;
                     }));
 
             Assert.IsType<TaskCanceledException>(ex);

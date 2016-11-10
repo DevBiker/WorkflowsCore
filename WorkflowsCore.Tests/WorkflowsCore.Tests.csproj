@@ -73,7 +73,6 @@
     <Compile Include="MonteCarloSimulatorTests.cs" />
     <Compile Include="OperatorTests.cs" />
     <Compile Include="RealTimeOperatorsTests.cs" />
-    <Compile Include="TestUtils.cs" />
     <Compile Include="TimeOperatorsTests.cs" />
     <Compile Include="WorkflowsCoordinatorTests.cs" />
     <Compile Include="WorkflowBaseStatefulTests.cs" />
