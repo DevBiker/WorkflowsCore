@@ -722,9 +722,8 @@ namespace WorkflowsCore.Tests
             private readonly bool _canceledChild;
             private readonly bool _allowOnCanceled;
             private readonly bool _badCancellation;
-            private readonly object _badCancellationLock = new object();
+            private readonly TaskCompletionSource<bool> _badCancellationTcs = new TaskCompletionSource<bool>();
             private readonly int _timeout;
-            private bool _unlocked;
 
             public TestWorkflow(
                 Func<IWorkflowStateRepository> workflowRepoFactory = null,
@@ -792,35 +791,22 @@ namespace WorkflowsCore.Tests
             // ReSharper disable once UnusedParameter.Local
             public new NamedValues GetActionMetadata(string action) => base.GetActionMetadata(action);
 
-            public void CompleteLongWork()
-            {
-                lock (_badCancellationLock)
-                {
-                    Monitor.Pulse(_badCancellationLock);
-                    _unlocked = true;
-                }
-            }
+            public void CompleteLongWork() => _badCancellationTcs.SetResult(true);
 
             protected override async Task RunAsync()
             {
                 CurrentCancellationToken = Utilities.CurrentCancellationToken;
 
-                if (!_badCancellation)
+                if (_badCancellation)
+                {
+                    await _badCancellationTcs.Task.WaitWithTimeout(1000);
+                }
+                else
                 {
                     var cancellationToken = _canceledChild
                         ? new CancellationTokenSource(1).Token
                         : Utilities.CurrentCancellationToken;
                     await Task.Delay(_timeout, cancellationToken);
-                }
-                else
-                {
-                    if (!_unlocked)
-                    {
-                        lock (_badCancellationLock)
-                        {
-                            Assert.True(Monitor.Wait(_badCancellationLock, 1000));
-                        }
-                    }
                 }
 
                 Assert.Equal(CurrentCancellationToken, Utilities.CurrentCancellationToken);
