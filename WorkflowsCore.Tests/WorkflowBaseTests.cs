@@ -567,9 +567,10 @@ namespace WorkflowsCore.Tests
                 Workflow = new TestWorkflow(() => _workflowRepo, doNotComplete: false);
                 StartWorkflow();
 
+                var workflowRepo = new WorkflowRepository();
                 using (var second = new BaseWorkflowTest<TestWorkflow>())
                 {
-                    second.Workflow = new TestWorkflow(() => _workflowRepo, doNotComplete: false);
+                    second.Workflow = new TestWorkflow(() => workflowRepo, doNotComplete: false);
                     second.StartWorkflow();
 
                     await Task.WhenAll(WaitUntilWorkflowCompleted(), second.WaitUntilWorkflowCompleted());
@@ -578,7 +579,8 @@ namespace WorkflowsCore.Tests
                         second.Workflow.CurrentCancellationToken);
                 }
 
-                Assert.Equal(2, _workflowRepo.NumberOfCompletedWorkflows);
+                Assert.Equal(1, _workflowRepo.NumberOfCompletedWorkflows);
+                Assert.Equal(1, workflowRepo.NumberOfCompletedWorkflows);
             }
 
             [Fact]

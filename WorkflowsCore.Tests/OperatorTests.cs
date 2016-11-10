@@ -304,6 +304,8 @@ namespace WorkflowsCore.Tests
             {
                 StartWorkflow();
 
+                Task canceledTask = null;
+
                 // ReSharper disable once PossibleNullReferenceException
                 var ex = await Record.ExceptionAsync(
                     () => Workflow.DoWorkflowTaskAsync(
@@ -311,10 +313,11 @@ namespace WorkflowsCore.Tests
                         {
                             var t = Workflow.WaitForAction("Contacted");
                             Assert.NotEqual(TaskStatus.Canceled, t.Status);
-                            await CancelWorkflowAsync();
+                            canceledTask = CancelWorkflowAsync();
                             await t;
                         }).Unwrap());
 
+                await canceledTask;
                 Assert.IsType<TaskCanceledException>(ex);
             }
 
