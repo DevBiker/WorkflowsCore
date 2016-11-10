@@ -353,6 +353,7 @@ namespace WorkflowsCore.Tests
             Assert.IsType<InvalidOperationException>(ex);
 
             await _src.CancelWorkflowAsync();
+            await _dst.Workflow.StartedTask;
             await _dst.CancelWorkflowAsync();
         }
 

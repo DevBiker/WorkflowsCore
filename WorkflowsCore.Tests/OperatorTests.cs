@@ -317,8 +317,8 @@ namespace WorkflowsCore.Tests
                             await t;
                         }).Unwrap());
 
-                await canceledTask;
                 Assert.IsType<TaskCanceledException>(ex);
+                await canceledTask;
             }
 
             [Fact]

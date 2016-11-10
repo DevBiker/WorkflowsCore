@@ -5,16 +5,19 @@ using System.Threading.Tasks;
 using WorkflowsCore.MonteCarlo;
 using WorkflowsCore.Time;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace WorkflowsCore.Tests
 {
     public class MonteCarloSimulatorTests
     {
+        private readonly ITestOutputHelper _output;
         private MonteCarloSimulator<TestWorkflow> _simulator;
         private TestWorkflow _lastWorkflow;
 
-        public MonteCarloSimulatorTests()
+        public MonteCarloSimulatorTests(ITestOutputHelper output)
         {
+            _output = output;
             _simulator =
                 new MonteCarloSimulator<TestWorkflow>(
                     () => _lastWorkflow = new TestWorkflow(() => new WorkflowRepository()));
@@ -51,7 +54,7 @@ namespace WorkflowsCore.Tests
                 });
 
             _simulator.RunSimulations(1, 1000, randomGeneratorSeed: 171787817);
-            Console.WriteLine($"numberOfClockEvents: {numberOfClockEvents}, numberOfCustomEvents: {numberOfCustomEvents}");
+            _output.WriteLine($"numberOfClockEvents: {numberOfClockEvents}, numberOfCustomEvents: {numberOfCustomEvents}");
             Assert.Equal(1000, numberOfClockEvents + numberOfCustomEvents);
             Assert.Equal(361, numberOfClockEvents);
             Assert.Equal(639, numberOfCustomEvents);
@@ -198,7 +201,7 @@ namespace WorkflowsCore.Tests
                     return Task.FromResult(
                         new WorldClockAdvancingEvent(
                             Globals.TimeProvider.Now.AddHours(1).AddMinutes(23),
-                            t = Task.Delay(10)));
+                            t = Task.Delay(100)));
                 });
             var begin = default(DateTime);
             _simulator.RunSimulations(
@@ -391,12 +394,12 @@ namespace WorkflowsCore.Tests
             try
             {
                 var stats = _simulator.RunSimulations(1, 6, randomGeneratorSeed: 171787817);
-                Console.WriteLine(stats);
+                _output.WriteLine(stats.ToString());
                 Assert.True(false);
             }
             catch (SimulationException ex)
             {
-                Console.WriteLine(ex);
+                _output.WriteLine(ex.ToString());
                 Assert.Equal(6, ex.Events.Count);
                 Assert.Equal("Custom event", ex.Events[0].Name);
                 Assert.Equal("Action 4", ex.Events[5].Name);
@@ -420,7 +423,7 @@ namespace WorkflowsCore.Tests
             }
             catch (SimulationException ex)
             {
-                Console.WriteLine(ex);
+                _output.WriteLine(ex.ToString());
                 Assert.Equal(1, ex.Events.Count);
                 Assert.Equal("Custom event", ex.Events[0].Name);
             }
@@ -453,7 +456,7 @@ namespace WorkflowsCore.Tests
             }
             catch (SimulationException ex)
             {
-                Console.WriteLine(ex);
+                _output.WriteLine(ex.ToString());
                 Assert.True(ex.Events.Count >= 6 && ex.Events.Count <= 7);
             }
         }
@@ -482,7 +485,7 @@ namespace WorkflowsCore.Tests
 
             var stats = _simulator.RunSimulations(5, 5, randomGeneratorSeed: 171787817, maxConcurrentSimulations: 1);
             Assert.NotNull(stats);
-            Console.WriteLine(stats);
+            _output.WriteLine(stats.ToString());
             Assert.Equal(5, stats.NumberOfSimulations);
             Assert.Equal(35, stats.TotalNumberOfEvents);
             Assert.Equal(7.0, stats.AverageNumberOfEventsPerSimulation);
@@ -538,7 +541,7 @@ namespace WorkflowsCore.Tests
                 randomGeneratorSeed: 171787817,
                 getEventsAvailabilityAwaiter: w => new WorkflowActionsAvailabilityAwaiter<States>(w));
             Assert.NotNull(stats);
-            Console.WriteLine(stats);
+            _output.WriteLine(stats.ToString());
             Assert.Equal(action2Counter, action2Counter);
             Assert.NotEqual(action1Counter, action1Counter2);
             Assert.True(action1Counter > action2Counter);
@@ -552,12 +555,11 @@ namespace WorkflowsCore.Tests
             workflow.StartWorkflow(initialWorkflowData: new Dictionary<string, object> { ["NoActions"] = true });
             await workflow.StateInitializedTask;
 
-#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
-            Task.Delay(10)
-                .ContinueWith(_ => TestingTimeProvider.Current.SetCurrentTime(Globals.TimeProvider.Now.AddHours(17)));
-#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
+            var t = new WorkflowActionsAvailabilityAwaiter<States>(workflow).Task;
+            Assert.False(t.IsCompleted);
+            TestingTimeProvider.Current.SetCurrentTime(Globals.TimeProvider.Now.AddHours(17));
 
-            await new WorkflowActionsAvailabilityAwaiter<States>(workflow).Task;
+            await t.WaitWithTimeout(1000);
 
             var state = await workflow.GetStateAsync();
             Assert.Equal(States.Due, state);
@@ -588,7 +590,7 @@ namespace WorkflowsCore.Tests
                     maxConcurrentEvents: 2);
 
             _simulator.ConfigureWorldClockAdvancingEvent(
-                0.1,
+                0.01,
                 (w, isAppRestart) =>
                     Task.FromResult(new WorldClockAdvancingEvent(Globals.TimeProvider.Now.AddHours(1))));
 
@@ -610,7 +612,7 @@ namespace WorkflowsCore.Tests
                 getInitialWorkflowData: () => new Dictionary<string, object> { ["NoActions"] = true },
                 getEventsAvailabilityAwaiter: w => new WorkflowActionsAvailabilityAwaiter<States>(w));
             Assert.NotNull(stats);
-            Console.WriteLine(stats);
+            _output.WriteLine(stats.ToString());
         }
 
         private class TestWorkflow : WorkflowBase<States>
@@ -637,6 +639,7 @@ namespace WorkflowsCore.Tests
 
             protected override async Task RunAsync()
             {
+                var date = Globals.TimeProvider.Now.AddHours(17);
                 SetState(!GetData<bool>("NoActions") ? States.Due : States.Contacted);
                 await this.WaitForAny(
                     () => Task.Delay(GetData<bool>("CompleteFast") ? 1 : 10000, Utilities.CurrentCancellationToken),
@@ -645,12 +648,12 @@ namespace WorkflowsCore.Tests
                         await this.WaitForAction("Action 4");
                         throw new NullReferenceException();
                     },
-                    () => this.Optional(WaitForDueDate()));
+                    () => this.Optional(WaitForDueDate(date)));
             }
 
-            private async Task WaitForDueDate()
+            private async Task WaitForDueDate(DateTime date)
             {
-                await this.WaitForDate(Globals.TimeProvider.Now.AddHours(17));
+                await this.WaitForDate(date);
                 SetState(States.Due);
             }
         }
