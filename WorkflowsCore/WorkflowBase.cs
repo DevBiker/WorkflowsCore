@@ -42,14 +42,6 @@ namespace WorkflowsCore
         protected WorkflowBase(
             Func<IWorkflowStateRepository> workflowRepoFactory,
             bool isStateInitializedImmediatelyAfterStart)
-            : this(workflowRepoFactory, isStateInitializedImmediatelyAfterStart, default(CancellationToken))
-        {
-        }
-
-        protected WorkflowBase(
-            Func<IWorkflowStateRepository> workflowRepoFactory,
-            bool isStateInitializedImmediatelyAfterStart,
-            CancellationToken parentCancellationToken)
         {
             _concurrentExclusiveSchedulerPair = Utilities.WorkflowsTaskScheduler == null
                 ? new ConcurrentExclusiveSchedulerPair()
@@ -67,8 +59,7 @@ namespace WorkflowsCore
                 StateInitializedTask = StateInitializedTaskCompletionSource.Task;
             }
 
-            CancellationTokenSource = parentCancellationToken.Equals(default(CancellationToken)) 
-                ? new CancellationTokenSource() : CancellationTokenSource.CreateLinkedTokenSource(parentCancellationToken);
+            CancellationTokenSource = new CancellationTokenSource();
         }
 
         protected internal event EventHandler<ActionExecutedEventArgs> ActionExecuted;

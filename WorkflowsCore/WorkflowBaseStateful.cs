@@ -1,7 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace WorkflowsCore
@@ -23,15 +22,6 @@ namespace WorkflowsCore
 
         protected WorkflowBase(Func<IWorkflowStateRepository> workflowRepoFactory, int fullStatesHistoryLimit = 100)
             : base(workflowRepoFactory, false)
-        {
-            _fullStatesHistoryLimit = fullStatesHistoryLimit;
-        }
-
-        protected WorkflowBase(
-            Func<IWorkflowStateRepository> workflowRepoFactory,
-            CancellationToken parentCancellationToken,
-            int fullStatesHistoryLimit = 100)
-            : base(workflowRepoFactory, false, parentCancellationToken)
         {
             _fullStatesHistoryLimit = fullStatesHistoryLimit;
         }

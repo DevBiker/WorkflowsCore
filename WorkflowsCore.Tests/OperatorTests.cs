@@ -565,10 +565,7 @@ namespace WorkflowsCore.Tests
 
         public sealed class TestWorkflowWithState : WorkflowBase<States>
         {
-            public TestWorkflowWithState(
-                Func<IWorkflowStateRepository> workflowRepoFactory = null,
-                CancellationToken parentCancellationToken = default(CancellationToken))
-                : base(workflowRepoFactory, parentCancellationToken)
+            public TestWorkflowWithState()
             {
                 OnInit();
             }
