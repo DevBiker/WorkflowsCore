@@ -19,7 +19,7 @@ namespace WorkflowsCore.Tests
         public async Task WaitForDateShouldWaitUntilSpecifiedDateInFuture()
         {
             await Utilities.SetCurrentCancellationTokenTemporarily(
-                new CancellationTokenSource(100).Token,
+                new CancellationTokenSource(1000).Token,
                 async () =>
                 {
                     var date = TestingTimeProvider.Current.Now.AddDays(1);

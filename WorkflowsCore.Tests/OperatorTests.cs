@@ -177,12 +177,12 @@ namespace WorkflowsCore.Tests
                             },
                             () =>
                             {
-                                optionalTask = Task.Delay(50, Utilities.CurrentCancellationToken);
+                                optionalTask = Task.Delay(100, Utilities.CurrentCancellationToken);
                                 return testWorkflow.Optional(optionalTask);
                             },
                             () =>
                             {
-                                task = Task.Delay(50, Utilities.CurrentCancellationToken);
+                                task = Task.Delay(100, Utilities.CurrentCancellationToken);
                                 return task;
                             });
 
@@ -525,7 +525,7 @@ namespace WorkflowsCore.Tests
                 var task = new Func<Task<int>>(
                     async () =>
                     {
-                        await Task.Delay(10);
+                        await Task.Delay(1);
                         return 1;
                     })();
                 await task.WaitWithTimeout(100);

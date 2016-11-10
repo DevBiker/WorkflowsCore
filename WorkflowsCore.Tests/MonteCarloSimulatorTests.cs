@@ -18,9 +18,7 @@ namespace WorkflowsCore.Tests
         public MonteCarloSimulatorTests(ITestOutputHelper output)
         {
             _output = output;
-            _simulator =
-                new MonteCarloSimulator<TestWorkflow>(
-                    () => _lastWorkflow = new TestWorkflow(() => new WorkflowRepository()));
+            _simulator = new MonteCarloSimulator<TestWorkflow>(() => _lastWorkflow = new TestWorkflow());
         }
 
         private enum States
@@ -507,7 +505,7 @@ namespace WorkflowsCore.Tests
         {
             _simulator =
                 new MonteCarloSimulator<TestWorkflow>(
-                    () => _lastWorkflow = new TestWorkflow(() => new WorkflowRepository()),
+                    () => _lastWorkflow = new TestWorkflow(),
                     maxConcurrentEvents: 5);
 
             var action1Counter = 0;
@@ -551,9 +549,9 @@ namespace WorkflowsCore.Tests
         public async Task WorkflowActionsAvailabilityAwaiterShouldWaitForWorkflowStateChange()
         {
             Utilities.TimeProvider = new TestingTimeProvider();
-            var workflow = new TestWorkflow(() => new WorkflowRepository());
+            var workflow = new TestWorkflow();
             workflow.StartWorkflow(initialWorkflowData: new Dictionary<string, object> { ["NoActions"] = true });
-            await workflow.StateInitializedTask;
+            await workflow.StateEventTask; // We cannot wait for StateInitializedTask because it is completed before StateChanged event
 
             var t = new WorkflowActionsAvailabilityAwaiter<States>(workflow).Task;
             Assert.False(t.IsCompleted);
@@ -569,7 +567,7 @@ namespace WorkflowsCore.Tests
         public async Task WorkflowActionsAvailabilityAwaiterShouldCompleteIfWorkflowIsStoppedOrCompleted()
         {
             Utilities.TimeProvider = new TestingTimeProvider();
-            var workflow = new TestWorkflow(() => new WorkflowRepository());
+            var workflow = new TestWorkflow();
             workflow.StartWorkflow(
                 initialWorkflowData: new Dictionary<string, object> { ["NoActions"] = true, ["CompleteFast"] = true });
             await workflow.StateInitializedTask;
@@ -586,7 +584,7 @@ namespace WorkflowsCore.Tests
         {
             _simulator =
                 new MonteCarloSimulator<TestWorkflow>(
-                    () => _lastWorkflow = new TestWorkflow(() => new WorkflowRepository()),
+                    () => _lastWorkflow = new TestWorkflow(),
                     maxConcurrentEvents: 2);
 
             _simulator.ConfigureWorldClockAdvancingEvent(
@@ -617,10 +615,9 @@ namespace WorkflowsCore.Tests
 
         private class TestWorkflow : WorkflowBase<States>
         {
-            public TestWorkflow(Func<IWorkflowStateRepository> workflowRepoFactory)
-                : base(workflowRepoFactory)
-            {
-            }
+            private readonly TaskCompletionSource<bool> _stateEventTcs = new TaskCompletionSource<bool>();
+
+            public Task StateEventTask => _stateEventTcs.Task;
 
             protected override void OnActionsInit()
             {
@@ -633,6 +630,7 @@ namespace WorkflowsCore.Tests
 
             protected override void OnStatesInit()
             {
+                StateChanged += (sender, args) => _stateEventTcs.TrySetResult(true);
                 ConfigureState(States.Due, availableActions: new[] { "Action 1", "Action 3", "Action 4" });
                 ConfigureState(States.Contacted);
             }
@@ -655,36 +653,6 @@ namespace WorkflowsCore.Tests
             {
                 await this.WaitForDate(date);
                 SetState(States.Due);
-            }
-        }
-
-        private class WorkflowRepository : IWorkflowStateRepository
-        {
-            public void SaveWorkflowData(WorkflowBase workflow)
-            {
-            }
-
-            public void MarkWorkflowAsCompleted(WorkflowBase workflow)
-            {
-            }
-
-            public void MarkWorkflowAsFailed(WorkflowBase workflow, Exception exception)
-            {
-            }
-
-            public void MarkWorkflowAsCanceled(WorkflowBase workflow)
-            {
-                throw new NotImplementedException();
-            }
-
-            public void MarkWorkflowAsSleeping(WorkflowBase workflow)
-            {
-                throw new NotImplementedException();
-            }
-
-            public void MarkWorkflowAsInProgress(WorkflowBase workflow)
-            {
-                throw new NotImplementedException();
             }
         }
     }

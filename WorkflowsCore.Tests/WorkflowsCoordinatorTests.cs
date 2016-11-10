@@ -200,6 +200,7 @@ namespace WorkflowsCore.Tests
 
             _dst.StartWorkflow();
             await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name2, _dst.Workflow, initializeDependencies: false);
+            await _dst.Workflow.StartedTask;
 
             await _src.CancelWorkflowAsync();
             await _dst.CancelWorkflowAsync();
