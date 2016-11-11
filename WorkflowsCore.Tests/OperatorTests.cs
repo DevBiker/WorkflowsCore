@@ -491,7 +491,7 @@ namespace WorkflowsCore.Tests
             public async Task WaitForTimeoutShouldThrowTimeoutExceptionIfTimeoutOccurrs()
             {
                 // ReSharper disable once PossibleNullReferenceException
-                var ex = await Record.ExceptionAsync(() => Task.Delay(100).WaitWithTimeout(1));
+                var ex = await Record.ExceptionAsync(() => Task.Delay(1000).WaitWithTimeout(1));
 
                 Assert.IsType<TimeoutException>(ex);
             }
@@ -500,8 +500,19 @@ namespace WorkflowsCore.Tests
             public async Task WaitForTimeoutShouldWaitUntilTaskFinished()
             {
                 var task = Task.Delay(1);
-                await task.WaitWithTimeout(100);
+                await task.WaitWithTimeout(1000);
                 Assert.Equal(TaskStatus.RanToCompletion, task.Status);
+            }
+
+            [Fact]
+            public async Task WaitForTimeoutShouldWaitUntilTaskCanceled()
+            {
+                var task = Task.Delay(Timeout.Infinite, new CancellationTokenSource(1).Token);
+
+                // ReSharper disable once PossibleNullReferenceException
+                var ex = await Record.ExceptionAsync(() => task.WaitWithTimeout(1000));
+                Assert.IsType<TaskCanceledException>(ex);
+                Assert.True(task.IsCanceled);
             }
 
             [Fact]
@@ -528,7 +539,7 @@ namespace WorkflowsCore.Tests
                         await Task.Delay(1);
                         return 1;
                     })();
-                await task.WaitWithTimeout(100);
+                await task.WaitWithTimeout(1000);
                 Assert.Equal(TaskStatus.RanToCompletion, task.Status);
             }
         }

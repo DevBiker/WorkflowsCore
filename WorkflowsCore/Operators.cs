@@ -257,14 +257,9 @@ namespace WorkflowsCore
             int millisecondsTimeout,
             string description = null)
         {
-            var cts = CancellationTokenSource.CreateLinkedTokenSource(Utilities.CurrentCancellationToken);
+            var cts = new CancellationTokenSource();
             if (task != await Task.WhenAny(task, Task.Delay(millisecondsTimeout, cts.Token)))
             {
-                if (cts.IsCancellationRequested)
-                {
-                    await Task.FromCanceled(cts.Token);
-                }
-
                 throw new TimeoutException(description);
             }
 
@@ -277,14 +272,9 @@ namespace WorkflowsCore
             int millisecondsTimeout,
             string description = null)
         {
-            var cts = CancellationTokenSource.CreateLinkedTokenSource(Utilities.CurrentCancellationToken);
+            var cts = new CancellationTokenSource();
             if (task != await Task.WhenAny(task, Task.Delay(millisecondsTimeout, cts.Token)))
             {
-                if (cts.IsCancellationRequested)
-                {
-                    await Task.FromCanceled<T>(cts.Token);
-                }
-
                 throw new TimeoutException(description);
             }
 

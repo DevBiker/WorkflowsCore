@@ -45,6 +45,7 @@ namespace WorkflowsCore.Tests
             var ex = await Record.ExceptionAsync(() => Workflow.CompletedTask.WaitWithTimeout(1000));
 
             Assert.IsType<TaskCanceledException>(ex);
+            Assert.Equal(TaskStatus.Canceled, Workflow.CompletedTask.Status);
         }
 
         public async Task WaitUntilWorkflowCompleted()
