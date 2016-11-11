@@ -173,16 +173,16 @@ namespace WorkflowsCore.Tests
                             {
                                 Assert.NotEqual(cts.Token, Utilities.CurrentCancellationToken);
                                 token = Utilities.CurrentCancellationToken;
-                                return Task.Delay(1, Utilities.CurrentCancellationToken);
+                                return Task.Delay(10, Utilities.CurrentCancellationToken);
                             },
                             () =>
                             {
-                                optionalTask = Task.Delay(100, Utilities.CurrentCancellationToken);
+                                optionalTask = Task.Delay(1000, Utilities.CurrentCancellationToken);
                                 return testWorkflow.Optional(optionalTask);
                             },
                             () =>
                             {
-                                task = Task.Delay(100, Utilities.CurrentCancellationToken);
+                                task = Task.Delay(1000, Utilities.CurrentCancellationToken);
                                 return task;
                             });
 
