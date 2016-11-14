@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace WorkflowsCore
 {
-    public class WorkflowMetadata
+    public class WorkflowMetadata : IWorkflowMetadata
     {
         public Type WorkflowType { get; }
 

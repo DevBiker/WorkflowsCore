@@ -11,7 +11,7 @@ namespace WorkflowsCore
     {
         private readonly Func<IWorkflowStateRepository> _workflowRepoFactory;
 
-        private readonly Lazy<WorkflowMetadata> _metadata;
+        private readonly Lazy<IWorkflowMetadata> _metadata;
 
         private readonly TaskCompletionSource<bool> _startedTaskCompletionSource =
             new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -45,7 +45,7 @@ namespace WorkflowsCore
             Func<IWorkflowStateRepository> workflowRepoFactory,
             bool isStateInitializedImmediatelyAfterStart)
         {
-            _metadata = new Lazy<WorkflowMetadata>(
+            _metadata = new Lazy<IWorkflowMetadata>(
                 () => Utilities.WorkflowMetadataCache.GetWorkflowMetadata(this),
                 LazyThreadSafetyMode.PublicationOnly);
             _concurrentExclusiveSchedulerPair = Utilities.WorkflowsTaskScheduler == null
@@ -86,7 +86,7 @@ namespace WorkflowsCore
             }
         }
 
-        public WorkflowMetadata Metadata => _metadata.Value;
+        public IWorkflowMetadata Metadata => _metadata.Value;
 
         public Task StartedTask => _startedTaskCompletionSource.Task;
 

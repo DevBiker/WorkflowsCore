@@ -28,13 +28,34 @@ namespace WorkflowsCore
         void MarkWorkflowAsInProgress(WorkflowBase workflow);
     }
 
+    public interface IWorkflowMetadata
+    {
+        Type WorkflowType { get; }
+
+        IReadOnlyDictionary<string, object> GetData(WorkflowBase workflow);
+
+        T GetDataField<T>(WorkflowBase workflow, string field);
+
+        void SetDataField<T>(WorkflowBase workflow, string field, T value);
+
+        void SetData(WorkflowBase workflow, IReadOnlyDictionary<string, object> newData);
+
+        IReadOnlyDictionary<string, object> GetTransientData(WorkflowBase workflow);
+
+        T GetTransientDataField<T>(WorkflowBase workflow, string field);
+
+        void SetTransientDataField<T>(WorkflowBase workflow, string field, T value);
+
+        void SetTransientData(WorkflowBase workflow, IReadOnlyDictionary<string, object> newData);
+    }
+
     public interface IWorkflowMetadataCache
     {
-        WorkflowMetadata GetWorkflowMetadata(WorkflowBase workflow);
+        IWorkflowMetadata GetWorkflowMetadata(WorkflowBase workflow);
 
-        WorkflowMetadata GetWorkflowMetadata(string fullTypeName);
+        IWorkflowMetadata GetWorkflowMetadata(string fullTypeName);
 
-        WorkflowMetadata GetWorkflowMetadata(Type type);
+        IWorkflowMetadata GetWorkflowMetadata(Type type);
     }
 
     public interface IDependencyInjectionContainer
