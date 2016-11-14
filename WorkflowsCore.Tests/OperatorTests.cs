@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Xunit;
@@ -347,7 +346,7 @@ namespace WorkflowsCore.Tests
                 await _workflow.DoWorkflowTaskAsync(
                     async w =>
                     {
-                        w.SetTransientDataField("StatesHistory", new[] { States.Due });
+                        w.Metadata.SetTransientDataField(w, "StatesHistory", new[] { States.Due });
                         await _workflow.WaitForAction("Contacted", state: States.Due);
 
                         Assert.Null(_workflow.Action);
@@ -365,7 +364,7 @@ namespace WorkflowsCore.Tests
                         async w =>
                         {
                             _workflow.CancelWorkflow();
-                            w.SetTransientDataField("StatesHistory", new[] { States.Due });
+                            w.Metadata.SetTransientDataField(w, "StatesHistory", new[] { States.Due });
                             var t = _workflow.WaitForAction("Contacted", state: States.Due);
                             Assert.Equal(TaskStatus.Canceled, t.Status);
                             await t;

@@ -6,7 +6,7 @@ namespace WorkflowsCore
     {
         public WorkflowMetadata GetWorkflowMetadata(WorkflowBase workflow)
         {
-            throw new NotImplementedException();
+            return new WorkflowMetadata();
         }
 
         public WorkflowMetadata GetWorkflowMetadata(string fullTypeName)

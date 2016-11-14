@@ -90,9 +90,9 @@ namespace WorkflowsCore.Tests
             await Task.WhenAll(runningWorkflows.Select(CancelWorkflowAsync));
             Assert.True(runningWorkflows.All(w => w.IsLoaded));
             Assert.Equal(1, runningWorkflows[0].Id);
-            Assert.Equal(1, runningWorkflows[0].Data["Id"]);
+            Assert.Equal(1, runningWorkflows[0].GetDataFieldAsync<int>("Id", forceExecution: true).Result);
             Assert.Equal(2, runningWorkflows[1].Id);
-            Assert.Equal(2, runningWorkflows[1].Data["Id"]);
+            Assert.Equal(2, runningWorkflows[1].GetDataFieldAsync<int>("Id", forceExecution: true).Result);
         }
 
         [Fact]
@@ -289,8 +289,6 @@ namespace WorkflowsCore.Tests
             }
 
             public bool IsLoaded { get; private set; }
-
-            public new IReadOnlyDictionary<string, object> Data => base.Data;
 
             protected override void OnCreated()
             {

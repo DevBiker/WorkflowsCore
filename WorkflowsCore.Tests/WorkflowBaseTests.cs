@@ -109,10 +109,11 @@ namespace WorkflowsCore.Tests
                 await Workflow.DoWorkflowTaskAsync(
                     w =>
                     {
-                        w.SetData(new Dictionary<string, object> { ["Id"] = 1, ["BypassDates"] = true });
-                        w.SetData(new Dictionary<string, object> { ["Id"] = 2 });
-                        Assert.Equal(2, w.Data["Id"]);
-                        Assert.Equal(true, w.GetDataField<bool>("BypassDates"));
+                        var metadata = w.Metadata;
+                        metadata.SetData(w, new Dictionary<string, object> { ["Id"] = 1, ["BypassDates"] = true });
+                        metadata.SetData(w, new Dictionary<string, object> { ["Id"] = 2 });
+                        Assert.Equal(2, metadata.GetData(w)["Id"]);
+                        Assert.Equal(true, metadata.GetDataField<bool>(w, "BypassDates"));
                     });
                 await CancelWorkflowAsync();
             }
@@ -120,7 +121,7 @@ namespace WorkflowsCore.Tests
             [Fact]
             public async Task GetDataForNonExistingKeyShouldReturnDefaultValue()
             {
-                await Workflow.DoWorkflowTaskAsync(w => Assert.Equal(0, w.GetDataField<int>("Id")));
+                await Workflow.DoWorkflowTaskAsync(w => Assert.Equal(0, w.Metadata.GetDataField<int>(w, "Id")));
                 await CancelWorkflowAsync();
             }
 
@@ -130,9 +131,9 @@ namespace WorkflowsCore.Tests
                 await Workflow.DoWorkflowTaskAsync(
                     w =>
                     {
-                        w.SetDataField("BypassDates", true);
-                        w.SetDataField("BypassDates", false);
-                        Assert.False(w.Data.ContainsKey("BypassDates"));
+                        w.Metadata.SetDataField(w, "BypassDates", true);
+                        w.Metadata.SetDataField(w, "BypassDates", false);
+                        Assert.False(w.Metadata.GetData(w).ContainsKey("BypassDates"));
                     });
                 await CancelWorkflowAsync();
             }
@@ -143,10 +144,13 @@ namespace WorkflowsCore.Tests
                 await Workflow.DoWorkflowTaskAsync(
                     w =>
                     {
-                        w.SetTransientData(new Dictionary<string, object> { ["Id"] = 1, ["BypassDates"] = true });
-                        w.SetTransientData(new Dictionary<string, object> { ["Id"] = 2 });
-                        Assert.Equal(2, w.TransientData["Id"]);
-                        Assert.Equal(true, w.GetTransientDataField<bool>("BypassDates"));
+                        var metadata = w.Metadata;
+                        metadata.SetTransientData(
+                            w,
+                            new Dictionary<string, object> { ["Id"] = 1, ["BypassDates"] = true });
+                        metadata.SetTransientData(w, new Dictionary<string, object> { ["Id"] = 2 });
+                        Assert.Equal(2, metadata.GetTransientData(w)["Id"]);
+                        Assert.Equal(true, metadata.GetTransientDataField<bool>(w, "BypassDates"));
                     });
                 await CancelWorkflowAsync();
             }
@@ -154,7 +158,7 @@ namespace WorkflowsCore.Tests
             [Fact]
             public async Task GetTransientDataForNonExistingKeyShouldReturnDefaultValue()
             {
-                await Workflow.DoWorkflowTaskAsync(w => Assert.Equal(0, w.GetTransientDataField<int>("Id")));
+                await Workflow.DoWorkflowTaskAsync(w => Assert.Equal(0, w.Metadata.GetTransientDataField<int>(w, "Id")));
                 await CancelWorkflowAsync();
             }
         }

@@ -7,44 +7,52 @@ namespace WorkflowsCore
     {
         public Type WorkflowType { get; }
 
-        public NamedValues GetData(WorkflowBase workflow)
+        public IReadOnlyDictionary<string, object> GetData(WorkflowBase workflow)
         {
-            throw new NotImplementedException();
+            workflow.EnsureWorkflowTaskScheduler();
+            return workflow.Data;
         }
 
         public T GetDataField<T>(WorkflowBase workflow, string field)
         {
-            throw new NotImplementedException();
+            workflow.EnsureWorkflowTaskScheduler();
+            return workflow.GetDataField<T>(field);
         }
 
         public void SetDataField<T>(WorkflowBase workflow, string field, T value)
         {
-            throw new NotImplementedException();
+            workflow.EnsureWorkflowTaskScheduler();
+            workflow.SetDataField(field, value);
         }
 
         public void SetData(WorkflowBase workflow, IReadOnlyDictionary<string, object> newData)
         {
-            throw new NotImplementedException();
+            workflow.EnsureWorkflowTaskScheduler();
+            workflow.SetData(newData);
         }
 
-        public NamedValues GetTransientData(WorkflowBase workflow)
+        public IReadOnlyDictionary<string, object> GetTransientData(WorkflowBase workflow)
         {
-            throw new NotImplementedException();
+            workflow.EnsureWorkflowTaskScheduler();
+            return workflow.TransientData;
         }
 
         public T GetTransientDataField<T>(WorkflowBase workflow, string field)
         {
-            throw new NotImplementedException();
+            workflow.EnsureWorkflowTaskScheduler();
+            return workflow.GetTransientDataField<T>(field);
         }
 
         public void SetTransientDataField<T>(WorkflowBase workflow, string field, T value)
         {
-            throw new NotImplementedException();
+            workflow.EnsureWorkflowTaskScheduler();
+            workflow.SetTransientDataField(field, value);
         }
 
         public void SetTransientData(WorkflowBase workflow, IReadOnlyDictionary<string, object> newData)
         {
-            throw new NotImplementedException();
+            workflow.EnsureWorkflowTaskScheduler();
+            workflow.SetTransientData(newData);
         }
     }
 }

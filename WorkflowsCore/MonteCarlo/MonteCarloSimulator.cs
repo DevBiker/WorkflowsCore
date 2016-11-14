@@ -275,7 +275,7 @@ namespace WorkflowsCore.MonteCarlo
 
         private static async Task ProcessWorkflowCompletion(TWorkflowType workflow, Exception exception)
         {
-            await workflow.DoWorkflowTaskAsync(_ => { }, true); // Wait until workflow finishes current work
+            await workflow.DoWorkflowTaskAsync(() => { }, true); // Wait until workflow finishes current work
 
             if (!workflow.CompletedTask.IsCompleted)
             {
@@ -304,7 +304,7 @@ namespace WorkflowsCore.MonteCarlo
                         StringComparison.Ordinal))
                 {
                     Globals.EventMonitor.LogEvent(ex.Message);
-                    var lastWorkflowState = ((IWorkflowData)workflow).GetTransientDataField<object>("State")?.ToString() ??
+                    var lastWorkflowState = workflow.GetTransientDataField<object>("State")?.ToString() ??
                         "N/A";
                     Globals.EventMonitor.LogEvent($"Last workflow state is {lastWorkflowState}");
                 }
@@ -591,14 +591,13 @@ namespace WorkflowsCore.MonteCarlo
                 }
 
                 await _worldClockAdvancingEventDefinition.DoEvent(workflow, true);
-                var data = (IWorkflowData)workflow;
-                var statesHistory = data.GetDataField<IEnumerable>("StatesHistory") ?? Enumerable.Empty<object>();
+                var statesHistory = workflow.GetDataField<IEnumerable>("StatesHistory") ?? Enumerable.Empty<object>();
                 Globals.EventMonitor.LogEvent(
                     "Application is started",
                     $"StatesHistory: [{string.Join(", ", statesHistory.Cast<object>())}]");
 
                 var newWorkflow = _workflowFactory();
-                newWorkflow.StartWorkflow(loadedWorkflowData: data.Data);
+                newWorkflow.StartWorkflow(loadedWorkflowData: workflow.Data);
                 try
                 {
                     await newWorkflow.StateInitializedTask;

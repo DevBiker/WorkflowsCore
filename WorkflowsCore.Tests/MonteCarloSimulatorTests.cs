@@ -334,7 +334,7 @@ namespace WorkflowsCore.Tests
                     oldWorkflow = w;
                     Assert.True(w.CompletedTask.IsCompleted);
                     Assert.Equal(true, isAppRestart);
-                    Assert.Equal(1, ((IWorkflowData)w).Data["Id"]);
+                    Assert.Equal(1, w.GetDataFieldAsync<int>("Id", forceExecution: true).Result);
                     return Task.FromResult(
                         new WorldClockAdvancingEvent(Globals.TimeProvider.Now.AddHours(1).AddMinutes(23)));
                 });
@@ -346,7 +346,7 @@ namespace WorkflowsCore.Tests
                     customEventCalled = true;
                     Assert.NotNull(oldWorkflow);
                     Assert.NotSame(oldWorkflow, w);
-                    Assert.Equal(1, w.GetDataAsync<int>("Id").Result);
+                    Assert.Equal(1, w.GetDataFieldAsync<int>("Id").Result);
                     return Task.CompletedTask;
                 });
             _simulator.ConfigureApplicationRestartEvent(100.0);

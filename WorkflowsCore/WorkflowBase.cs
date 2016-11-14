@@ -7,7 +7,7 @@ using WorkflowsCore.Time;
 
 namespace WorkflowsCore
 {
-    public abstract class WorkflowBase : IWorkflowData
+    public abstract class WorkflowBase
     {
         private readonly Func<IWorkflowStateRepository> _workflowRepoFactory;
 
@@ -96,15 +96,11 @@ namespace WorkflowsCore
 
         public bool IsWorkflowTaskScheduler => TaskScheduler.Current == WorkflowTaskScheduler;
 
-        IReadOnlyDictionary<string, object> IWorkflowData.Data => Data;
+        internal IReadOnlyDictionary<string, object> Data => _data.Data;
 
-        IReadOnlyDictionary<string, object> IWorkflowData.TransientData => TransientData;
+        internal IReadOnlyDictionary<string, object> TransientData => _transientData.Data;
 
         protected static ITimeProvider TimeProvider => Utilities.TimeProvider;
-
-        protected IReadOnlyDictionary<string, object> Data => _data.Data;
-
-        protected IReadOnlyDictionary<string, object> TransientData => _transientData.Data;
 
         private CancellationTokenSource CancellationTokenSource { get; }
 
@@ -210,7 +206,7 @@ namespace WorkflowsCore
         public Task<T> RunViaWorkflowTaskScheduler<T>(Func<T> func, bool forceExecution = false) =>
             RunViaWorkflowTaskScheduler(w => func(), forceExecution);
 
-        public Task RunViaWorkflowTaskScheduler(Action<IWorkflowData> action, bool forceExecution = false)
+        public Task RunViaWorkflowTaskScheduler(Action<WorkflowBase> action, bool forceExecution = false)
         {
             if (IsWorkflowTaskScheduler)
             {
@@ -221,7 +217,7 @@ namespace WorkflowsCore
             return DoWorkflowTaskAsync(action, forceExecution);
         }
 
-        public Task<T> RunViaWorkflowTaskScheduler<T>(Func<IWorkflowData, T> func, bool forceExecution = false)
+        public Task<T> RunViaWorkflowTaskScheduler<T>(Func<WorkflowBase, T> func, bool forceExecution = false)
         {
             if (IsWorkflowTaskScheduler)
             {
@@ -245,7 +241,7 @@ namespace WorkflowsCore
         public Task<T> DoWorkflowTaskAsync<T>(Func<T> func, bool forceExecution = false) =>
             DoWorkflowTaskAsync(w => func(), forceExecution);
 
-        public Task DoWorkflowTaskAsync(Action<IWorkflowData> action, bool forceExecution = false)
+        public Task DoWorkflowTaskAsync(Action<WorkflowBase> action, bool forceExecution = false)
         {
             return Utilities.SetCurrentCancellationTokenTemporarily(
                 CancellationTokenSource.Token,
@@ -264,7 +260,7 @@ namespace WorkflowsCore
                     WorkflowTaskScheduler)).Unwrap();
         }
 
-        public Task<T> DoWorkflowTaskAsync<T>(Func<IWorkflowData, T> func, bool forceExecution = false)
+        public Task<T> DoWorkflowTaskAsync<T>(Func<WorkflowBase, T> func, bool forceExecution = false)
         {
             return Utilities.SetCurrentCancellationTokenTemporarily(
                 CancellationTokenSource.Token,
@@ -334,19 +330,20 @@ namespace WorkflowsCore
                 }).Unwrap();
         }
 
-        public Task<T> GetDataAsync<T>(string key) => RunViaWorkflowTaskScheduler(() => GetData<T>(key));
+        public Task<T> GetDataFieldAsync<T>(string key, bool forceExecution = false) => 
+            RunViaWorkflowTaskScheduler(() => GetData<T>(key), forceExecution);
 
-        T IWorkflowData.GetDataField<T>(string key) => GetData<T>(key);
+        internal T GetDataField<T>(string key) => GetData<T>(key);
 
-        void IWorkflowData.SetDataField<T>(string key, T value) => SetData(key, value);
+        internal void SetDataField<T>(string key, T value) => SetData(key, value);
 
-        void IWorkflowData.SetData(IReadOnlyDictionary<string, object> newData) => SetData(newData);
+        internal T GetTransientDataField<T>(string key) => GetTransientData<T>(key);
 
-        T IWorkflowData.GetTransientDataField<T>(string key) => GetTransientData<T>(key);
+        internal void SetTransientDataField<T>(string key, T value) => SetTransientData(key, value);
 
-        void IWorkflowData.SetTransientDataField<T>(string key, T value) => SetTransientData(key, value);
+        internal void SetData(IReadOnlyDictionary<string, object> newData) => _data.SetData(newData);
 
-        void IWorkflowData.SetTransientData(IReadOnlyDictionary<string, object> newData) => SetTransientData(newData);
+        internal void SetTransientData(IReadOnlyDictionary<string, object> newData) => _transientData.SetData(newData);
 
         internal Task ClearTimesExecutedAsync(string action)
         {
@@ -524,13 +521,9 @@ namespace WorkflowsCore
 
         protected void SetData<T>(string key, T value) => _data.SetData(key, value);
 
-        protected void SetData(IReadOnlyDictionary<string, object> newData) => _data.SetData(newData);
-
         protected T GetTransientData<T>(string key) => _transientData.GetData<T>(key);
 
         protected void SetTransientData<T>(string key, T value) => _transientData.SetData(key, value);
-
-        protected void SetTransientData(IReadOnlyDictionary<string, object> newData) => _transientData.SetData(newData);
 
         protected IList<string> GetActionSynonyms(string action) => GetActionDefinition(action).Synonyms;
 

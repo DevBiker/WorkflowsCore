@@ -13,25 +13,6 @@ namespace WorkflowsCore
         Sleeping = 4
     }
 
-    public interface IWorkflowData
-    {
-        IReadOnlyDictionary<string, object> Data { get; }
-
-        IReadOnlyDictionary<string, object> TransientData { get; }
-
-        T GetDataField<T>(string key);
-
-        void SetDataField<T>(string key, T value);
-
-        void SetData(IReadOnlyDictionary<string, object> newData);
-
-        T GetTransientDataField<T>(string key);
-
-        void SetTransientDataField<T>(string key, T value);
-
-        void SetTransientData(IReadOnlyDictionary<string, object> newData);
-    }
-
     public interface IWorkflowStateRepository
     {
         void SaveWorkflowData(WorkflowBase workflow);
