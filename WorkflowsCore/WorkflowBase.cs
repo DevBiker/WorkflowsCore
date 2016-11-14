@@ -333,6 +333,9 @@ namespace WorkflowsCore
         public Task<T> GetDataFieldAsync<T>(string key, bool forceExecution = false) => 
             RunViaWorkflowTaskScheduler(() => GetData<T>(key), forceExecution);
 
+        public Task<T> GetTransientDataFieldAsync<T>(string key, bool forceExecution = false) =>
+            RunViaWorkflowTaskScheduler(() => GetTransientData<T>(key), forceExecution);
+
         internal T GetDataField<T>(string key) => GetData<T>(key);
 
         internal void SetDataField<T>(string key, T value) => SetData(key, value);
