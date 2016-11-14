@@ -20,12 +20,12 @@ namespace WorkflowsCore.Tests
         public void Dispose() => Assert.False(_workflowEngine.RunningWorkflows.Any());
 
         [Fact]
-        public void CreateWorkflowForNonExistingWorkflowTypeShouldThrowIoe()
+        public void CreateWorkflowForNonExistingWorkflowTypeShouldThrowAoore()
         {
             var ex = Record.Exception(
                 () => _workflowEngine.CreateWorkflow("Bad type name", new Dictionary<string, object>()));
 
-            Assert.IsType<InvalidOperationException>(ex);
+            Assert.IsType<ArgumentOutOfRangeException>(ex);
         }
 
         [Fact]

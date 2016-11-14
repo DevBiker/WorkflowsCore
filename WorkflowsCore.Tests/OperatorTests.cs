@@ -292,7 +292,7 @@ namespace WorkflowsCore.Tests
                         await t;
 
                         Assert.Equal("Contacted", Workflow.Action);
-                        Assert.True(parameters.SequenceEqual(Workflow.Parameters.Data));
+                        Assert.Equal(parameters, Workflow.Parameters.Data);
                     }).Unwrap();
 
                 await CancelWorkflowAsync();
@@ -347,7 +347,7 @@ namespace WorkflowsCore.Tests
                 await _workflow.DoWorkflowTaskAsync(
                     async w =>
                     {
-                        w.SetTransientData("StatesHistory", new[] { States.Due });
+                        w.SetTransientDataField("StatesHistory", new[] { States.Due });
                         await _workflow.WaitForAction("Contacted", state: States.Due);
 
                         Assert.Null(_workflow.Action);
@@ -365,7 +365,7 @@ namespace WorkflowsCore.Tests
                         async w =>
                         {
                             _workflow.CancelWorkflow();
-                            w.SetTransientData("StatesHistory", new[] { States.Due });
+                            w.SetTransientDataField("StatesHistory", new[] { States.Due });
                             var t = _workflow.WaitForAction("Contacted", state: States.Due);
                             Assert.Equal(TaskStatus.Canceled, t.Status);
                             await t;

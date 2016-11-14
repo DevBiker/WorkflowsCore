@@ -304,7 +304,7 @@ namespace WorkflowsCore.MonteCarlo
                         StringComparison.Ordinal))
                 {
                     Globals.EventMonitor.LogEvent(ex.Message);
-                    var lastWorkflowState = ((IWorkflowData)workflow).GetTransientData<object>("State")?.ToString() ??
+                    var lastWorkflowState = ((IWorkflowData)workflow).GetTransientDataField<object>("State")?.ToString() ??
                         "N/A";
                     Globals.EventMonitor.LogEvent($"Last workflow state is {lastWorkflowState}");
                 }
@@ -592,7 +592,7 @@ namespace WorkflowsCore.MonteCarlo
 
                 await _worldClockAdvancingEventDefinition.DoEvent(workflow, true);
                 var data = (IWorkflowData)workflow;
-                var statesHistory = data.GetData<IEnumerable>("StatesHistory") ?? Enumerable.Empty<object>();
+                var statesHistory = data.GetDataField<IEnumerable>("StatesHistory") ?? Enumerable.Empty<object>();
                 Globals.EventMonitor.LogEvent(
                     "Application is started",
                     $"StatesHistory: [{string.Join(", ", statesHistory.Cast<object>())}]");

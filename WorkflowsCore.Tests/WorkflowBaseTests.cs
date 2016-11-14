@@ -112,7 +112,7 @@ namespace WorkflowsCore.Tests
                         w.SetData(new Dictionary<string, object> { ["Id"] = 1, ["BypassDates"] = true });
                         w.SetData(new Dictionary<string, object> { ["Id"] = 2 });
                         Assert.Equal(2, w.Data["Id"]);
-                        Assert.Equal(true, w.GetData<bool>("BypassDates"));
+                        Assert.Equal(true, w.GetDataField<bool>("BypassDates"));
                     });
                 await CancelWorkflowAsync();
             }
@@ -120,7 +120,7 @@ namespace WorkflowsCore.Tests
             [Fact]
             public async Task GetDataForNonExistingKeyShouldReturnDefaultValue()
             {
-                await Workflow.DoWorkflowTaskAsync(w => Assert.Equal(0, w.GetData<int>("Id")));
+                await Workflow.DoWorkflowTaskAsync(w => Assert.Equal(0, w.GetDataField<int>("Id")));
                 await CancelWorkflowAsync();
             }
 
@@ -130,8 +130,8 @@ namespace WorkflowsCore.Tests
                 await Workflow.DoWorkflowTaskAsync(
                     w =>
                     {
-                        w.SetData("BypassDates", true);
-                        w.SetData("BypassDates", false);
+                        w.SetDataField("BypassDates", true);
+                        w.SetDataField("BypassDates", false);
                         Assert.False(w.Data.ContainsKey("BypassDates"));
                     });
                 await CancelWorkflowAsync();
@@ -146,7 +146,7 @@ namespace WorkflowsCore.Tests
                         w.SetTransientData(new Dictionary<string, object> { ["Id"] = 1, ["BypassDates"] = true });
                         w.SetTransientData(new Dictionary<string, object> { ["Id"] = 2 });
                         Assert.Equal(2, w.TransientData["Id"]);
-                        Assert.Equal(true, w.GetTransientData<bool>("BypassDates"));
+                        Assert.Equal(true, w.GetTransientDataField<bool>("BypassDates"));
                     });
                 await CancelWorkflowAsync();
             }
@@ -154,7 +154,7 @@ namespace WorkflowsCore.Tests
             [Fact]
             public async Task GetTransientDataForNonExistingKeyShouldReturnDefaultValue()
             {
-                await Workflow.DoWorkflowTaskAsync(w => Assert.Equal(0, w.GetTransientData<int>("Id")));
+                await Workflow.DoWorkflowTaskAsync(w => Assert.Equal(0, w.GetTransientDataField<int>("Id")));
                 await CancelWorkflowAsync();
             }
         }
@@ -278,13 +278,26 @@ namespace WorkflowsCore.Tests
             }
 
             [Fact]
-            public async Task RunViaWorkflowTaskScheduler2ShouldCompleteASyncIfRunOutsideOfWorkflowThread()
+            public async Task RunViaWorkflowTaskScheduler2ShouldCompleteAsyncIfRunOutsideOfWorkflowThread()
             {
                 Assert.False(Workflow.IsWorkflowTaskScheduler);
                 var task = Workflow.RunViaWorkflowTaskScheduler(() => true, forceExecution: true);
                 Assert.NotEqual(Task.CompletedTask, task);
                 var res = await task;
                 Assert.True(res);
+            }
+
+            [Fact]
+            public async Task EnsureWorkflowTaskSchedulerShouldThrowIoeForOtherThreads()
+            {
+                StartWorkflow();
+                await Workflow.DoWorkflowTaskAsync(() => Workflow.EnsureWorkflowTaskScheduler());
+
+                var ex = Record.Exception(() => Workflow.EnsureWorkflowTaskScheduler());
+
+                Assert.IsType<InvalidOperationException>(ex);
+
+                await CancelWorkflowAsync();
             }
         }
 
@@ -317,7 +330,7 @@ namespace WorkflowsCore.Tests
                 var parameters = new Dictionary<string, object> { ["Id"] = 1 };
                 await Workflow.ExecuteActionAsync("Action Synonym", parameters);
 
-                Assert.True(parameters.SequenceEqual(invocationParameters.Data));
+                Assert.Equal(parameters, invocationParameters.Data);
                 await CancelWorkflowAsync();
             }
 
@@ -412,7 +425,7 @@ namespace WorkflowsCore.Tests
 
                 var res = await Workflow.GetAvailableActionsAsync();
 
-                Assert.True(res.SequenceEqual(new[] { "Action 1", "Action 2", "Action 0" }));
+                Assert.Equal(new[] { "Action 1", "Action 2", "Action 0" }, res.ToArray());
                 await CancelWorkflowAsync();
             }
 
@@ -426,7 +439,7 @@ namespace WorkflowsCore.Tests
                 StartWorkflow();
 
                 var res = await Workflow.GetAvailableActionsAsync();
-                Assert.True(res.SequenceEqual(new[] { "Action 1", "Action 0" }));
+                Assert.Equal(new[] { "Action 1", "Action 0" }, res.ToArray());
                 await CancelWorkflowAsync();
             }
 
@@ -437,7 +450,7 @@ namespace WorkflowsCore.Tests
                 StartWorkflow();
 
                 var res = await Workflow.GetAvailableActionsAsync();
-                Assert.True(res.SequenceEqual(new[] { "Action 1" }));
+                Assert.Equal(new[] { "Action 1" }, res.ToArray());
                 await CancelWorkflowAsync();
             }
 
@@ -451,7 +464,7 @@ namespace WorkflowsCore.Tests
 
                 var res = await Workflow.GetAvailableActionsAsync();
 
-                Assert.True(res.SequenceEqual(new[] { "Action 0", "Action 2" }));
+                Assert.Equal(new[] { "Action 0", "Action 2" }, res.ToArray());
                 await CancelWorkflowAsync();
             }
 

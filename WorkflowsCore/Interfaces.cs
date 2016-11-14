@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Threading;
 using System.Threading.Tasks;
-using WorkflowsCore.Time;
 
 namespace WorkflowsCore
 {
@@ -21,15 +19,15 @@ namespace WorkflowsCore
 
         IReadOnlyDictionary<string, object> TransientData { get; }
 
-        T GetData<T>(string key);
+        T GetDataField<T>(string key);
 
-        void SetData<T>(string key, T value);
+        void SetDataField<T>(string key, T value);
 
         void SetData(IReadOnlyDictionary<string, object> newData);
 
-        T GetTransientData<T>(string key);
+        T GetTransientDataField<T>(string key);
 
-        void SetTransientData<T>(string key, T value);
+        void SetTransientDataField<T>(string key, T value);
 
         void SetTransientData(IReadOnlyDictionary<string, object> newData);
     }
@@ -49,16 +47,13 @@ namespace WorkflowsCore
         void MarkWorkflowAsInProgress(WorkflowBase workflow);
     }
 
-    public interface IWorkflowRepository
+    public interface IWorkflowMetadataCache
     {
-        /// <summary>
-        /// It should return workflows in progress and faulted. It should not return sleeping workflows.
-        /// </summary>
-        IList<WorkflowInstance> GetActiveWorkflows();
+        WorkflowMetadata GetWorkflowMetadata(WorkflowBase workflow);
 
-        WorkflowInstance GetSleepingOrFaultedWorkflowById(object workflowId);
+        WorkflowMetadata GetWorkflowMetadata(string fullTypeName);
 
-        WorkflowStatus GetWorkflowStatusById(object workflowId);
+        WorkflowMetadata GetWorkflowMetadata(Type type);
     }
 
     public interface IDependencyInjectionContainer
@@ -81,90 +76,25 @@ namespace WorkflowsCore
         WorkflowBase GetActiveWorkflowById(object id);
     }
 
-    public static class Utilities
+    public interface IWorkflowRepository
     {
-        private static readonly AsyncLocal<CancellationToken> AsyncCancellationToken = new AsyncLocal<CancellationToken>();
-        private static readonly ITimeProvider DefaultTimeProvider = new TimeProvider();
-        private static readonly AsyncLocal<ITimeProvider> AsyncTimeProvider = new AsyncLocal<ITimeProvider>();
-        private static readonly AsyncLocal<TaskScheduler> AsyncTaskScheduler = new AsyncLocal<TaskScheduler>();
+        /// <summary>
+        /// It should return workflows in progress and faulted. It should not return sleeping workflows.
+        /// </summary>
+        IList<WorkflowInstance> GetActiveWorkflows();
 
-        public static CancellationToken CurrentCancellationToken => AsyncCancellationToken.Value;
+        WorkflowInstance GetSleepingOrFaultedWorkflowById(object workflowId);
 
-        public static TaskScheduler WorkflowsTaskScheduler
-        {
-            get { return AsyncTaskScheduler.Value; }
-            set { AsyncTaskScheduler.Value = value; }
-        }
+        WorkflowStatus GetWorkflowStatusById(object workflowId);
+    }
 
-        public static ITimeProvider TimeProvider
-        {
-            get
-            {
-                return AsyncTimeProvider.Value ?? DefaultTimeProvider;
-            }
+    public class WorkflowInstance
+    {
+        public object Id { get; set; }
 
-            set
-            {
-                AsyncTimeProvider.Value = value;
-            }
-        }
+        public string WorkflowTypeName { get; set; }
 
-        public static void SetCurrentCancellationTokenTemporarily(CancellationToken ct, Action action)
-        {
-            var oldValue = AsyncCancellationToken.Value;
-            AsyncCancellationToken.Value = ct;
-            try
-            {
-                action();
-            }
-            finally
-            {
-                AsyncCancellationToken.Value = oldValue;
-            }
-        }
-
-        public static T SetCurrentCancellationTokenTemporarily<T>(CancellationToken ct, Func<T> func)
-        {
-            var oldValue = AsyncCancellationToken.Value;
-            AsyncCancellationToken.Value = ct;
-            try
-            {
-                return func();
-            }
-            finally
-            {
-                AsyncCancellationToken.Value = oldValue;
-            }
-        }
-
-        public static Task RunViaWorkflowsTaskScheduler(Action action)
-        {
-            if (WorkflowsTaskScheduler == null)
-            {
-                action();
-                return Task.CompletedTask;
-            }
-
-            return Task.Factory.StartNew(
-                action,
-                CancellationToken.None,
-                TaskCreationOptions.None,
-                WorkflowsTaskScheduler);
-        }
-
-        public static Task<T> RunViaWorkflowsTaskScheduler<T>(Func<T> func)
-        {
-            if (WorkflowsTaskScheduler == null)
-            {
-                return Task.FromResult(func());
-            }
-
-            return Task.Factory.StartNew(
-                func,
-                CancellationToken.None,
-                TaskCreationOptions.None,
-                WorkflowsTaskScheduler);
-        }
+        public IReadOnlyDictionary<string, object> Data { get; set; }
     }
 
     public class StateStats

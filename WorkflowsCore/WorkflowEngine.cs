@@ -117,7 +117,7 @@ namespace WorkflowsCore
             var type = Type.GetType(fullTypeName);
             if (type == null)
             {
-                throw new InvalidOperationException();
+                throw new ArgumentOutOfRangeException(nameof(fullTypeName));
             }
 
             var workflow = (WorkflowBase)_diContainer.Resolve(type);

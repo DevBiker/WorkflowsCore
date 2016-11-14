@@ -11,6 +11,8 @@ namespace WorkflowsCore
     {
         private readonly Func<IWorkflowStateRepository> _workflowRepoFactory;
 
+        private readonly Lazy<WorkflowMetadata> _metadata;
+
         private readonly TaskCompletionSource<bool> _startedTaskCompletionSource =
             new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -43,6 +45,9 @@ namespace WorkflowsCore
             Func<IWorkflowStateRepository> workflowRepoFactory,
             bool isStateInitializedImmediatelyAfterStart)
         {
+            _metadata = new Lazy<WorkflowMetadata>(
+                () => Utilities.WorkflowMetadataCache.GetWorkflowMetadata(this),
+                LazyThreadSafetyMode.PublicationOnly);
             _concurrentExclusiveSchedulerPair = Utilities.WorkflowsTaskScheduler == null
                 ? new ConcurrentExclusiveSchedulerPair()
                 : new ConcurrentExclusiveSchedulerPair(Utilities.WorkflowsTaskScheduler);
@@ -80,6 +85,8 @@ namespace WorkflowsCore
                 }
             }
         }
+
+        public WorkflowMetadata Metadata => _metadata.Value;
 
         public Task StartedTask => _startedTaskCompletionSource.Task;
 
@@ -224,6 +231,14 @@ namespace WorkflowsCore
             return DoWorkflowTaskAsync(func, forceExecution);
         }
 
+        public void EnsureWorkflowTaskScheduler()
+        {
+            if (!IsWorkflowTaskScheduler)
+            {
+                throw new InvalidOperationException("This operation cannot be used outside of workflow task scheduler");
+            }
+        }
+
         public Task DoWorkflowTaskAsync(Action action, bool forceExecution = false) =>
             DoWorkflowTaskAsync(w => action(), forceExecution);
 
@@ -321,15 +336,15 @@ namespace WorkflowsCore
 
         public Task<T> GetDataAsync<T>(string key) => RunViaWorkflowTaskScheduler(() => GetData<T>(key));
 
-        T IWorkflowData.GetData<T>(string key) => GetData<T>(key);
+        T IWorkflowData.GetDataField<T>(string key) => GetData<T>(key);
 
-        void IWorkflowData.SetData<T>(string key, T value) => SetData(key, value);
+        void IWorkflowData.SetDataField<T>(string key, T value) => SetData(key, value);
 
         void IWorkflowData.SetData(IReadOnlyDictionary<string, object> newData) => SetData(newData);
 
-        T IWorkflowData.GetTransientData<T>(string key) => GetTransientData<T>(key);
+        T IWorkflowData.GetTransientDataField<T>(string key) => GetTransientData<T>(key);
 
-        void IWorkflowData.SetTransientData<T>(string key, T value) => SetTransientData(key, value);
+        void IWorkflowData.SetTransientDataField<T>(string key, T value) => SetTransientData(key, value);
 
         void IWorkflowData.SetTransientData(IReadOnlyDictionary<string, object> newData) => SetTransientData(newData);
 

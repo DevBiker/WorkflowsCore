@@ -55,7 +55,7 @@ namespace WorkflowsCore.Tests
             public void SetStateShouldUpdateStatesHistory()
             {
                 _workflow.SetState(States.Outstanding);
-                Assert.True(new List<States> { States.Outstanding }.SequenceEqual(_workflow.StatesHistory));
+                Assert.Equal(new[] { States.Outstanding }, _workflow.StatesHistory.ToArray());
             }
 
             [Fact]
@@ -63,7 +63,7 @@ namespace WorkflowsCore.Tests
             {
                 _workflow.SetState(States.Due);
                 _workflow.SetState(States.Due);
-                Assert.True(new List<States> { States.Due }.SequenceEqual(_workflow.StatesHistory));
+                Assert.Equal(new[] { States.Due }, _workflow.StatesHistory.ToArray());
             }
 
             [Fact]
@@ -72,7 +72,7 @@ namespace WorkflowsCore.Tests
                 _workflow.SetState(States.Outstanding);
                 _workflow.SetState(States.Due);
                 _workflow.SetState(States.Outstanding);
-                Assert.True(new List<States> { States.Outstanding }.SequenceEqual(_workflow.StatesHistory));
+                Assert.Equal(new[] { States.Outstanding }, _workflow.StatesHistory.ToArray());
             }
 
             [Fact]
@@ -81,8 +81,7 @@ namespace WorkflowsCore.Tests
                 _workflow.SetState(States.Outstanding);
                 _workflow.SetState(States.Due);
                 _workflow.SetState(States.Contacted);
-                Assert.True(
-                    new List<States> { States.Outstanding, States.Contacted }.SequenceEqual(_workflow.StatesHistory));
+                Assert.Equal(new[] { States.Outstanding, States.Contacted }, _workflow.StatesHistory.ToArray());
             }
 
             [Fact]
@@ -302,8 +301,7 @@ namespace WorkflowsCore.Tests
                 Assert.False(_workflow.IsRestoringState);
                 Assert.Equal(TaskStatus.RanToCompletion, _workflow.StateInitializedTask.Status);
                 Assert.Equal(1, _workflowRepo.SaveWorkflowDataCounter);
-                Assert.True(
-                    new List<States> { States.Outstanding, States.Contacted }.SequenceEqual(_workflow.StatesHistory));
+                Assert.Equal(new[] { States.Outstanding, States.Contacted }, _workflow.StatesHistory.ToArray());
             }
 
             [Fact]
@@ -317,8 +315,7 @@ namespace WorkflowsCore.Tests
                 Assert.False(_workflow.IsRestoringState);
                 Assert.Equal(TaskStatus.RanToCompletion, _workflow.StateInitializedTask.Status);
                 Assert.Equal(1, _workflowRepo.SaveWorkflowDataCounter);
-                Assert.True(
-                    new List<States> { States.Outstanding, States.Due }.SequenceEqual(_workflow.StatesHistory));
+                Assert.Equal(new[] { States.Outstanding, States.Due }, _workflow.StatesHistory.ToArray());
                 _workflow.SetState(States.Contacted);
                 Assert.Equal(2, _workflowRepo.SaveWorkflowDataCounter);
             }
@@ -340,7 +337,7 @@ namespace WorkflowsCore.Tests
 
                 var actions = await Workflow.GetAvailableActionsAsync();
 
-                Assert.True(actions.SequenceEqual(new[] { "Outstanding Action 1", "Outstanding Action 2" }));
+                Assert.Equal(new[] { "Outstanding Action 1", "Outstanding Action 2" }, actions.ToArray());
                 await CancelWorkflowAsync();
             }
 
@@ -352,7 +349,7 @@ namespace WorkflowsCore.Tests
 
                 var actions = await Workflow.GetAvailableActionsAsync();
 
-                Assert.True(actions.SequenceEqual(new[] { "Outstanding Action 1", "Due Action 1" }));
+                Assert.Equal(new[] { "Outstanding Action 1", "Due Action 1" }, actions.ToArray());
                 await CancelWorkflowAsync();
             }
 
@@ -364,7 +361,7 @@ namespace WorkflowsCore.Tests
 
                 var actions = await Workflow.GetAvailableActionsAsync();
 
-                Assert.True(actions.SequenceEqual(new[] { "Due Action 1" }));
+                Assert.Equal(new[] { "Due Action 1" }, actions.ToArray());
                 await CancelWorkflowAsync();
             }
         }

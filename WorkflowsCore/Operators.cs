@@ -144,7 +144,7 @@ namespace WorkflowsCore
             TState state)
             where TState : struct
         {
-            EnsureWorkflowTaskScheduler(workflow);
+            workflow.EnsureWorkflowTaskScheduler();
 
             var tcs = new TaskCompletionSource<bool>();
 
@@ -280,15 +280,6 @@ namespace WorkflowsCore
 
             cts.Cancel();
             return await task;
-        }
-
-        // ReSharper disable once UnusedParameter.Local
-        private static void EnsureWorkflowTaskScheduler(WorkflowBase workflow)
-        {
-            if (!workflow.IsWorkflowTaskScheduler)
-            {
-                throw new InvalidOperationException("This operator cannot be used outside of workflow thread");
-            }
         }
 
         private static void WaitAnyCore(
