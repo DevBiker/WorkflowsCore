@@ -34,7 +34,11 @@ namespace WorkflowsCore
     {
         Type WorkflowType { get; }
 
-        IReadOnlyDictionary<string, object> GetData(WorkflowBase workflow);
+        IReadOnlyDictionary<string, Type> DataFieldTypeMap { get; }
+
+        Dictionary<string, object> GetData(WorkflowBase workflow);
+
+        T TryGetDataField<T>(WorkflowBase workflow, string field);
 
         T GetDataField<T>(WorkflowBase workflow, string field);
 
@@ -42,7 +46,7 @@ namespace WorkflowsCore
 
         void SetData(WorkflowBase workflow, IReadOnlyDictionary<string, object> newData);
 
-        IReadOnlyDictionary<string, object> GetTransientData(WorkflowBase workflow);
+        Dictionary<string, object> GetTransientData(WorkflowBase workflow);
 
         T GetTransientDataField<T>(WorkflowBase workflow, string field);
 
@@ -53,8 +57,6 @@ namespace WorkflowsCore
 
     public interface IWorkflowMetadataCache
     {
-        IWorkflowMetadata GetWorkflowMetadata(WorkflowBase workflow);
-
         IWorkflowMetadata GetWorkflowMetadata(string fullTypeName);
 
         IWorkflowMetadata GetWorkflowMetadata(Type type);

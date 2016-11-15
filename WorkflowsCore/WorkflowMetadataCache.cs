@@ -4,11 +4,6 @@ namespace WorkflowsCore
 {
     public class WorkflowMetadataCache : IWorkflowMetadataCache
     {
-        public IWorkflowMetadata GetWorkflowMetadata(WorkflowBase workflow)
-        {
-            return new WorkflowMetadata();
-        }
-
         public IWorkflowMetadata GetWorkflowMetadata(string fullTypeName)
         {
             throw new NotImplementedException();
@@ -16,7 +11,7 @@ namespace WorkflowsCore
 
         public IWorkflowMetadata GetWorkflowMetadata(Type type)
         {
-            throw new NotImplementedException();
+            return new WorkflowMetadata(type);
         }
     }
 }

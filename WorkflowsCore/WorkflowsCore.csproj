@@ -43,6 +43,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="DataFieldAttribute.cs" />
     <Compile Include="MonteCarlo\EventMonitor.cs" />
     <Compile Include="MonteCarlo\Globals.cs" />
     <Compile Include="MonteCarlo\MonteCarloSimulator.cs" />

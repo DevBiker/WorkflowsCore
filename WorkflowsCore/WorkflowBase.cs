@@ -19,8 +19,6 @@ namespace WorkflowsCore
         private readonly TaskCompletionSource<bool> _completedTaskCompletionSource =
             new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        private readonly NamedValues _data = new NamedValues();
-        private readonly NamedValues _transientData = new NamedValues();
         private readonly IList<string> _actions = new List<string>(); 
         private readonly IDictionary<string, ActionDefinition> _actionsDefinitions = 
             new Dictionary<string, ActionDefinition>();
@@ -46,7 +44,7 @@ namespace WorkflowsCore
             bool isStateInitializedImmediatelyAfterStart)
         {
             _metadata = new Lazy<IWorkflowMetadata>(
-                () => Utilities.WorkflowMetadataCache.GetWorkflowMetadata(this),
+                () => Utilities.WorkflowMetadataCache.GetWorkflowMetadata(GetType()),
                 LazyThreadSafetyMode.PublicationOnly);
             _concurrentExclusiveSchedulerPair = Utilities.WorkflowsTaskScheduler == null
                 ? new ConcurrentExclusiveSchedulerPair()
@@ -58,9 +56,8 @@ namespace WorkflowsCore
             }
             else
             {
-                SetTransientData(
-                    nameof(StateInitializedTaskCompletionSource),
-                    new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously));
+                StateInitializedTaskCompletionSource =
+                    new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                 StateInitializedTask = StateInitializedTaskCompletionSource.Task;
             }
 
@@ -96,9 +93,7 @@ namespace WorkflowsCore
 
         public bool IsWorkflowTaskScheduler => TaskScheduler.Current == WorkflowTaskScheduler;
 
-        internal IReadOnlyDictionary<string, object> Data => _data.Data;
-
-        internal IReadOnlyDictionary<string, object> TransientData => _transientData.Data;
+        internal NamedValues TransientData { get; } = new NamedValues();
 
         protected static ITimeProvider TimeProvider => Utilities.TimeProvider;
 
@@ -106,10 +101,11 @@ namespace WorkflowsCore
 
         private TaskScheduler WorkflowTaskScheduler => _concurrentExclusiveSchedulerPair.ExclusiveScheduler;
 
-        private TaskCompletionSource<bool> StateInitializedTaskCompletionSource =>
-            GetTransientData<TaskCompletionSource<bool>>(nameof(StateInitializedTaskCompletionSource));
+        [DataField(IsTransient = true)]
+        private TaskCompletionSource<bool> StateInitializedTaskCompletionSource { get; }
 
-        private IDictionary<string, int> ActionStats => GetData<IDictionary<string, int>>(nameof(ActionStats));
+        [DataField]
+        private IDictionary<string, int> ActionStats { get; set; }
 
         public void StartWorkflow(
             object id = null,
@@ -132,7 +128,7 @@ namespace WorkflowsCore
                         OnInit();
                         if (initialWorkflowData != null)
                         {
-                            w.SetData(initialWorkflowData);
+                            w.Metadata.SetData(w, initialWorkflowData);
                         }
 
                         var wasCreated = false;
@@ -149,7 +145,7 @@ namespace WorkflowsCore
                                 Id = id;
                             }
 
-                            w.SetData(loadedWorkflowData);
+                            w.Metadata.SetData(w, loadedWorkflowData);
                             OnLoaded();
                         }
 
@@ -331,22 +327,10 @@ namespace WorkflowsCore
         }
 
         public Task<T> GetDataFieldAsync<T>(string key, bool forceExecution = false) => 
-            RunViaWorkflowTaskScheduler(() => GetData<T>(key), forceExecution);
+            RunViaWorkflowTaskScheduler(() => Metadata.TryGetDataField<T>(this, key), forceExecution);
 
         public Task<T> GetTransientDataFieldAsync<T>(string key, bool forceExecution = false) =>
-            RunViaWorkflowTaskScheduler(() => GetTransientData<T>(key), forceExecution);
-
-        internal T GetDataField<T>(string key) => GetData<T>(key);
-
-        internal void SetDataField<T>(string key, T value) => SetData(key, value);
-
-        internal T GetTransientDataField<T>(string key) => GetTransientData<T>(key);
-
-        internal void SetTransientDataField<T>(string key, T value) => SetTransientData(key, value);
-
-        internal void SetData(IReadOnlyDictionary<string, object> newData) => _data.SetData(newData);
-
-        internal void SetTransientData(IReadOnlyDictionary<string, object> newData) => _transientData.SetData(newData);
+            RunViaWorkflowTaskScheduler(() => Metadata.GetTransientDataField<T>(this, key), forceExecution);
 
         internal Task ClearTimesExecutedAsync(string action)
         {
@@ -366,7 +350,7 @@ namespace WorkflowsCore
 
         protected virtual void OnInit()
         {
-            SetData(nameof(ActionStats), new Dictionary<string, int>());
+            ActionStats = new Dictionary<string, int>();
             OnActionsInit();
         }
 
@@ -519,14 +503,6 @@ namespace WorkflowsCore
                     isHidden);
             }
         }
-
-        protected T GetData<T>(string key) => _data.GetData<T>(key);
-
-        protected void SetData<T>(string key, T value) => _data.SetData(key, value);
-
-        protected T GetTransientData<T>(string key) => _transientData.GetData<T>(key);
-
-        protected void SetTransientData<T>(string key, T value) => _transientData.SetData(key, value);
 
         protected IList<string> GetActionSynonyms(string action) => GetActionDefinition(action).Synonyms;
 

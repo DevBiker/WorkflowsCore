@@ -28,35 +28,30 @@ namespace WorkflowsCore
 
         protected internal event EventHandler<StateChangedEventArgs> StateChanged;
 
-        internal bool IsRestoringState
-        {
-            get { return GetTransientData<bool>(nameof(IsRestoringState)); }
+        [DataField(IsTransient = true)]
+        internal bool IsRestoringState { get; set; }
 
-            set { SetTransientData(nameof(IsRestoringState), value); }
-        }
+        [DataField(IsTransient = true)]
+        internal IList<TState> TransientStatesHistory { get; set; }
 
-        internal IList<TState> TransientStatesHistory => GetTransientData<IList<TState>>(nameof(StatesHistory));
+        [DataField(IsTransient = true)]
+        protected internal TState State { get; set; }
 
-        protected internal TState State
-        {
-            get { return GetTransientData<TState>(nameof(State)); }
-
-            set { SetTransientData(nameof(State), value); }
-        }
-
+        [DataField(IsTransient = true)]
         protected internal TState PreviousState => 
             StatesHistory.Count == 0 ? default(TState) : StatesHistory[StatesHistory.Count - 1];
 
-        private IList<TState> StatesHistory => GetData<IList<TState>>(nameof(StatesHistory));
+        [DataField]
+        private IList<TState> StatesHistory { get; set; }
 
-        private IDictionary<TState, StateStats> StatesStats => 
-            GetData<IDictionary<TState, StateStats>>(nameof(StatesStats));
+        [DataField]
+        private IDictionary<TState, StateStats> StatesStats { get; set; }
 
         /// <summary>
         /// It is stored for diagnosing purposes only
         /// </summary>
-        private IList<Tuple<TState, DateTime>> FullStatesHistory => 
-            GetData<IList<Tuple<TState, DateTime>>>(nameof(FullStatesHistory));
+        [DataField]
+        private IList<Tuple<TState, DateTime>> FullStatesHistory { get; set; }
 
         public Task<TState> GetStateAsync() => DoWorkflowTaskAsync(() => State);
 
@@ -66,9 +61,9 @@ namespace WorkflowsCore
         protected override void OnInit()
         {
             base.OnInit();
-            SetData(nameof(StatesHistory), new List<TState>());
-            SetData(nameof(FullStatesHistory), new List<Tuple<TState, DateTime>>());
-            SetData(nameof(StatesStats), new Dictionary<TState, StateStats>());
+            StatesHistory = new List<TState>();
+            FullStatesHistory = new List<Tuple<TState, DateTime>>();
+            StatesStats = new Dictionary<TState, StateStats>();
             OnStatesInit();
         }
 
@@ -82,8 +77,8 @@ namespace WorkflowsCore
             }
 
             IsRestoringState = true;
-            SetTransientData(nameof(StatesHistory), StatesHistory);
-            SetData(nameof(StatesHistory), new List<TState>());
+            TransientStatesHistory = StatesHistory;
+            StatesHistory = new List<TState>();
         }
 
         protected abstract void OnStatesInit();
@@ -209,7 +204,7 @@ namespace WorkflowsCore
             }
             else if (!IsRestoringState)
             {
-                SetTransientData(nameof(StatesHistory), (IList<TState>)null);
+                TransientStatesHistory = null;
                 SetStateInitialized();
             }
 

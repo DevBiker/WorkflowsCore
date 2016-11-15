@@ -74,6 +74,7 @@
     <Compile Include="OperatorTests.cs" />
     <Compile Include="RealTimeOperatorsTests.cs" />
     <Compile Include="TimeOperatorsTests.cs" />
+    <Compile Include="WorkflowMetadataTests.cs" />
     <Compile Include="WorkflowsCoordinatorTests.cs" />
     <Compile Include="WorkflowBaseStatefulTests.cs" />
     <Compile Include="WorkflowBaseTests.cs" />

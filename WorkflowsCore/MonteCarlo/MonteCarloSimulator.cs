@@ -304,8 +304,9 @@ namespace WorkflowsCore.MonteCarlo
                         StringComparison.Ordinal))
                 {
                     Globals.EventMonitor.LogEvent(ex.Message);
-                    var lastWorkflowState = workflow.GetTransientDataField<object>("State")?.ToString() ??
-                        "N/A";
+                    var lastWorkflowState =
+                        (await workflow.GetTransientDataFieldAsync<object>("State", forceExecution: true))?.ToString() ??
+                            "N/A";
                     Globals.EventMonitor.LogEvent($"Last workflow state is {lastWorkflowState}");
                 }
             }
@@ -331,9 +332,9 @@ namespace WorkflowsCore.MonteCarlo
             int maxNumberOfEventsPerSimulation,
             int maxEventProcessingTime,
             Func<bool> shouldStopSimulation,
-            Action beforeSimulationCallback,
+            Action beforeSimulationCallback, // TODO: Accept workflow
             Func<IReadOnlyDictionary<string, object>> getInitialWorkflowData,
-            Action afterSimulationCallback,
+            Action afterSimulationCallback, // TODO: Accept workflow
             Func<TWorkflowType, IEventsAvailabilityAwaiter> getEventsAvailabilityAwaiter)
         {
             Globals.EventMonitor = new EventMonitor();
@@ -591,13 +592,16 @@ namespace WorkflowsCore.MonteCarlo
                 }
 
                 await _worldClockAdvancingEventDefinition.DoEvent(workflow, true);
-                var statesHistory = workflow.GetDataField<IEnumerable>("StatesHistory") ?? Enumerable.Empty<object>();
+                var statesHistory =
+                    await workflow.GetDataFieldAsync<IEnumerable>("StatesHistory", forceExecution: true) ??
+                        Enumerable.Empty<object>();
                 Globals.EventMonitor.LogEvent(
                     "Application is started",
                     $"StatesHistory: [{string.Join(", ", statesHistory.Cast<object>())}]");
 
                 var newWorkflow = _workflowFactory();
-                newWorkflow.StartWorkflow(loadedWorkflowData: workflow.Data);
+                var data = await workflow.DoWorkflowTaskAsync(w => w.Metadata.GetData(w), forceExecution: true);
+                newWorkflow.StartWorkflow(loadedWorkflowData: data); // TODO: Copy transient data
                 try
                 {
                     await newWorkflow.StateInitializedTask;

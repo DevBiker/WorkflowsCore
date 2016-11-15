@@ -334,7 +334,7 @@ namespace WorkflowsCore.Tests
                     oldWorkflow = w;
                     Assert.True(w.CompletedTask.IsCompleted);
                     Assert.Equal(true, isAppRestart);
-                    Assert.Equal(1, w.GetDataFieldAsync<int>("Id", forceExecution: true).Result);
+                    Assert.Equal(1, w.TestId);
                     return Task.FromResult(
                         new WorldClockAdvancingEvent(Globals.TimeProvider.Now.AddHours(1).AddMinutes(23)));
                 });
@@ -346,7 +346,7 @@ namespace WorkflowsCore.Tests
                     customEventCalled = true;
                     Assert.NotNull(oldWorkflow);
                     Assert.NotSame(oldWorkflow, w);
-                    Assert.Equal(1, w.GetDataFieldAsync<int>("Id").Result);
+                    Assert.Equal(1, w.TestId);
                     return Task.CompletedTask;
                 });
             _simulator.ConfigureApplicationRestartEvent(100.0);
@@ -355,7 +355,7 @@ namespace WorkflowsCore.Tests
             _simulator.RunSimulations(
                 1,
                 6,
-                getInitialWorkflowData: () => new Dictionary<string, object> { ["Id"] = ++counter },
+                getInitialWorkflowData: () => new Dictionary<string, object> { ["TestId"] = ++counter },
                 randomGeneratorSeed: 171787817,
                 afterSimulationCallback: () =>
                 {
@@ -572,7 +572,7 @@ namespace WorkflowsCore.Tests
                 initialWorkflowData: new Dictionary<string, object> { ["NoActions"] = true, ["CompleteFast"] = true });
             await workflow.StateInitializedTask;
 
-            var state = await workflow.GetStateAsync();
+            var state = await workflow.GetTransientDataFieldAsync<States>("State", forceExecution: true);
             Assert.Equal(States.Contacted, state);
             await new WorkflowActionsAvailabilityAwaiter<States>(workflow).Task;
 
@@ -619,6 +619,18 @@ namespace WorkflowsCore.Tests
 
             public Task StateEventTask => _stateEventTcs.Task;
 
+            // ReSharper disable once UnusedAutoPropertyAccessor.Local
+            [DataField]
+            public int TestId { get; set; }
+
+            // ReSharper disable once UnusedAutoPropertyAccessor.Local
+            [DataField]
+            private bool NoActions { get; set; }
+
+            // ReSharper disable once UnusedAutoPropertyAccessor.Local
+            [DataField]
+            private bool CompleteFast { get; set; }
+
             protected override void OnActionsInit()
             {
                 base.OnActionsInit();
@@ -638,9 +650,9 @@ namespace WorkflowsCore.Tests
             protected override async Task RunAsync()
             {
                 var date = Globals.TimeProvider.Now.AddHours(17);
-                SetState(!GetData<bool>("NoActions") ? States.Due : States.Contacted);
+                SetState(!NoActions ? States.Due : States.Contacted);
                 await this.WaitForAny(
-                    () => Task.Delay(GetData<bool>("CompleteFast") ? 1 : 10000, Utilities.CurrentCancellationToken),
+                    () => Task.Delay(CompleteFast ? 1 : 10000, Utilities.CurrentCancellationToken),
                     async () =>
                     {
                         await this.WaitForAction("Action 4");

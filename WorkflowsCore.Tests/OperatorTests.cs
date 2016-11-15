@@ -346,7 +346,7 @@ namespace WorkflowsCore.Tests
                 await _workflow.DoWorkflowTaskAsync(
                     async w =>
                     {
-                        w.Metadata.SetTransientDataField(w, "StatesHistory", new[] { States.Due });
+                        w.Metadata.SetTransientDataField(w, "TransientStatesHistory", new[] { States.Due });
                         await _workflow.WaitForAction("Contacted", state: States.Due);
 
                         Assert.Null(_workflow.Action);
@@ -364,7 +364,7 @@ namespace WorkflowsCore.Tests
                         async w =>
                         {
                             _workflow.CancelWorkflow();
-                            w.Metadata.SetTransientDataField(w, "StatesHistory", new[] { States.Due });
+                            w.Metadata.SetTransientDataField(w, "TransientStatesHistory", new[] { States.Due });
                             var t = _workflow.WaitForAction("Contacted", state: States.Due);
                             Assert.Equal(TaskStatus.Canceled, t.Status);
                             await t;

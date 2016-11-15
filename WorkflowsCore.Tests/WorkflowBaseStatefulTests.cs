@@ -379,12 +379,14 @@ namespace WorkflowsCore.Tests
 
             public new States State => base.State;
 
-            public IList<States> StatesHistory => GetData<IList<States>>(nameof(StatesHistory));
+            public IList<States> StatesHistory => 
+                GetDataFieldAsync<IList<States>>(nameof(StatesHistory), forceExecution: true).Result;
 
-            public IList<Tuple<States, DateTime>> FullStatesHistory => 
-                GetData<IList<Tuple<States, DateTime>>>(nameof(FullStatesHistory));
+            public IList<Tuple<States, DateTime>> FullStatesHistory =>
+                GetDataFieldAsync<IList<Tuple<States, DateTime>>>(nameof(FullStatesHistory), forceExecution: true).Result;
 
-            public bool IsRestoringState => GetTransientData<bool>(nameof(IsRestoringState));
+            public bool IsRestoringState => 
+                GetTransientDataFieldAsync<bool>(nameof(IsRestoringState), forceExecution: true).Result;
 
             public int OnOutstandingStateCounter { get; private set; }
 
@@ -410,7 +412,8 @@ namespace WorkflowsCore.Tests
             /* ReSharper restore UnusedParameter.Local */
 
             [SuppressMessage("ReSharper", "UnusedParameter.Local", Justification = "It is OK")]
-            public new void SetData<T>(string key, T value) => base.SetData(key, value);
+            public void SetData<T>(string key, T value) =>
+                DoWorkflowTaskAsync(w => Metadata.SetDataField(w, key, value), forceExecution: true).Wait();
 
             [SuppressMessage("ReSharper", "UnusedParameter.Local", Justification = "It is OK")]
             public new void ConfigureStateCategory(

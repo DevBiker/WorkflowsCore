@@ -268,6 +268,14 @@ namespace WorkflowsCore.Tests
             {
             }
 
+            // ReSharper disable once UnusedAutoPropertyAccessor.Local
+            [DataField]
+            private new int Id { get; set; }
+
+            // ReSharper disable once UnusedAutoPropertyAccessor.Local
+            [DataField]
+            private bool BypassDates { get; set; }
+
             protected override void OnLoaded()
             {
                 throw new NotImplementedException();
@@ -275,8 +283,8 @@ namespace WorkflowsCore.Tests
 
             protected override Task RunAsync()
             {
-                Assert.Equal(1, GetData<int>("Id"));
-                Assert.Equal(true, GetData<bool>("BypassDates"));
+                Assert.Equal(1, Id);
+                Assert.Equal(true, BypassDates);
                 return Task.Delay(1);
             }
         }
@@ -290,6 +298,10 @@ namespace WorkflowsCore.Tests
 
             public bool IsLoaded { get; private set; }
 
+            // ReSharper disable once UnusedAutoPropertyAccessor.Local
+            [DataField]
+            private new int Id { get; set; }
+
             protected override void OnCreated()
             {
                 throw new NotImplementedException();
@@ -298,7 +310,7 @@ namespace WorkflowsCore.Tests
             protected override void OnInit()
             {
                 base.OnInit();
-                SetData("Id", 3);
+                Id = 3;
             }
 
             protected override void OnLoaded() => IsLoaded = true;
