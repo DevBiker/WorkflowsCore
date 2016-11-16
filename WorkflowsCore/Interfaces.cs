@@ -57,8 +57,6 @@ namespace WorkflowsCore
 
     public interface IWorkflowMetadataCache
     {
-        IWorkflowMetadata GetWorkflowMetadata(string fullTypeName);
-
         IWorkflowMetadata GetWorkflowMetadata(Type type);
     }
 

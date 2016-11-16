@@ -114,13 +114,7 @@ namespace WorkflowsCore
                 throw new ArgumentOutOfRangeException();
             }
 
-            var type = Type.GetType(fullTypeName);
-            if (type == null)
-            {
-                throw new ArgumentOutOfRangeException(nameof(fullTypeName));
-            }
-
-            var workflow = (WorkflowBase)_diContainer.Resolve(type);
+            var workflow = (WorkflowBase)_diContainer.Resolve(Utilities.GetType(fullTypeName));
 
             workflow.StartWorkflow(
                 id,

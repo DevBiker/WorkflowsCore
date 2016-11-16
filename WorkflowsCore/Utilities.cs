@@ -111,5 +111,16 @@ namespace WorkflowsCore
                 TaskCreationOptions.None,
                 WorkflowsTaskScheduler);
         }
+
+        public static Type GetType(string fullTypeName)
+        {
+            var type = Type.GetType(fullTypeName);
+            if (type == null)
+            {
+                throw new ArgumentOutOfRangeException(nameof(fullTypeName));
+            }
+
+            return type;
+        }
     }
 }

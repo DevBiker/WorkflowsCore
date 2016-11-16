@@ -128,7 +128,7 @@ namespace WorkflowsCore
             if (d != null)
             {
                 throw new ArgumentException(
-                    $"Data field '{d.ConflictingType}{d.Name}' conflicts with '{d.FirstType}{d.Name}'");
+                    $"Data field '{d.ConflictingType}.{d.Name}' conflicts with '{d.FirstType}.{d.Name}'");
             }
 
             return properties.ToDictionary(
