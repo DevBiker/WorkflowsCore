@@ -45,8 +45,23 @@ namespace WorkflowsCore
 
         public WorkflowBase CreateWorkflow(string fullTypeName) => CreateWorkflow(fullTypeName, null);
 
-        public WorkflowBase CreateWorkflow(string fullTypeName, IReadOnlyDictionary<string, object> initialWorkflowData) => 
-            CreateWorkflowCore(fullTypeName, initialWorkflowData: initialWorkflowData);
+        public WorkflowBase CreateWorkflow(
+            string fullTypeName,
+            IReadOnlyDictionary<string, object> initialWorkflowData)
+        {
+            return CreateWorkflowCore(fullTypeName, initialWorkflowData: initialWorkflowData);
+        }
+
+        public WorkflowBase CreateWorkflow(
+            string fullTypeName,
+            IReadOnlyDictionary<string, object> initialWorkflowData,
+            IReadOnlyDictionary<string, object> initialWorkflowTransientData)
+        {
+            return CreateWorkflowCore(
+                fullTypeName,
+                initialWorkflowData: initialWorkflowData,
+                initialWorkflowTransientData: initialWorkflowTransientData);
+        }
 
         public Task LoadAndExecuteActiveWorkflowsAsync()
         {
@@ -106,6 +121,7 @@ namespace WorkflowsCore
             string fullTypeName,
             IReadOnlyDictionary<string, object> initialWorkflowData = null,
             IReadOnlyDictionary<string, object> loadedWorkflowData = null,
+            IReadOnlyDictionary<string, object> initialWorkflowTransientData = null,
             object id = null,
             bool loadingOnDemand = false)
         {
@@ -120,6 +136,7 @@ namespace WorkflowsCore
                 id,
                 initialWorkflowData,
                 loadedWorkflowData,
+                initialWorkflowTransientData: initialWorkflowTransientData,
                 beforeWorkflowStarted: () =>
                 {
                     if (!loadingOnDemand && workflow.Id != null)

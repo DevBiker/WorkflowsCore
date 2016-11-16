@@ -50,6 +50,10 @@ namespace WorkflowsCore.Tests
 
                     curValue = _workflowMetadata.GetDataField<object>(w, FieldName);
                     Assert.Same(value, curValue);
+
+                    _workflowMetadata.TrySetDataField<object>(w, FieldName, null);
+                    curValue = _workflowMetadata.GetDataField<object>(w, FieldName);
+                    Assert.Null(curValue);
                 });
             await CancelWorkflowAsync();
         }
@@ -59,6 +63,13 @@ namespace WorkflowsCore.Tests
         {
             await Workflow.DoWorkflowTaskAsync(
                 w => Assert.Equal(0, w.Metadata.TryGetDataField<int>(w, "Bad Field")));
+            await CancelWorkflowAsync();
+        }
+
+        [Fact]
+        public async Task TrySetDataFieldForNonExistingFieldShouldDoNothing()
+        {
+            await Workflow.DoWorkflowTaskAsync(w => w.Metadata.TrySetDataField(w, "Bad Field", 3));
             await CancelWorkflowAsync();
         }
 
@@ -98,6 +109,24 @@ namespace WorkflowsCore.Tests
 
                     Assert.False(data.ContainsKey("TestDataField3"));
                     Assert.Equal(2, data["TestDataField2"]);
+                    Assert.Equal(true, data["TestDataField"]);
+                });
+            await CancelWorkflowAsync();
+        }
+
+        [Fact]
+        public async Task SetDataShouldIgnoreNonExistingDataFields()
+        {
+            await Workflow.DoWorkflowTaskAsync(
+                w =>
+                {
+                    _workflowMetadata.SetData(
+                        w,
+                        new Dictionary<string, object> { ["Bad Field"] = 1, ["TestDataField"] = true });
+
+                    var data = _workflowMetadata.GetData(w);
+
+                    Assert.False(data.ContainsKey("Bad Field"));
                     Assert.Equal(true, data["TestDataField"]);
                 });
             await CancelWorkflowAsync();
@@ -202,6 +231,19 @@ namespace WorkflowsCore.Tests
             await CancelWorkflowAsync();
         }
 
+        [Fact]
+        public async Task SetTransientDataFieldShouldIgnoreFieldsWithoutSetters()
+        {
+            await Workflow.DoWorkflowTaskAsync(
+                w =>
+                {
+                    _workflowMetadata.SetTransientDataField(w, "TestDataFieldCalculated", 5);
+                    _workflowMetadata.SetTransientDataField(w, "TestDataField3", 3);
+                    Assert.Equal(3, _workflowMetadata.GetTransientDataField<int>(w, "TestDataFieldCalculated"));
+                });
+            await CancelWorkflowAsync();
+        }
+
         public abstract class BaseWorkflow : WorkflowBase<int>
         {
             protected virtual int VirtualDataField { get; set; }
@@ -224,9 +266,13 @@ namespace WorkflowsCore.Tests
             [DataField]
             private object TestDataField2 { get; set; }
 
-            // ReSharper disable once UnusedMember.Local
+            // ReSharper disable once UnusedAutoPropertyAccessor.Local
             [DataField(IsTransient = true)]
             private int TestDataField3 { get; set; }
+
+            // ReSharper disable once UnusedMember.Local
+            [DataField(IsTransient = true)]
+            private int TestDataFieldCalculated => TestDataField3 + VirtualDataField;
 
             protected override void OnStatesInit()
             {

@@ -177,6 +177,7 @@ namespace WorkflowsCore.MonteCarlo
             int maxNumberOfEventsPerSimulation,
             int? randomGeneratorSeed = null,
             Func<IReadOnlyDictionary<string, object>> getInitialWorkflowData = null,
+            Func<IReadOnlyDictionary<string, object>> getInitialWorkflowTransientData = null,
             Action beforeSimulationCallback = null,
             Action afterSimulationCallback = null,
             int maxConcurrentSimulations = -1,
@@ -234,6 +235,7 @@ namespace WorkflowsCore.MonteCarlo
                                 () => loopState.ShouldExitCurrentIteration,
                                 beforeSimulationCallback,
                                 getInitialWorkflowData,
+                                getInitialWorkflowTransientData,
                                 afterSimulationCallback,
                                 getEventsAvailabilityAwaiter).Result;
                         }
@@ -334,6 +336,7 @@ namespace WorkflowsCore.MonteCarlo
             Func<bool> shouldStopSimulation,
             Action beforeSimulationCallback, // TODO: Accept workflow
             Func<IReadOnlyDictionary<string, object>> getInitialWorkflowData,
+            Func<IReadOnlyDictionary<string, object>> getInitialWorkflowTransientData,
             Action afterSimulationCallback, // TODO: Accept workflow
             Func<TWorkflowType, IEventsAvailabilityAwaiter> getEventsAvailabilityAwaiter)
         {
@@ -345,7 +348,10 @@ namespace WorkflowsCore.MonteCarlo
             {
                 var workflow = _workflowFactory();
                 var initialWorkflowData = getInitialWorkflowData?.Invoke();
-                workflow.StartWorkflow(initialWorkflowData: initialWorkflowData);
+                var initialWorkflowTransientData = getInitialWorkflowTransientData?.Invoke();
+                workflow.StartWorkflow(
+                    initialWorkflowData: initialWorkflowData,
+                    initialWorkflowTransientData: initialWorkflowTransientData);
                 await workflow.StartedTask.WaitWithTimeout(
                     maxEventProcessingTime,
                     $"[{Globals.EventId}] Timeout on workflow start");
@@ -600,8 +606,16 @@ namespace WorkflowsCore.MonteCarlo
                     $"StatesHistory: [{string.Join(", ", statesHistory.Cast<object>())}]");
 
                 var newWorkflow = _workflowFactory();
-                var data = await workflow.DoWorkflowTaskAsync(w => w.Metadata.GetData(w), forceExecution: true);
-                newWorkflow.StartWorkflow(loadedWorkflowData: data); // TODO: Copy transient data
+                Dictionary<string, object> data = null;
+                Dictionary<string, object> transientData = null;
+                await workflow.DoWorkflowTaskAsync(
+                    w =>
+                    {
+                        data = w.Metadata.GetData(w);
+                        transientData = w.Metadata.GetTransientData(w);
+                    },
+                    forceExecution: true);
+                newWorkflow.StartWorkflow(loadedWorkflowData: data, initialWorkflowTransientData: transientData);
                 try
                 {
                     await newWorkflow.StateInitializedTask;

@@ -60,7 +60,8 @@ namespace WorkflowsCore.Tests
         {
             var workflow = _workflowEngine.CreateWorkflow(
                 typeof(TestWorkflowWithData).AssemblyQualifiedName,
-                new Dictionary<string, object> { ["Id"] = 1, ["BypassDates"] = true });
+                new Dictionary<string, object> { ["Id"] = 1, ["BypassDates"] = true },
+                new Dictionary<string, object> { ["TransientId"] = 3, ["TransientBypassDates"] = false });
             await workflow.CompletedTask;
         }
 
@@ -276,6 +277,10 @@ namespace WorkflowsCore.Tests
             [DataField]
             private bool BypassDates { get; set; }
 
+            // ReSharper disable once UnusedAutoPropertyAccessor.Local
+            [DataField(IsTransient = true)]
+            private int TransientId { get; set; }
+
             protected override void OnLoaded()
             {
                 throw new NotImplementedException();
@@ -284,7 +289,9 @@ namespace WorkflowsCore.Tests
             protected override Task RunAsync()
             {
                 Assert.Equal(1, Id);
-                Assert.Equal(true, BypassDates);
+                Assert.True(BypassDates);
+                Assert.Equal(3, TransientId);
+                Assert.False(Metadata.GetTransientDataField<bool>(this, "TransientBypassDates"));
                 return Task.Delay(1);
             }
         }

@@ -44,6 +44,8 @@ namespace WorkflowsCore
 
         void SetDataField<T>(WorkflowBase workflow, string field, T value);
 
+        void TrySetDataField<T>(WorkflowBase workflow, string field, T value);
+
         void SetData(WorkflowBase workflow, IReadOnlyDictionary<string, object> newData);
 
         Dictionary<string, object> GetTransientData(WorkflowBase workflow);
@@ -74,6 +76,11 @@ namespace WorkflowsCore
         WorkflowBase CreateWorkflow(string fullTypeName);
 
         WorkflowBase CreateWorkflow(string fullTypeName, IReadOnlyDictionary<string, object> initialWorkflowData);
+
+        WorkflowBase CreateWorkflow(
+            string fullTypeName, 
+            IReadOnlyDictionary<string, object> initialWorkflowData,
+            IReadOnlyDictionary<string, object> initialWorkflowTransientData);
 
         Task LoadAndExecuteActiveWorkflowsAsync();
 

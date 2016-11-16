@@ -111,6 +111,7 @@ namespace WorkflowsCore
             object id = null,
             IReadOnlyDictionary<string, object> initialWorkflowData = null,
             IReadOnlyDictionary<string, object> loadedWorkflowData = null,
+            IReadOnlyDictionary<string, object> initialWorkflowTransientData = null,
             Action beforeWorkflowStarted = null,
             Action afterWorkflowFinished = null)
         {
@@ -129,6 +130,11 @@ namespace WorkflowsCore
                         if (initialWorkflowData != null)
                         {
                             w.Metadata.SetData(w, initialWorkflowData);
+                        }
+
+                        if (initialWorkflowTransientData != null)
+                        {
+                            w.Metadata.SetTransientData(w, initialWorkflowTransientData);
                         }
 
                         var wasCreated = false;

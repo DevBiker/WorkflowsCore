@@ -50,12 +50,18 @@ namespace WorkflowsCore
             GetDataFieldMetadata(field).PropertyInfo.SetValue(workflow, value);
         }
 
+        public void TrySetDataField<T>(WorkflowBase workflow, string field, T value)
+        {
+            workflow.EnsureWorkflowTaskScheduler();
+            GetDataFieldMetadata(field, nullIfNotFound: true)?.PropertyInfo.SetValue(workflow, value);
+        }
+
         public void SetData(WorkflowBase workflow, IReadOnlyDictionary<string, object> newData)
         {
             workflow.EnsureWorkflowTaskScheduler();
             foreach (var pair in newData)
             {
-                SetDataField(workflow, pair.Key, pair.Value);
+                TrySetDataField(workflow, pair.Key, pair.Value);
             }
         }
 
@@ -87,7 +93,12 @@ namespace WorkflowsCore
             var metadata = GetTransientDataFieldMetadata(field);
             if (metadata != null)
             {
-                _dataFields[field].PropertyInfo.SetValue(workflow, value);
+                var propertyInfo = _dataFields[field].PropertyInfo;
+                if (propertyInfo.CanWrite)
+                {
+                    propertyInfo.SetValue(workflow, value);
+                }
+
                 return;
             }
 

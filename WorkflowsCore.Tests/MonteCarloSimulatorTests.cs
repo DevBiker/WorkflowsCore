@@ -335,6 +335,7 @@ namespace WorkflowsCore.Tests
                     Assert.True(w.CompletedTask.IsCompleted);
                     Assert.Equal(true, isAppRestart);
                     Assert.Equal(1, w.TestId);
+                    Assert.Equal(2, w.TransientTestId);
                     return Task.FromResult(
                         new WorldClockAdvancingEvent(Globals.TimeProvider.Now.AddHours(1).AddMinutes(23)));
                 });
@@ -347,6 +348,7 @@ namespace WorkflowsCore.Tests
                     Assert.NotNull(oldWorkflow);
                     Assert.NotSame(oldWorkflow, w);
                     Assert.Equal(1, w.TestId);
+                    Assert.Equal(2, w.TransientTestId);
                     return Task.CompletedTask;
                 });
             _simulator.ConfigureApplicationRestartEvent(100.0);
@@ -356,6 +358,7 @@ namespace WorkflowsCore.Tests
                 1,
                 6,
                 getInitialWorkflowData: () => new Dictionary<string, object> { ["TestId"] = ++counter },
+                getInitialWorkflowTransientData: () => new Dictionary<string, object> { ["TransientTestId"] = ++counter },
                 randomGeneratorSeed: 171787817,
                 afterSimulationCallback: () =>
                 {
@@ -622,6 +625,9 @@ namespace WorkflowsCore.Tests
             // ReSharper disable once UnusedAutoPropertyAccessor.Local
             [DataField]
             public int TestId { get; set; }
+
+            [DataField(IsTransient = true)]
+            public int TransientTestId { get; set; }
 
             // ReSharper disable once UnusedAutoPropertyAccessor.Local
             [DataField]
