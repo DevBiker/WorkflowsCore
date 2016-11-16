@@ -155,11 +155,12 @@ namespace WorkflowsCore
         {
             var properties = new List<PropertyInfo>();
 
-            var flags = BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
             for (var type = WorkflowType; type != null; type = type.BaseType)
             {
-                properties.AddRange(type.GetProperties(flags).Where(p => p.DeclaringType == p.ReflectedType));
-                flags = BindingFlags.Instance | BindingFlags.NonPublic;
+                var typeProperties = type
+                    .GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                    .Where(p => p.DeclaringType == p.ReflectedType);
+                properties.AddRange(typeProperties);
             }
 
             return properties;
