@@ -593,7 +593,7 @@ namespace WorkflowsCore.MonteCarlo
 
                 await _worldClockAdvancingEventDefinition.DoEvent(workflow, true);
                 var statesHistory =
-                    await workflow.GetDataFieldAsync<IEnumerable>("StatesHistory", forceExecution: true) ??
+                    await workflow.TryGetDataFieldAsync<IEnumerable>("StatesHistory", forceExecution: true) ??
                         Enumerable.Empty<object>();
                 Globals.EventMonitor.LogEvent(
                     "Application is started",

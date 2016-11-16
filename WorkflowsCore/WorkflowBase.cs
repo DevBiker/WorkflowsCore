@@ -326,8 +326,11 @@ namespace WorkflowsCore
                 }).Unwrap();
         }
 
-        public Task<T> GetDataFieldAsync<T>(string key, bool forceExecution = false) => 
+        public Task<T> TryGetDataFieldAsync<T>(string key, bool forceExecution = false) =>
             RunViaWorkflowTaskScheduler(() => Metadata.TryGetDataField<T>(this, key), forceExecution);
+
+        public Task<T> GetDataFieldAsync<T>(string key, bool forceExecution = false) => 
+            RunViaWorkflowTaskScheduler(() => Metadata.GetDataField<T>(this, key), forceExecution);
 
         public Task<T> GetTransientDataFieldAsync<T>(string key, bool forceExecution = false) =>
             RunViaWorkflowTaskScheduler(() => Metadata.GetTransientDataField<T>(this, key), forceExecution);
