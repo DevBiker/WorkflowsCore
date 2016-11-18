@@ -198,7 +198,9 @@ namespace WorkflowsCore
                                 }
                             }
                         },
-                        TaskContinuationOptions.RunContinuationsAsynchronously);
+                        CancellationToken.None,
+                        TaskContinuationOptions.RunContinuationsAsynchronously,
+                        WorkflowTaskScheduler);
             }
         }
 
