@@ -41,7 +41,7 @@ namespace WorkflowsCore
                     }
                     catch (Exception ex)
                     {
-                        cts.Cancel();
+                        ex = RequestCancellation(cts, ex);
 
                         // ReSharper disable once MethodSupportsCancellation
                         Task.WhenAll(tasks)
@@ -301,13 +301,13 @@ namespace WorkflowsCore
                     var faultedTask = tasks.FirstOrDefault(t => t.IsFaulted);
                     if (faultedTask != null)
                     {
-                        cts.Cancel();
-
                         // ReSharper disable once PossibleNullReferenceException
+                        var exception = RequestCancellation(cts, faultedTask.Exception.GetBaseException());
+
                         // ReSharper disable once MethodSupportsCancellation
                         Task.WhenAll(tasks)
                             .ContinueWith(
-                                t => tcs.SetException(faultedTask.Exception.GetBaseException()),
+                                t => tcs.SetException(exception),
                                 TaskContinuationOptions.ExecuteSynchronously);
                         return;
                     }
@@ -316,7 +316,7 @@ namespace WorkflowsCore
                     var completedTask = tasks.FirstOrDefault(IsNonOptionalTaskCompleted);
                     if (completedTask != null)
                     {
-                        cts.Cancel();
+                        var exception = RequestCancellation(cts);
 
                         // ReSharper disable once MethodSupportsCancellation
                         Task.WhenAll(tasks).ContinueWith(
@@ -325,7 +325,13 @@ namespace WorkflowsCore
                                 if (t.IsFaulted)
                                 {
                                     // ReSharper disable once AssignNullToNotNullAttribute
-                                    tcs.SetException(t.Exception);
+                                    tcs.SetException(WorkflowBase.GetAggregatedExceptions(exception, t.Exception));
+                                    return;
+                                }
+
+                                if (exception != null)
+                                {
+                                    tcs.SetException(exception);
                                     return;
                                 }
 
@@ -352,6 +358,20 @@ namespace WorkflowsCore
 
         private static bool IsNonOptionalTaskCompleted(Task t) => 
             t.Status == TaskStatus.RanToCompletion && !(t.AsyncState is OptionalTask);
+
+        private static Exception RequestCancellation(CancellationTokenSource cts, Exception exception = null)
+        {
+            try
+            {
+                cts.Cancel();
+            }
+            catch (Exception ex)
+            {
+                exception = WorkflowBase.GetAggregatedExceptions(exception, ex);
+            }
+
+            return exception;
+        }
 
         private class OptionalTask
         {

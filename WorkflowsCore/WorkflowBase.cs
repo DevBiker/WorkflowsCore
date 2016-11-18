@@ -343,6 +343,9 @@ namespace WorkflowsCore
         public Task<T> GetTransientDataFieldAsync<T>(string key, bool forceExecution = false) =>
             RunViaWorkflowTaskScheduler(() => Metadata.GetTransientDataField<T>(this, key), forceExecution);
 
+        internal static Exception GetAggregatedExceptions(Exception exception, Exception newException) =>
+            exception == null ? newException : new AggregateException(exception, newException);
+
         internal Task ClearTimesExecutedAsync(string action)
         {
             return DoWorkflowTaskAsync(
@@ -540,9 +543,6 @@ namespace WorkflowsCore
 
             return (T)result;
         }
-
-        private static Exception GetAggregatedExceptions(Exception exception, Exception newException) => 
-            exception == null ? newException : new AggregateException(exception, newException);
 
         private void ProcessWorkflowCompletion(
             Task task,
