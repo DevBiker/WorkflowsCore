@@ -19,7 +19,7 @@ namespace WorkflowsCore.Tests
             throw new NotImplementedException();
         }
 
-        public virtual void MarkWorkflowAsCanceled(WorkflowBase workflow)
+        public virtual void MarkWorkflowAsCanceled(WorkflowBase workflow, Exception exception)
         {
             throw new NotImplementedException();
         }

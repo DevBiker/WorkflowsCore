@@ -28,6 +28,7 @@ namespace WorkflowsCore
         private object _id;
         private Exception _exception;
         private bool _wasStared;
+        private bool _isCancellationRequested;
 
         protected WorkflowBase()
             : this(null, true)
@@ -176,7 +177,10 @@ namespace WorkflowsCore
                             Exception exception = null;
                             try
                             {
-                                ProcessWorkflowCompletion(t, afterWorkflowFinished, out exception, out canceled);
+                                lock (CancellationTokenSource)
+                                {
+                                    ProcessWorkflowCompletion(t, afterWorkflowFinished, out exception, out canceled);
+                                }
                             }
                             catch (Exception ex)
                             {
@@ -552,14 +556,18 @@ namespace WorkflowsCore
         {
             canceled = false;
             exception = null;
+
+            // Ensure any background child activities are canceled and ignore further workflow actions if not enforced
+            var isCancellationRequested = _isCancellationRequested;
+            Cancel();
             try
             {
                 switch (task.Status)
                 {
                     case TaskStatus.RanToCompletion:
-                        if (CancellationTokenSource.Token.IsCancellationRequested)
+                        if (isCancellationRequested || _exception != null)
                         {
-                            HandleCancellation(out exception, out canceled);
+                            HandleCancellation(isCancellationRequested, out exception, out canceled);
                         }
                         else
                         {
@@ -567,14 +575,15 @@ namespace WorkflowsCore
                         }
 
                         break;
-                    case TaskStatus.Faulted: // ReSharper disable once PossibleNullReferenceException
-                        exception = task.Exception.GetBaseException();
-                        _workflowRepoFactory().MarkWorkflowAsFailed(this, exception);
+                    case TaskStatus.Faulted: 
+                        // ReSharper disable once PossibleNullReferenceException
+                        _exception = GetAggregatedExceptions(_exception, task.Exception.GetBaseException());
+                        HandleCancellation(isCancellationRequested, out exception, out canceled);
                         break;
                     case TaskStatus.Canceled:
-                        if (CancellationTokenSource.Token.IsCancellationRequested)
+                        if (isCancellationRequested || _exception != null)
                         {
-                            HandleCancellation(out exception, out canceled);
+                            HandleCancellation(isCancellationRequested, out exception, out canceled);
                         }
                         else
                         {
@@ -595,52 +604,54 @@ namespace WorkflowsCore
             }
             finally
             {
-                // Ensure any background child activities are canceled and ignore further workflow actions if not enforced
-                Cancel();
                 afterWorkflowFinished?.Invoke();
             }
         }
 
-        private void HandleCancellation(out Exception exception, out bool canceled)
+        private void HandleCancellation(bool isCancellationRequested, out Exception exception, out bool canceled)
         {
             exception = null;
             canceled = false;
 
-            if (_exception != null)
+            if (!isCancellationRequested && _exception != null)
             {
                 _workflowRepoFactory().MarkWorkflowAsFailed(this, _exception);
                 exception = _exception;
+                return;
             }
-            else
-            {
-                _workflowRepoFactory().MarkWorkflowAsCanceled(this);
-                OnCanceled();
-                canceled = true;
-            }
+
+            _workflowRepoFactory().MarkWorkflowAsCanceled(this, _exception);
+            OnCanceled();
+            canceled = true;
         }
 
         private void Cancel(Exception exception = null)
         {
-            RunViaWorkflowTaskScheduler(
-                () =>
-                {
-                    _startedTaskCompletionSource.TrySetCanceled();
-                    StateInitializedTaskCompletionSource?.TrySetCanceled();
-                    try
-                    {
-                        CancellationTokenSource.Cancel(false);
-                    }
-                    catch (Exception ex)
-                    {
-                        exception = GetAggregatedExceptions(exception, ex);
-                    }
+            lock (CancellationTokenSource)
+            {
+                _isCancellationRequested |= exception == null;
 
-                    if (exception != null)
+                RunViaWorkflowTaskScheduler(
+                    () =>
                     {
-                        _exception = GetAggregatedExceptions(_exception, exception);
-                    }
-                },
-                forceExecution: true);
+                        _startedTaskCompletionSource.TrySetCanceled();
+                        StateInitializedTaskCompletionSource?.TrySetCanceled();
+                        try
+                        {
+                            CancellationTokenSource.Cancel();
+                        }
+                        catch (Exception ex)
+                        {
+                            _exception = GetAggregatedExceptions(_exception, ex);
+                        }
+                    },
+                    forceExecution: exception == null);
+
+                if (exception != null)
+                {
+                    _exception = GetAggregatedExceptions(_exception, exception);
+                }
+            }
         }
 
         private object OnExecuteAction(
@@ -760,7 +771,7 @@ namespace WorkflowsCore
             {
             }
 
-            public void MarkWorkflowAsCanceled(WorkflowBase workflow)
+            public void MarkWorkflowAsCanceled(WorkflowBase workflow, Exception exception)
             {
             }
 

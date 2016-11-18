@@ -244,7 +244,7 @@ namespace WorkflowsCore.Tests
 
             public override void MarkWorkflowAsCompleted(WorkflowBase workflow) => Assert.NotNull(workflow);
 
-            public override void MarkWorkflowAsCanceled(WorkflowBase workflow) => Assert.NotNull(workflow);
+            public override void MarkWorkflowAsCanceled(WorkflowBase workflow, Exception exception) => Assert.NotNull(workflow);
         }
 
         private class TestWorkflow : WorkflowBase

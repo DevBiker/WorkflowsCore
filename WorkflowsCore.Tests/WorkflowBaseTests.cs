@@ -618,6 +618,20 @@ namespace WorkflowsCore.Tests
             }
 
             [Fact]
+            public async Task CanceledWorkflowShouldNotBeMarkedAsFaulted()
+            {
+                Workflow = new TestWorkflow(() => _workflowRepo, failCancellation: true);
+                StartWorkflow();
+                await Workflow.StartedTask;
+
+                await CancelWorkflowAsync();
+
+                Assert.Equal(1, _workflowRepo.NumberOfCanceledWorkflows);
+                Assert.True(Workflow.OnCanceledWasCalled);
+                await AssertWorkflowCancellationTokenCanceled();
+            }
+
+            [Fact]
             public async Task SleepShouldMarkWorkflowAsSleeping()
             {
                 Workflow = new TestWorkflow(() => _workflowRepo);
@@ -685,6 +699,7 @@ namespace WorkflowsCore.Tests
             private readonly bool _canceledChild;
             private readonly bool _allowOnCanceled;
             private readonly bool _badCancellation;
+            private readonly bool _failCancellation;
             private readonly TaskCompletionSource<bool> _badCancellationTcs = new TaskCompletionSource<bool>();
             private readonly int _timeout;
 
@@ -695,12 +710,14 @@ namespace WorkflowsCore.Tests
                 bool fail = false,
                 bool canceledChild = false,
                 bool allowOnCanceled = true,
-                bool badCancellation = false)
+                bool badCancellation = false,
+                bool failCancellation = false)
                 : base(workflowRepoFactory, isStateInitializedImmediatelyAfterStart)
             {
                 _canceledChild = canceledChild;
                 _allowOnCanceled = allowOnCanceled;
                 _badCancellation = badCancellation;
+                _failCancellation = failCancellation;
                 _timeout = fail ? -2 : (!doNotComplete ? 1 : Timeout.Infinite);
             }
 
@@ -769,7 +786,14 @@ namespace WorkflowsCore.Tests
                     var cancellationToken = _canceledChild
                         ? new CancellationTokenSource(1).Token
                         : Utilities.CurrentCancellationToken;
-                    await Task.Delay(_timeout, cancellationToken);
+                    try
+                    {
+                        await Task.Delay(_timeout, cancellationToken);
+                    }
+                    catch (TaskCanceledException) when (_failCancellation)
+                    {
+                        throw new InvalidOperationException();
+                    }
                 }
 
                 Assert.Equal(CurrentCancellationToken, Utilities.CurrentCancellationToken);
@@ -811,7 +835,7 @@ namespace WorkflowsCore.Tests
                 ++NumberOfCompletedWorkflows;
             }
 
-            public void MarkWorkflowAsCanceled(WorkflowBase workflow)
+            public void MarkWorkflowAsCanceled(WorkflowBase workflow, Exception exception)
             {
                 Assert.NotNull(workflow);
                 ++NumberOfCanceledWorkflows;

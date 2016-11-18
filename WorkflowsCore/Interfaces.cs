@@ -23,7 +23,7 @@ namespace WorkflowsCore
 
         void MarkWorkflowAsFailed(WorkflowBase workflow, Exception exception);
 
-        void MarkWorkflowAsCanceled(WorkflowBase workflow);
+        void MarkWorkflowAsCanceled(WorkflowBase workflow, Exception exception);
 
         void MarkWorkflowAsSleeping(WorkflowBase workflow);
 
