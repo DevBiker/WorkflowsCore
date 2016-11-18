@@ -199,7 +199,7 @@ namespace WorkflowsCore
                             }
                         },
                         CancellationToken.None,
-                        TaskContinuationOptions.RunContinuationsAsynchronously,
+                        TaskContinuationOptions.RunContinuationsAsynchronously | TaskContinuationOptions.PreferFairness,
                         WorkflowTaskScheduler);
             }
         }
@@ -605,46 +605,49 @@ namespace WorkflowsCore
         {
             exception = null;
             canceled = false;
-            lock (CancellationTokenSource)
+
+            if (_exception != null)
             {
-                if (_exception != null)
-                {
-                    _workflowRepoFactory().MarkWorkflowAsFailed(this, _exception);
-                    exception = _exception;
-                }
-                else
-                {
-                    _workflowRepoFactory().MarkWorkflowAsCanceled(this); // TODO: Add exception parameter here
-                    OnCanceled();
-                    canceled = true;
-                }
+                _workflowRepoFactory().MarkWorkflowAsFailed(this, _exception);
+                exception = _exception;
+            }
+            else
+            {
+                _workflowRepoFactory().MarkWorkflowAsCanceled(this);
+                OnCanceled();
+                canceled = true;
             }
         }
 
         private void Cancel(Exception exception = null)
         {
-            lock (CancellationTokenSource)
-            {
-                _startedTaskCompletionSource.TrySetCanceled();
-                StateInitializedTaskCompletionSource?.TrySetCanceled();
-                try
+            RunViaWorkflowTaskScheduler(
+                () =>
                 {
-                    CancellationTokenSource.Cancel(false);
-                }
-                catch (Exception ex)
-                {
-                    exception = GetAggregatedExceptions(exception, ex);
-                }
+                    _startedTaskCompletionSource.TrySetCanceled();
+                    StateInitializedTaskCompletionSource?.TrySetCanceled();
+                    try
+                    {
+                        CancellationTokenSource.Cancel(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        exception = GetAggregatedExceptions(exception, ex);
+                    }
 
-                if (exception != null)
-                {
-                    _exception = _exception == null ? exception : new AggregateException(_exception, exception);
-                }
-            }
+                    if (exception != null)
+                    {
+                        _exception = GetAggregatedExceptions(_exception, exception);
+                    }
+                },
+                forceExecution: true);
         }
 
         private object OnExecuteAction(
-            string action, NamedValues parameters, bool throwNotAllowed, out bool wasExecuted)
+            string action,
+            NamedValues parameters,
+            bool throwNotAllowed,
+            out bool wasExecuted)
         {
             var actionDefinition = GetActionDefinition(action);
 
