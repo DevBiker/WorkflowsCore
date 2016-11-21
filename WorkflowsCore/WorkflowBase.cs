@@ -102,7 +102,6 @@ namespace WorkflowsCore
 
         private TaskScheduler WorkflowTaskScheduler => _concurrentExclusiveSchedulerPair.ExclusiveScheduler;
 
-        [DataField(IsTransient = true)]
         private TaskCompletionSource<bool> StateInitializedTaskCompletionSource { get; }
 
         [DataField]

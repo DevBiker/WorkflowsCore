@@ -14,7 +14,7 @@ namespace WorkflowsCore
     }
 
     /// <summary>Repository for managing workflow state and data</summary>
-    /// <remarks>Methods of the interface are always called within workflow <c>TaskScheduler</c></remarks>>
+    /// <remarks>Methods of the interface are always called within workflow <c>TaskScheduler</c></remarks>
     public interface IWorkflowStateRepository
     {
         void SaveWorkflowData(WorkflowBase workflow);

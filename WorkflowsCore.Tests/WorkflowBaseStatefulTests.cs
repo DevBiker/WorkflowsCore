@@ -187,6 +187,16 @@ namespace WorkflowsCore.Tests
             }
 
             [Fact]
+            public void RestoredWorkflowsWithoutHistoryInitializedTaskShouldCompleteOnFirstStateTransition()
+            {
+                _workflow.OnLoaded();
+                Assert.False(_workflow.IsRestoringState);
+                Assert.NotEqual(TaskStatus.RanToCompletion, _workflow.StateInitializedTask.Status);
+                _workflow.SetState(States.Outstanding);
+                Assert.Equal(TaskStatus.RanToCompletion, _workflow.StateInitializedTask.Status);
+            }
+
+            [Fact]
             public void ForNonRestoredWorkflowsInitializedTaskShouldCompleteOnFirstStateTransition()
             {
                 Assert.NotEqual(TaskStatus.RanToCompletion, _workflow.StateInitializedTask.Status);

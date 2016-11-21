@@ -72,7 +72,6 @@ namespace WorkflowsCore
             base.OnLoaded();
             if (!StatesHistory.Any())
             {
-                SetStateInitialized();
                 return;
             }
 
