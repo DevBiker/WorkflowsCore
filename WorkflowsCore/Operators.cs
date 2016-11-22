@@ -41,7 +41,7 @@ namespace WorkflowsCore
                     }
                     catch (Exception ex)
                     {
-                        cts.Cancel();
+                        ex = RequestCancellation(cts, ex);
 
                         // ReSharper disable once MethodSupportsCancellation
                         Task.WhenAll(tasks)
@@ -144,7 +144,7 @@ namespace WorkflowsCore
             TState state)
             where TState : struct
         {
-            EnsureWorkflowTaskScheduler(workflow);
+            workflow.EnsureWorkflowTaskScheduler();
 
             var tcs = new TaskCompletionSource<bool>();
 
@@ -162,48 +162,6 @@ namespace WorkflowsCore
             }
 
             return workflow.WaitForAction(action);
-        }
-
-        public static Task WaitForWorkflow(this WorkflowBase workflow, IWorkflowEngine workflowEngine, object workflowId)
-        {
-            var tcs = new TaskCompletionSource<bool>();
-
-            if (Utilities.CurrentCancellationToken.IsCancellationRequested)
-            {
-                tcs.SetCanceled();
-                return tcs.Task;
-            }
-
-            return Task.WhenAny(
-                Task.Delay(Timeout.Infinite, Utilities.CurrentCancellationToken),
-                workflowEngine.GetWorkflowCompletedTaskById(workflowId)).Unwrap();
-        }
-
-        public static Task WaitForWorkflow<TState>(
-            this WorkflowBase<TState> workflow,
-            IWorkflowEngine workflowEngine,
-            object workflowId,
-            TState state)
-            where TState : struct
-        {
-            EnsureWorkflowTaskScheduler(workflow);
-
-            var tcs = new TaskCompletionSource<bool>();
-
-            if (Utilities.CurrentCancellationToken.IsCancellationRequested)
-            {
-                tcs.SetCanceled();
-                return tcs.Task;
-            }
-
-            var statesHistory = workflow.TransientStatesHistory;
-            if (EqualityComparer<TState?>.Default.Equals(statesHistory?.FirstOrDefault(), state))
-            {
-                tcs.SetResult(true);
-                return tcs.Task;
-            }
-
-            return workflow.WaitForWorkflow(workflowEngine, workflowId);
         }
 
         public static Task WaitForState<TState>(
@@ -299,14 +257,9 @@ namespace WorkflowsCore
             int millisecondsTimeout,
             string description = null)
         {
-            var cts = CancellationTokenSource.CreateLinkedTokenSource(Utilities.CurrentCancellationToken);
+            var cts = new CancellationTokenSource();
             if (task != await Task.WhenAny(task, Task.Delay(millisecondsTimeout, cts.Token)))
             {
-                if (cts.IsCancellationRequested)
-                {
-                    await Task.FromCanceled(cts.Token);
-                }
-
                 throw new TimeoutException(description);
             }
 
@@ -319,28 +272,14 @@ namespace WorkflowsCore
             int millisecondsTimeout,
             string description = null)
         {
-            var cts = CancellationTokenSource.CreateLinkedTokenSource(Utilities.CurrentCancellationToken);
+            var cts = new CancellationTokenSource();
             if (task != await Task.WhenAny(task, Task.Delay(millisecondsTimeout, cts.Token)))
             {
-                if (cts.IsCancellationRequested)
-                {
-                    await Task.FromCanceled<T>(cts.Token);
-                }
-
                 throw new TimeoutException(description);
             }
 
             cts.Cancel();
             return await task;
-        }
-
-        // ReSharper disable once UnusedParameter.Local
-        private static void EnsureWorkflowTaskScheduler(WorkflowBase workflow)
-        {
-            if (!workflow.IsWorkflowTaskScheduler)
-            {
-                throw new InvalidOperationException("This operator cannot be used outside of workflow thread");
-            }
         }
 
         private static void WaitAnyCore(
@@ -362,13 +301,13 @@ namespace WorkflowsCore
                     var faultedTask = tasks.FirstOrDefault(t => t.IsFaulted);
                     if (faultedTask != null)
                     {
-                        cts.Cancel();
-
                         // ReSharper disable once PossibleNullReferenceException
+                        var exception = RequestCancellation(cts, faultedTask.Exception.GetBaseException());
+
                         // ReSharper disable once MethodSupportsCancellation
                         Task.WhenAll(tasks)
                             .ContinueWith(
-                                t => tcs.SetException(faultedTask.Exception.GetBaseException()),
+                                t => tcs.SetException(exception),
                                 TaskContinuationOptions.ExecuteSynchronously);
                         return;
                     }
@@ -377,7 +316,7 @@ namespace WorkflowsCore
                     var completedTask = tasks.FirstOrDefault(IsNonOptionalTaskCompleted);
                     if (completedTask != null)
                     {
-                        cts.Cancel();
+                        var exception = RequestCancellation(cts);
 
                         // ReSharper disable once MethodSupportsCancellation
                         Task.WhenAll(tasks).ContinueWith(
@@ -386,7 +325,13 @@ namespace WorkflowsCore
                                 if (t.IsFaulted)
                                 {
                                     // ReSharper disable once AssignNullToNotNullAttribute
-                                    tcs.SetException(t.Exception);
+                                    tcs.SetException(WorkflowBase.GetAggregatedExceptions(exception, t.Exception));
+                                    return;
+                                }
+
+                                if (exception != null)
+                                {
+                                    tcs.SetException(exception);
                                     return;
                                 }
 
@@ -413,6 +358,20 @@ namespace WorkflowsCore
 
         private static bool IsNonOptionalTaskCompleted(Task t) => 
             t.Status == TaskStatus.RanToCompletion && !(t.AsyncState is OptionalTask);
+
+        private static Exception RequestCancellation(CancellationTokenSource cts, Exception exception = null)
+        {
+            try
+            {
+                cts.Cancel();
+            }
+            catch (Exception ex)
+            {
+                exception = WorkflowBase.GetAggregatedExceptions(exception, ex);
+            }
+
+            return exception;
+        }
 
         private class OptionalTask
         {

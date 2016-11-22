@@ -43,6 +43,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="DataFieldAttribute.cs" />
     <Compile Include="MonteCarlo\EventMonitor.cs" />
     <Compile Include="MonteCarlo\Globals.cs" />
     <Compile Include="MonteCarlo\MonteCarloSimulator.cs" />
@@ -56,10 +57,12 @@
     <Compile Include="NamedValues.cs" />
     <Compile Include="Operators.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="Utilities.cs" />
     <Compile Include="WorkflowBase.cs" />
     <Compile Include="WorkflowBaseStateful.cs" />
     <Compile Include="WorkflowEngine.cs" />
-    <Compile Include="WorkflowInstance.cs" />
+    <Compile Include="WorkflowMetadata.cs" />
+    <Compile Include="WorkflowMetadataCache.cs" />
     <Compile Include="WorkflowsCoordinator.cs" />
   </ItemGroup>
   <ItemGroup>

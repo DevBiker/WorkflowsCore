@@ -177,6 +177,7 @@ namespace WorkflowsCore.MonteCarlo
             int maxNumberOfEventsPerSimulation,
             int? randomGeneratorSeed = null,
             Func<IReadOnlyDictionary<string, object>> getInitialWorkflowData = null,
+            Func<IReadOnlyDictionary<string, object>> getInitialWorkflowTransientData = null,
             Action beforeSimulationCallback = null,
             Action afterSimulationCallback = null,
             int maxConcurrentSimulations = -1,
@@ -234,6 +235,7 @@ namespace WorkflowsCore.MonteCarlo
                                 () => loopState.ShouldExitCurrentIteration,
                                 beforeSimulationCallback,
                                 getInitialWorkflowData,
+                                getInitialWorkflowTransientData,
                                 afterSimulationCallback,
                                 getEventsAvailabilityAwaiter).Result;
                         }
@@ -275,7 +277,7 @@ namespace WorkflowsCore.MonteCarlo
 
         private static async Task ProcessWorkflowCompletion(TWorkflowType workflow, Exception exception)
         {
-            await workflow.DoWorkflowTaskAsync(_ => { }, true); // Wait until workflow finishes current work
+            await workflow.DoWorkflowTaskAsync(() => { }, true); // Wait until workflow finishes current work
 
             if (!workflow.CompletedTask.IsCompleted)
             {
@@ -304,8 +306,9 @@ namespace WorkflowsCore.MonteCarlo
                         StringComparison.Ordinal))
                 {
                     Globals.EventMonitor.LogEvent(ex.Message);
-                    var lastWorkflowState = ((IWorkflowData)workflow).GetTransientData<object>("State")?.ToString() ??
-                        "N/A";
+                    var lastWorkflowState =
+                        (await workflow.GetTransientDataFieldAsync<object>("State", forceExecution: true))?.ToString() ??
+                            "N/A";
                     Globals.EventMonitor.LogEvent($"Last workflow state is {lastWorkflowState}");
                 }
             }
@@ -331,9 +334,10 @@ namespace WorkflowsCore.MonteCarlo
             int maxNumberOfEventsPerSimulation,
             int maxEventProcessingTime,
             Func<bool> shouldStopSimulation,
-            Action beforeSimulationCallback,
+            Action beforeSimulationCallback, // TODO: Accept workflow
             Func<IReadOnlyDictionary<string, object>> getInitialWorkflowData,
-            Action afterSimulationCallback,
+            Func<IReadOnlyDictionary<string, object>> getInitialWorkflowTransientData,
+            Action afterSimulationCallback, // TODO: Accept workflow
             Func<TWorkflowType, IEventsAvailabilityAwaiter> getEventsAvailabilityAwaiter)
         {
             Globals.EventMonitor = new EventMonitor();
@@ -344,7 +348,10 @@ namespace WorkflowsCore.MonteCarlo
             {
                 var workflow = _workflowFactory();
                 var initialWorkflowData = getInitialWorkflowData?.Invoke();
-                workflow.StartWorkflow(initialWorkflowData: initialWorkflowData);
+                var initialWorkflowTransientData = getInitialWorkflowTransientData?.Invoke();
+                workflow.StartWorkflow(
+                    initialWorkflowData: initialWorkflowData,
+                    initialWorkflowTransientData: initialWorkflowTransientData);
                 await workflow.StartedTask.WaitWithTimeout(
                     maxEventProcessingTime,
                     $"[{Globals.EventId}] Timeout on workflow start");
@@ -591,14 +598,24 @@ namespace WorkflowsCore.MonteCarlo
                 }
 
                 await _worldClockAdvancingEventDefinition.DoEvent(workflow, true);
-                var data = (IWorkflowData)workflow;
-                var statesHistory = data.GetData<IEnumerable>("StatesHistory") ?? Enumerable.Empty<object>();
+                var statesHistory =
+                    await workflow.TryGetDataFieldAsync<IEnumerable>("StatesHistory", forceExecution: true) ??
+                        Enumerable.Empty<object>();
                 Globals.EventMonitor.LogEvent(
                     "Application is started",
                     $"StatesHistory: [{string.Join(", ", statesHistory.Cast<object>())}]");
 
                 var newWorkflow = _workflowFactory();
-                newWorkflow.StartWorkflow(loadedWorkflowData: data.Data);
+                Dictionary<string, object> data = null;
+                Dictionary<string, object> transientData = null;
+                await workflow.DoWorkflowTaskAsync(
+                    w =>
+                    {
+                        data = w.Metadata.GetData(w);
+                        transientData = w.Metadata.GetTransientData(w);
+                    },
+                    forceExecution: true);
+                newWorkflow.StartWorkflow(loadedWorkflowData: data, initialWorkflowTransientData: transientData);
                 try
                 {
                     await newWorkflow.StateInitializedTask;

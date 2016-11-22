@@ -43,14 +43,24 @@ namespace WorkflowsCore
             }
         }
 
-        public WorkflowBase CreateWorkflow(string fullTypeName)
-        {
-            return CreateWorkflow(fullTypeName, null);
-        }
+        public WorkflowBase CreateWorkflow(string fullTypeName) => CreateWorkflow(fullTypeName, null);
 
-        public WorkflowBase CreateWorkflow(string fullTypeName, IReadOnlyDictionary<string, object> initialWorkflowData)
+        public WorkflowBase CreateWorkflow(
+            string fullTypeName,
+            IReadOnlyDictionary<string, object> initialWorkflowData)
         {
             return CreateWorkflowCore(fullTypeName, initialWorkflowData: initialWorkflowData);
+        }
+
+        public WorkflowBase CreateWorkflow(
+            string fullTypeName,
+            IReadOnlyDictionary<string, object> initialWorkflowData,
+            IReadOnlyDictionary<string, object> initialWorkflowTransientData)
+        {
+            return CreateWorkflowCore(
+                fullTypeName,
+                initialWorkflowData: initialWorkflowData,
+                initialWorkflowTransientData: initialWorkflowTransientData);
         }
 
         public Task LoadAndExecuteActiveWorkflowsAsync()
@@ -107,67 +117,11 @@ namespace WorkflowsCore
             }
         }
 
-        public async Task GetWorkflowCompletedTaskById(object workflowId)
-        {
-            var status = _workflowRepoFactory().GetWorkflowStatusById(workflowId);
-            switch (status)
-            {
-                case WorkflowStatus.Completed:
-                    return;
-                case WorkflowStatus.Canceled:
-                {
-                    var tcs = new TaskCompletionSource<bool>();
-                    tcs.SetCanceled();
-                    await tcs.Task;
-                    return;
-                }
-            }
-
-            Task loadingTask;
-            lock (_loadingTaskLock)
-            {
-                loadingTask = _loadingTask;
-            }
-
-            if (loadingTask != null)
-            {
-                await loadingTask;
-            }
-
-            var workflow = GetActiveWorkflowById(workflowId);
-            if (workflow != null)
-            {
-                await workflow.CompletedTask;
-                return;
-            }
-
-            status = _workflowRepoFactory().GetWorkflowStatusById(workflowId);
-            switch (status)
-            {
-                case WorkflowStatus.Completed:
-                    break;
-                case WorkflowStatus.Canceled:
-                {
-                    var tcs = new TaskCompletionSource<bool>();
-                    tcs.SetCanceled();
-                    await tcs.Task;
-                    break;
-                }
-
-                case WorkflowStatus.Failed:
-                    await Task.FromException(
-                        new InvalidOperationException($"Workflow with id '{workflowId}' has failed"));
-                    break;
-
-                default:
-                    throw new ArgumentOutOfRangeException();
-            }
-        }
-
         protected WorkflowBase CreateWorkflowCore(
             string fullTypeName,
             IReadOnlyDictionary<string, object> initialWorkflowData = null,
             IReadOnlyDictionary<string, object> loadedWorkflowData = null,
+            IReadOnlyDictionary<string, object> initialWorkflowTransientData = null,
             object id = null,
             bool loadingOnDemand = false)
         {
@@ -176,18 +130,13 @@ namespace WorkflowsCore
                 throw new ArgumentOutOfRangeException();
             }
 
-            var type = Type.GetType(fullTypeName);
-            if (type == null)
-            {
-                throw new InvalidOperationException();
-            }
-
-            var workflow = (WorkflowBase)_diContainer.Resolve(type);
+            var workflow = (WorkflowBase)_diContainer.Resolve(Utilities.GetType(fullTypeName));
 
             workflow.StartWorkflow(
                 id,
                 initialWorkflowData,
                 loadedWorkflowData,
+                initialWorkflowTransientData: initialWorkflowTransientData,
                 beforeWorkflowStarted: () =>
                 {
                     if (!loadingOnDemand && workflow.Id != null)

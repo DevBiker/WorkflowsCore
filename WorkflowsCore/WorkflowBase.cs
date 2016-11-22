@@ -7,9 +7,11 @@ using WorkflowsCore.Time;
 
 namespace WorkflowsCore
 {
-    public abstract class WorkflowBase : IWorkflowData
+    public abstract class WorkflowBase
     {
         private readonly Func<IWorkflowStateRepository> _workflowRepoFactory;
+
+        private readonly Lazy<IWorkflowMetadata> _metadata;
 
         private readonly TaskCompletionSource<bool> _startedTaskCompletionSource =
             new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -17,8 +19,6 @@ namespace WorkflowsCore
         private readonly TaskCompletionSource<bool> _completedTaskCompletionSource =
             new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        private readonly NamedValues _data = new NamedValues();
-        private readonly NamedValues _transientData = new NamedValues();
         private readonly IList<string> _actions = new List<string>(); 
         private readonly IDictionary<string, ActionDefinition> _actionsDefinitions = 
             new Dictionary<string, ActionDefinition>();
@@ -28,6 +28,7 @@ namespace WorkflowsCore
         private object _id;
         private Exception _exception;
         private bool _wasStared;
+        private bool _isCancellationRequested;
 
         protected WorkflowBase()
             : this(null, true)
@@ -42,15 +43,10 @@ namespace WorkflowsCore
         protected WorkflowBase(
             Func<IWorkflowStateRepository> workflowRepoFactory,
             bool isStateInitializedImmediatelyAfterStart)
-            : this(workflowRepoFactory, isStateInitializedImmediatelyAfterStart, default(CancellationToken))
         {
-        }
-
-        protected WorkflowBase(
-            Func<IWorkflowStateRepository> workflowRepoFactory,
-            bool isStateInitializedImmediatelyAfterStart,
-            CancellationToken parentCancellationToken)
-        {
+            _metadata = new Lazy<IWorkflowMetadata>(
+                () => Utilities.WorkflowMetadataCache.GetWorkflowMetadata(GetType()),
+                LazyThreadSafetyMode.PublicationOnly);
             _concurrentExclusiveSchedulerPair = Utilities.WorkflowsTaskScheduler == null
                 ? new ConcurrentExclusiveSchedulerPair()
                 : new ConcurrentExclusiveSchedulerPair(Utilities.WorkflowsTaskScheduler);
@@ -61,14 +57,12 @@ namespace WorkflowsCore
             }
             else
             {
-                SetTransientData(
-                    nameof(StateInitializedTaskCompletionSource),
-                    new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously));
+                StateInitializedTaskCompletionSource =
+                    new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
                 StateInitializedTask = StateInitializedTaskCompletionSource.Task;
             }
 
-            CancellationTokenSource = parentCancellationToken.Equals(default(CancellationToken)) 
-                ? new CancellationTokenSource() : CancellationTokenSource.CreateLinkedTokenSource(parentCancellationToken);
+            CancellationTokenSource = new CancellationTokenSource();
         }
 
         protected internal event EventHandler<ActionExecutedEventArgs> ActionExecuted;
@@ -90,6 +84,8 @@ namespace WorkflowsCore
             }
         }
 
+        public IWorkflowMetadata Metadata => _metadata.Value;
+
         public Task StartedTask => _startedTaskCompletionSource.Task;
 
         public Task StateInitializedTask { get; }
@@ -98,29 +94,25 @@ namespace WorkflowsCore
 
         public bool IsWorkflowTaskScheduler => TaskScheduler.Current == WorkflowTaskScheduler;
 
-        IReadOnlyDictionary<string, object> IWorkflowData.Data => Data;
-
-        IReadOnlyDictionary<string, object> IWorkflowData.TransientData => TransientData;
+        internal NamedValues TransientData { get; } = new NamedValues();
 
         protected static ITimeProvider TimeProvider => Utilities.TimeProvider;
-
-        protected IReadOnlyDictionary<string, object> Data => _data.Data;
-
-        protected IReadOnlyDictionary<string, object> TransientData => _transientData.Data;
 
         private CancellationTokenSource CancellationTokenSource { get; }
 
         private TaskScheduler WorkflowTaskScheduler => _concurrentExclusiveSchedulerPair.ExclusiveScheduler;
 
-        private TaskCompletionSource<bool> StateInitializedTaskCompletionSource =>
-            GetTransientData<TaskCompletionSource<bool>>(nameof(StateInitializedTaskCompletionSource));
+        [DataField(IsTransient = true)]
+        private TaskCompletionSource<bool> StateInitializedTaskCompletionSource { get; }
 
-        private IDictionary<string, int> ActionStats => GetData<IDictionary<string, int>>(nameof(ActionStats));
+        [DataField]
+        private IDictionary<string, int> ActionStats { get; set; }
 
         public void StartWorkflow(
             object id = null,
             IReadOnlyDictionary<string, object> initialWorkflowData = null,
             IReadOnlyDictionary<string, object> loadedWorkflowData = null,
+            IReadOnlyDictionary<string, object> initialWorkflowTransientData = null,
             Action beforeWorkflowStarted = null,
             Action afterWorkflowFinished = null)
         {
@@ -138,7 +130,12 @@ namespace WorkflowsCore
                         OnInit();
                         if (initialWorkflowData != null)
                         {
-                            w.SetData(initialWorkflowData);
+                            w.Metadata.SetData(w, initialWorkflowData);
+                        }
+
+                        if (initialWorkflowTransientData != null)
+                        {
+                            w.Metadata.SetTransientData(w, initialWorkflowTransientData);
                         }
 
                         var wasCreated = false;
@@ -155,7 +152,7 @@ namespace WorkflowsCore
                                 Id = id;
                             }
 
-                            w.SetData(loadedWorkflowData);
+                            w.Metadata.SetData(w, loadedWorkflowData);
                             OnLoaded();
                         }
 
@@ -180,7 +177,10 @@ namespace WorkflowsCore
                             Exception exception = null;
                             try
                             {
-                                ProcessWorkflowCompletion(t, afterWorkflowFinished, out exception, out canceled);
+                                lock (CancellationTokenSource)
+                                {
+                                    ProcessWorkflowCompletion(t, afterWorkflowFinished, out exception, out canceled);
+                                }
                             }
                             catch (Exception ex)
                             {
@@ -202,7 +202,9 @@ namespace WorkflowsCore
                                 }
                             }
                         },
-                        TaskContinuationOptions.RunContinuationsAsynchronously);
+                        CancellationToken.None,
+                        TaskContinuationOptions.RunContinuationsAsynchronously | TaskContinuationOptions.PreferFairness,
+                        WorkflowTaskScheduler);
             }
         }
 
@@ -212,7 +214,7 @@ namespace WorkflowsCore
         public Task<T> RunViaWorkflowTaskScheduler<T>(Func<T> func, bool forceExecution = false) =>
             RunViaWorkflowTaskScheduler(w => func(), forceExecution);
 
-        public Task RunViaWorkflowTaskScheduler(Action<IWorkflowData> action, bool forceExecution = false)
+        public Task RunViaWorkflowTaskScheduler(Action<WorkflowBase> action, bool forceExecution = false)
         {
             if (IsWorkflowTaskScheduler)
             {
@@ -223,7 +225,7 @@ namespace WorkflowsCore
             return DoWorkflowTaskAsync(action, forceExecution);
         }
 
-        public Task<T> RunViaWorkflowTaskScheduler<T>(Func<IWorkflowData, T> func, bool forceExecution = false)
+        public Task<T> RunViaWorkflowTaskScheduler<T>(Func<WorkflowBase, T> func, bool forceExecution = false)
         {
             if (IsWorkflowTaskScheduler)
             {
@@ -233,13 +235,21 @@ namespace WorkflowsCore
             return DoWorkflowTaskAsync(func, forceExecution);
         }
 
+        public void EnsureWorkflowTaskScheduler()
+        {
+            if (!IsWorkflowTaskScheduler)
+            {
+                throw new InvalidOperationException("This operation cannot be used outside of workflow task scheduler");
+            }
+        }
+
         public Task DoWorkflowTaskAsync(Action action, bool forceExecution = false) =>
             DoWorkflowTaskAsync(w => action(), forceExecution);
 
         public Task<T> DoWorkflowTaskAsync<T>(Func<T> func, bool forceExecution = false) =>
             DoWorkflowTaskAsync(w => func(), forceExecution);
 
-        public Task DoWorkflowTaskAsync(Action<IWorkflowData> action, bool forceExecution = false)
+        public Task DoWorkflowTaskAsync(Action<WorkflowBase> action, bool forceExecution = false)
         {
             return Utilities.SetCurrentCancellationTokenTemporarily(
                 CancellationTokenSource.Token,
@@ -258,7 +268,7 @@ namespace WorkflowsCore
                     WorkflowTaskScheduler)).Unwrap();
         }
 
-        public Task<T> DoWorkflowTaskAsync<T>(Func<IWorkflowData, T> func, bool forceExecution = false)
+        public Task<T> DoWorkflowTaskAsync<T>(Func<WorkflowBase, T> func, bool forceExecution = false)
         {
             return Utilities.SetCurrentCancellationTokenTemporarily(
                 CancellationTokenSource.Token,
@@ -328,19 +338,17 @@ namespace WorkflowsCore
                 }).Unwrap();
         }
 
-        public Task<T> GetDataAsync<T>(string key) => RunViaWorkflowTaskScheduler(() => GetData<T>(key));
+        public Task<T> TryGetDataFieldAsync<T>(string key, bool forceExecution = false) =>
+            RunViaWorkflowTaskScheduler(() => Metadata.TryGetDataField<T>(this, key), forceExecution);
 
-        T IWorkflowData.GetData<T>(string key) => GetData<T>(key);
+        public Task<T> GetDataFieldAsync<T>(string key, bool forceExecution = false) => 
+            RunViaWorkflowTaskScheduler(() => Metadata.GetDataField<T>(this, key), forceExecution);
 
-        void IWorkflowData.SetData<T>(string key, T value) => SetData(key, value);
+        public Task<T> GetTransientDataFieldAsync<T>(string key, bool forceExecution = false) =>
+            RunViaWorkflowTaskScheduler(() => Metadata.GetTransientDataField<T>(this, key), forceExecution);
 
-        void IWorkflowData.SetData(IReadOnlyDictionary<string, object> newData) => SetData(newData);
-
-        T IWorkflowData.GetTransientData<T>(string key) => GetTransientData<T>(key);
-
-        void IWorkflowData.SetTransientData<T>(string key, T value) => SetTransientData(key, value);
-
-        void IWorkflowData.SetTransientData(IReadOnlyDictionary<string, object> newData) => SetTransientData(newData);
+        internal static Exception GetAggregatedExceptions(Exception exception, Exception newException) =>
+            exception == null ? newException : new AggregateException(exception, newException);
 
         internal Task ClearTimesExecutedAsync(string action)
         {
@@ -360,7 +368,7 @@ namespace WorkflowsCore
 
         protected virtual void OnInit()
         {
-            SetData(nameof(ActionStats), new Dictionary<string, int>());
+            ActionStats = new Dictionary<string, int>();
             OnActionsInit();
         }
 
@@ -514,18 +522,6 @@ namespace WorkflowsCore
             }
         }
 
-        protected T GetData<T>(string key) => _data.GetData<T>(key);
-
-        protected void SetData<T>(string key, T value) => _data.SetData(key, value);
-
-        protected void SetData(IReadOnlyDictionary<string, object> newData) => _data.SetData(newData);
-
-        protected T GetTransientData<T>(string key) => _transientData.GetData<T>(key);
-
-        protected void SetTransientData<T>(string key, T value) => _transientData.SetData(key, value);
-
-        protected void SetTransientData(IReadOnlyDictionary<string, object> newData) => _transientData.SetData(newData);
-
         protected IList<string> GetActionSynonyms(string action) => GetActionDefinition(action).Synonyms;
 
         protected void ExecuteAction(string action, bool throwNotAllowed = true) =>
@@ -554,9 +550,6 @@ namespace WorkflowsCore
 
         protected bool IsActionHidden(string action) => _actionsDefinitions[action].IsHidden;
 
-        private static Exception GetAggregatedExceptions(Exception exception, Exception newException) => 
-            exception == null ? newException : new AggregateException(exception, newException);
-
         private void ProcessWorkflowCompletion(
             Task task,
             Action afterWorkflowFinished,
@@ -565,14 +558,18 @@ namespace WorkflowsCore
         {
             canceled = false;
             exception = null;
+
+            // Ensure any background child activities are canceled and ignore further workflow actions if not enforced
+            var isCancellationRequested = _isCancellationRequested;
+            Cancel();
             try
             {
                 switch (task.Status)
                 {
                     case TaskStatus.RanToCompletion:
-                        if (CancellationTokenSource.Token.IsCancellationRequested)
+                        if (isCancellationRequested || _exception != null)
                         {
-                            HandleCancellation(out exception, out canceled);
+                            HandleCancellation(isCancellationRequested, out exception, out canceled);
                         }
                         else
                         {
@@ -580,14 +577,15 @@ namespace WorkflowsCore
                         }
 
                         break;
-                    case TaskStatus.Faulted: // ReSharper disable once PossibleNullReferenceException
-                        exception = task.Exception.GetBaseException();
-                        _workflowRepoFactory().MarkWorkflowAsFailed(this, exception);
+                    case TaskStatus.Faulted: 
+                        // ReSharper disable once PossibleNullReferenceException
+                        _exception = GetAggregatedExceptions(_exception, task.Exception.GetBaseException());
+                        HandleCancellation(isCancellationRequested, out exception, out canceled);
                         break;
                     case TaskStatus.Canceled:
-                        if (CancellationTokenSource.Token.IsCancellationRequested)
+                        if (isCancellationRequested || _exception != null)
                         {
-                            HandleCancellation(out exception, out canceled);
+                            HandleCancellation(isCancellationRequested, out exception, out canceled);
                         }
                         else
                         {
@@ -608,56 +606,61 @@ namespace WorkflowsCore
             }
             finally
             {
-                // Ensure any background child activities are canceled and ignore further workflow actions if not enforced
-                Cancel();
                 afterWorkflowFinished?.Invoke();
             }
         }
 
-        private void HandleCancellation(out Exception exception, out bool canceled)
+        private void HandleCancellation(bool isCancellationRequested, out Exception exception, out bool canceled)
         {
             exception = null;
             canceled = false;
-            lock (CancellationTokenSource)
+
+            if (!isCancellationRequested && _exception != null)
             {
-                if (_exception != null)
-                {
-                    _workflowRepoFactory().MarkWorkflowAsFailed(this, _exception);
-                    exception = _exception;
-                }
-                else
-                {
-                    _workflowRepoFactory().MarkWorkflowAsCanceled(this); // TODO: Add exception parameter here
-                    OnCanceled();
-                    canceled = true;
-                }
+                _workflowRepoFactory().MarkWorkflowAsFailed(this, _exception);
+                exception = _exception;
+                return;
             }
+
+            _workflowRepoFactory().MarkWorkflowAsCanceled(this, _exception);
+            OnCanceled();
+            canceled = true;
         }
 
         private void Cancel(Exception exception = null)
         {
             lock (CancellationTokenSource)
             {
-                _startedTaskCompletionSource.TrySetCanceled();
-                StateInitializedTaskCompletionSource?.TrySetCanceled();
-                try
-                {
-                    CancellationTokenSource.Cancel(false);
-                }
-                catch (Exception ex)
-                {
-                    exception = GetAggregatedExceptions(exception, ex);
-                }
+                _isCancellationRequested |= exception == null;
+
+                RunViaWorkflowTaskScheduler(
+                    () =>
+                    {
+                        _startedTaskCompletionSource.TrySetCanceled();
+                        StateInitializedTaskCompletionSource?.TrySetCanceled();
+                        try
+                        {
+                            CancellationTokenSource.Cancel();
+                        }
+                        catch (Exception ex)
+                        {
+                            _exception = GetAggregatedExceptions(_exception, ex);
+                        }
+                    },
+                    forceExecution: exception == null);
 
                 if (exception != null)
                 {
-                    _exception = _exception == null ? exception : new AggregateException(_exception, exception);
+                    _exception = GetAggregatedExceptions(_exception, exception);
                 }
             }
         }
 
         private object OnExecuteAction(
-            string action, NamedValues parameters, bool throwNotAllowed, out bool wasExecuted)
+            string action,
+            NamedValues parameters,
+            bool throwNotAllowed,
+            out bool wasExecuted)
         {
             var actionDefinition = GetActionDefinition(action);
 
@@ -768,7 +771,7 @@ namespace WorkflowsCore
             {
             }
 
-            public void MarkWorkflowAsCanceled(WorkflowBase workflow)
+            public void MarkWorkflowAsCanceled(WorkflowBase workflow, Exception exception)
             {
             }
 

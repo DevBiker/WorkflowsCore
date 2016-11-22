@@ -2,17 +2,24 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 using WorkflowsCore.MonteCarlo;
 using WorkflowsCore.Time;
+using Xunit;
+using Xunit.Abstractions;
 
 namespace WorkflowsCore.Tests
 {
-    [TestClass]
     public class MonteCarloSimulatorTests
     {
+        private readonly ITestOutputHelper _output;
         private MonteCarloSimulator<TestWorkflow> _simulator;
         private TestWorkflow _lastWorkflow;
+
+        public MonteCarloSimulatorTests(ITestOutputHelper output)
+        {
+            _output = output;
+            _simulator = new MonteCarloSimulator<TestWorkflow>(() => _lastWorkflow = new TestWorkflow());
+        }
 
         private enum States
         {
@@ -22,15 +29,7 @@ namespace WorkflowsCore.Tests
             Contacted = 2
         }
 
-        [TestInitialize]
-        public void TestInitialize()
-        {
-            _simulator =
-                new MonteCarloSimulator<TestWorkflow>(
-                    () => _lastWorkflow = new TestWorkflow(() => new WorkflowRepository()));
-        }
-
-        [TestMethod]
+        [Fact]
         public void SimulationShouldSelectRandomEventBasedOnConfiguredEvents()
         {
             var numberOfClockEvents = 0;
@@ -47,102 +46,118 @@ namespace WorkflowsCore.Tests
                 2.0,
                 (w, concurrentEvents) =>
                 {
-                    Assert.IsFalse(concurrentEvents);
+                    Assert.False(concurrentEvents);
                     Interlocked.Increment(ref numberOfCustomEvents);
                     return Task.CompletedTask;
                 });
 
             _simulator.RunSimulations(1, 1000, randomGeneratorSeed: 171787817);
-            Console.WriteLine($"numberOfClockEvents: {numberOfClockEvents}, numberOfCustomEvents: {numberOfCustomEvents}");
-            Assert.AreEqual(1000, numberOfClockEvents + numberOfCustomEvents);
-            Assert.AreEqual(361, numberOfClockEvents);
-            Assert.AreEqual(639, numberOfCustomEvents);
+            _output.WriteLine($"numberOfClockEvents: {numberOfClockEvents}, numberOfCustomEvents: {numberOfCustomEvents}");
+            Assert.Equal(1000, numberOfClockEvents + numberOfCustomEvents);
+            Assert.Equal(361, numberOfClockEvents);
+            Assert.Equal(639, numberOfCustomEvents);
         }
 
-        [TestMethod]
-        [ExpectedException(typeof(InvalidOperationException))]
+        [Fact]
         public void IfNoEventsIsConfiguredThenRunSimulationsShouldThrowException()
         {
-            _simulator.RunSimulations(1, 1);
+            var ex = Record.Exception(() => _simulator.RunSimulations(1, 1));
+
+            Assert.IsType<InvalidOperationException>(ex);
         }
 
-        [TestMethod]
-        [ExpectedException(typeof(ArgumentOutOfRangeException))]
+        [Fact]
         public void EventConfigurationShouldNotAllowZeroProbabilityWeight()
         {
             _simulator.ConfigureWorldClockAdvancingEvent(
                 1.0,
                 (w, _) => Task.FromResult(new WorldClockAdvancingEvent(Globals.TimeProvider.Now.AddHours(1))));
-            _simulator.ConfigureApplicationRestartEvent(0.0);
+            var ex = Record.Exception(() => _simulator.ConfigureApplicationRestartEvent(0.0));
+
+            Assert.IsType<ArgumentOutOfRangeException>(ex);
         }
 
-        [TestMethod]
-        [ExpectedException(typeof(ArgumentOutOfRangeException))]
+        [Fact]
         public void EventConfigurationShouldNotAllowNegativeProbabilityWeight()
         {
-            _simulator.ConfigureActionExecutionEvent(-0.5);
+            var ex = Record.Exception(() => _simulator.ConfigureActionExecutionEvent(-0.5));
+
+            Assert.IsType<ArgumentOutOfRangeException>(ex);
         }
 
-        [TestMethod]
-        [ExpectedException(typeof(InvalidOperationException))]
+        [Fact]
         public void ApplicationRestartEventCannotBeConfiguredTwice()
         {
+            _simulator.ConfigureWorldClockAdvancingEvent(
+                1.0,
+                (w, _) => Task.FromResult(new WorldClockAdvancingEvent(Globals.TimeProvider.Now.AddHours(1))));
             _simulator.ConfigureApplicationRestartEvent(1.0);
-            _simulator.ConfigureApplicationRestartEvent(2.0);
+            var ex = Record.Exception(() => _simulator.ConfigureApplicationRestartEvent(2.0));
+
+            Assert.IsType<InvalidOperationException>(ex);
         }
 
-        [TestMethod]
-        [ExpectedException(typeof(InvalidOperationException))]
+        [Fact]
         public void ApplicationRestartEventCannotBeConfiguredIfWorldClockAdvancingEventIsConfigured()
         {
-            _simulator.ConfigureApplicationRestartEvent(1.0);
+            var ex = Record.Exception(() => _simulator.ConfigureApplicationRestartEvent(1.0));
+
+            Assert.IsType<InvalidOperationException>(ex);
         }
 
-        [TestMethod]
-        [ExpectedException(typeof(InvalidOperationException))]
+        [Fact]
         public void ActionExecutionEventCannotBeConfiguredTwice()
         {
             _simulator.ConfigureActionExecutionEvent(1.0);
-            _simulator.ConfigureActionExecutionEvent(2.0);
+            var ex = Record.Exception(() => _simulator.ConfigureActionExecutionEvent(2.0));
+
+            Assert.IsType<InvalidOperationException>(ex);
         }
 
-        [TestMethod]
-        [ExpectedException(typeof(InvalidOperationException))]
+        [Fact]
         public void SpecificActionExecutionEventCannotBeConfiguredIfActionExecutionEventWasNotConfigured()
         {
-            _simulator.ConfigureActionExecutionEvent(1.0, "Action 1", w => Task.CompletedTask);
+            var ex = Record.Exception(
+                () => _simulator.ConfigureActionExecutionEvent(1.0, "Action 1", w => Task.CompletedTask));
+
+            Assert.IsType<InvalidOperationException>(ex);
         }
 
-        [TestMethod]
-        [ExpectedException(typeof(InvalidOperationException))]
+        [Fact]
         public void SpecificActionExecutionEventCannotBeConfiguredTwice()
         {
             _simulator.ConfigureActionExecutionEvent(1.0);
             _simulator.ConfigureActionExecutionEvent(1.0, "Action 1", w => Task.CompletedTask);
-            _simulator.ConfigureActionExecutionEvent(1.0, "Action 1", w => Task.CompletedTask);
+            var ex = Record.Exception(
+                () => _simulator.ConfigureActionExecutionEvent(1.0, "Action 1", w => Task.CompletedTask));
+
+            Assert.IsType<InvalidOperationException>(ex);
         }
 
-        [TestMethod]
-        [ExpectedException(typeof(InvalidOperationException))]
+        [Fact]
         public void IfActionExecutionEventIsConfiguredThenAtLeastOneSpecificActionShouldBeConfigured()
         {
             _simulator.ConfigureActionExecutionEvent(1.0);
-            _simulator.RunSimulations(1, 1);
+            var ex = Record.Exception(() => _simulator.RunSimulations(1, 1));
+
+            Assert.IsType<InvalidOperationException>(ex);
         }
 
-        [TestMethod]
-        [ExpectedException(typeof(InvalidOperationException))]
+        [Fact]
         public void WorldClockAdvancingEventCannotBeConfiguredTwice()
         {
             _simulator.ConfigureWorldClockAdvancingEvent(
                 1.0,
                 (w, _) => Task.FromResult(new WorldClockAdvancingEvent(DateTime.MaxValue)));
-            _simulator.ConfigureWorldClockAdvancingEvent(
-                2.0,
-                (w, _) => Task.FromResult(new WorldClockAdvancingEvent(DateTime.MaxValue)));
+            var ex = Record.Exception(
+                () => _simulator.ConfigureWorldClockAdvancingEvent(
+                    2.0,
+                    (w, _) => Task.FromResult(new WorldClockAdvancingEvent(DateTime.MaxValue))));
+
+            Assert.IsType<InvalidOperationException>(ex);
         }
 
-        [TestMethod]
+        [Fact]
         public void SimulationShouldStopIfWorkflowIsCompleted()
         {
             var numberOfCustomEvents = 0;
@@ -158,21 +173,21 @@ namespace WorkflowsCore.Tests
                 1000,
                 getInitialWorkflowData: () => new Dictionary<string, object> { ["CompleteFast"] = true });
 
-            Assert.IsTrue(numberOfCustomEvents < 1000);
+            Assert.True(numberOfCustomEvents < 1000);
         }
 
-        [TestMethod]
+        [Fact]
         public void SimulationShouldStopWorkflowIfMaxNumberOfEventsAreReached()
         {
             _simulator.ConfigureCustomEvent(1.0, w => Task.CompletedTask);
             _simulator.RunSimulations(1, 1);
-            Assert.IsTrue(_lastWorkflow.CompletedTask.IsFaulted);
-            Assert.AreEqual(
+            Assert.True(_lastWorkflow.CompletedTask.IsFaulted);
+            Assert.Equal(
                 "Workflow was stopped because maximum number of events were reached",
                 _lastWorkflow.CompletedTask.Exception?.GetBaseException().Message);
         }
 
-        [TestMethod]
+        [Fact]
         public void WorldClockAdvancingEventShouldUpdateWorldClockAndThenWaitForSpecifiedTask()
         {
             Task t = null;
@@ -180,11 +195,11 @@ namespace WorkflowsCore.Tests
                 1.0,
                 (w, isAppRestart) =>
                 {
-                    Assert.AreEqual(false, isAppRestart);
+                    Assert.Equal(false, isAppRestart);
                     return Task.FromResult(
                         new WorldClockAdvancingEvent(
                             Globals.TimeProvider.Now.AddHours(1).AddMinutes(23),
-                            t = Task.Delay(10)));
+                            t = Task.Delay(100)));
                 });
             var begin = default(DateTime);
             _simulator.RunSimulations(
@@ -193,17 +208,17 @@ namespace WorkflowsCore.Tests
                 beforeSimulationCallback: () => begin = Globals.TimeProvider.Now,
                 afterSimulationCallback: () =>
                 {
-                    Assert.AreEqual(TaskStatus.RanToCompletion, t.Status);
+                    Assert.Equal(TaskStatus.RanToCompletion, t.Status);
                     var newTime = begin.AddHours(1).AddMinutes(23);
-                    Assert.AreEqual(newTime, Globals.TimeProvider.Now);
+                    Assert.Equal(newTime, Globals.TimeProvider.Now);
                     var events = Globals.EventMonitor.GetEvents();
-                    Assert.AreEqual(3, events.Count);
-                    Assert.AreEqual("World clock is advanced", events[0].Name);
-                    Assert.AreEqual(newTime.ToString("yyyy-MM-dd HH:mm:ss"), events[0].Parameters);
+                    Assert.Equal(3, events.Count);
+                    Assert.Equal("World clock is advanced", events[0].Name);
+                    Assert.Equal(newTime.ToString("yyyy-MM-dd HH:mm:ss"), events[0].Parameters);
                 });
         }
 
-        [TestMethod]
+        [Fact]
         public void CustomEventShouldNotBeExecutedIfNotAvailable()
         {
             _simulator.ConfigureWorldClockAdvancingEvent(
@@ -216,7 +231,7 @@ namespace WorkflowsCore.Tests
             _simulator.RunSimulations(1, 10);
         }
 
-        [TestMethod]
+        [Fact]
         public void CustomEventShouldExecuteCustomEventHandler()
         {
             var counter = 0;
@@ -233,16 +248,16 @@ namespace WorkflowsCore.Tests
                 afterSimulationCallback: () =>
                 {
                     var events = Globals.EventMonitor.GetEvents();
-                    Assert.AreEqual(2, events.Count);
-                    Assert.AreEqual(
+                    Assert.Equal(2, events.Count);
+                    Assert.Equal(
                         "Workflow was stopped because maximum number of events were reached",
                         events[0].Name);
-                    Assert.AreEqual("Last workflow state is Due", events[1].Name);
+                    Assert.Equal("Last workflow state is Due", events[1].Name);
                 });
-            Assert.AreEqual(1, counter);
+            Assert.Equal(1, counter);
         }
 
-        [TestMethod]
+        [Fact]
         public void ActionExectionEventShouldNotBeExecutedIfNoActionsAvailable()
         {
             _simulator.ConfigureActionExecutionEvent(100.0);
@@ -261,10 +276,10 @@ namespace WorkflowsCore.Tests
                 1,
                 1,
                 getInitialWorkflowData: () => new Dictionary<string, object> { ["NoActions"] = true });
-            Assert.AreEqual(0, action1Counter);
+            Assert.Equal(0, action1Counter);
         }
 
-        [TestMethod]
+        [Fact]
         public void ActionExectionEventShouldSelectRandomlySpecificActionAndExecuteItsHandler()
         {
             _simulator.ConfigureActionExecutionEvent(1.0);
@@ -297,16 +312,16 @@ namespace WorkflowsCore.Tests
                 afterSimulationCallback: () =>
                 {
                     var events = Globals.EventMonitor.GetEvents();
-                    Assert.AreEqual(2, events.Count);
-                    Assert.AreEqual(
+                    Assert.Equal(2, events.Count);
+                    Assert.Equal(
                         "Workflow was stopped because maximum number of events were reached",
                         events[0].Name);
                 });
-            Assert.AreEqual(4, action1Counter);
-            Assert.AreEqual(1, action3Counter);
+            Assert.Equal(4, action1Counter);
+            Assert.Equal(1, action3Counter);
         }
 
-        [TestMethod]
+        [Fact]
         public void ApplicationRestartEventShouldStopWorkflowAdvanceWorldClockAndRerunWorkflow()
         {
             var clockAdvanced = false;
@@ -317,9 +332,10 @@ namespace WorkflowsCore.Tests
                 {
                     clockAdvanced = true;
                     oldWorkflow = w;
-                    Assert.IsTrue(w.CompletedTask.IsCompleted);
-                    Assert.AreEqual(true, isAppRestart);
-                    Assert.AreEqual(1, ((IWorkflowData)w).Data["Id"]);
+                    Assert.True(w.CompletedTask.IsCompleted);
+                    Assert.Equal(true, isAppRestart);
+                    Assert.Equal(1, w.TestId);
+                    Assert.Equal(2, w.TransientTestId);
                     return Task.FromResult(
                         new WorldClockAdvancingEvent(Globals.TimeProvider.Now.AddHours(1).AddMinutes(23)));
                 });
@@ -329,9 +345,10 @@ namespace WorkflowsCore.Tests
                 w =>
                 {
                     customEventCalled = true;
-                    Assert.IsNotNull(oldWorkflow);
-                    Assert.AreNotSame(oldWorkflow, w);
-                    Assert.AreEqual(1, w.GetDataAsync<int>("Id").Result);
+                    Assert.NotNull(oldWorkflow);
+                    Assert.NotSame(oldWorkflow, w);
+                    Assert.Equal(1, w.TestId);
+                    Assert.Equal(2, w.TransientTestId);
                     return Task.CompletedTask;
                 });
             _simulator.ConfigureApplicationRestartEvent(100.0);
@@ -340,22 +357,23 @@ namespace WorkflowsCore.Tests
             _simulator.RunSimulations(
                 1,
                 6,
-                getInitialWorkflowData: () => new Dictionary<string, object> { ["Id"] = ++counter },
+                getInitialWorkflowData: () => new Dictionary<string, object> { ["TestId"] = ++counter },
+                getInitialWorkflowTransientData: () => new Dictionary<string, object> { ["TransientTestId"] = ++counter },
                 randomGeneratorSeed: 171787817,
                 afterSimulationCallback: () =>
                 {
                     var events = Globals.EventMonitor.GetEvents();
-                    Assert.AreEqual(22, events.Count);
-                    Assert.AreEqual("Application is shutdown", events[0].Name);
-                    Assert.AreEqual("Workflow was stopped due to application shutdown", events[1].Name);
-                    Assert.AreEqual("World clock is advanced", events[2].Name);
-                    Assert.AreEqual("Application is started", events[3].Name);
+                    Assert.Equal(22, events.Count);
+                    Assert.Equal("Application is shutdown", events[0].Name);
+                    Assert.Equal("Workflow was stopped due to application shutdown", events[1].Name);
+                    Assert.Equal("World clock is advanced", events[2].Name);
+                    Assert.Equal("Application is started", events[3].Name);
                 });
-            Assert.IsTrue(clockAdvanced);
-            Assert.IsTrue(customEventCalled);
+            Assert.True(clockAdvanced);
+            Assert.True(customEventCalled);
         }
 
-        [TestMethod]
+        [Fact]
         public void IfWorkflowIsFailedThenSimulationShouldStopAndItsSequenceOfEventsShouldBeReported()
         {
             _simulator.ConfigureActionExecutionEvent(1.0);
@@ -377,19 +395,19 @@ namespace WorkflowsCore.Tests
             try
             {
                 var stats = _simulator.RunSimulations(1, 6, randomGeneratorSeed: 171787817);
-                Console.WriteLine(stats);
-                Assert.Fail();
+                _output.WriteLine(stats.ToString());
+                Assert.True(false);
             }
             catch (SimulationException ex)
             {
-                Console.WriteLine(ex);
-                Assert.AreEqual(6, ex.Events.Count);
-                Assert.AreEqual("Custom event", ex.Events[0].Name);
-                Assert.AreEqual("Action 4", ex.Events[5].Name);
+                _output.WriteLine(ex.ToString());
+                Assert.Equal(6, ex.Events.Count);
+                Assert.Equal("Custom event", ex.Events[0].Name);
+                Assert.Equal("Action 4", ex.Events[5].Name);
             }
         }
 
-        [TestMethod]
+        [Fact]
         public void IfEventIsFailedThenSimulationShouldStopAndItsSequenceOfEventsShouldBeReported()
         {
             _simulator.ConfigureCustomEvent(
@@ -402,17 +420,17 @@ namespace WorkflowsCore.Tests
             try
             {
                 _simulator.RunSimulations(1, 2, randomGeneratorSeed: 171787817);
-                Assert.Fail();
+                Assert.True(false);
             }
             catch (SimulationException ex)
             {
-                Console.WriteLine(ex);
-                Assert.AreEqual(1, ex.Events.Count);
-                Assert.AreEqual("Custom event", ex.Events[0].Name);
+                _output.WriteLine(ex.ToString());
+                Assert.Equal(1, ex.Events.Count);
+                Assert.Equal("Custom event", ex.Events[0].Name);
             }
         }
 
-        [TestMethod]
+        [Fact]
         public void IfSimulationFailsThenOtherSimulationsShouldBeTerminatedOrNotRun()
         {
             _simulator.ConfigureActionExecutionEvent(1.0);
@@ -435,16 +453,16 @@ namespace WorkflowsCore.Tests
             try
             {
                 _simulator.RunSimulations(1000, 1000, randomGeneratorSeed: 171787817, maxConcurrentSimulations: 1);
-                Assert.Fail();
+                Assert.True(false);
             }
             catch (SimulationException ex)
             {
-                Console.WriteLine(ex);
-                Assert.IsTrue(ex.Events.Count >= 6 && ex.Events.Count <= 7);
+                _output.WriteLine(ex.ToString());
+                Assert.True(ex.Events.Count >= 6 && ex.Events.Count <= 7);
             }
         }
 
-        [TestMethod]
+        [Fact]
         public void IfAllSimulationsAreCompletedSuccessfullyThenSimulationsStatsShouldBeReturned()
         {
             var action1Counter = 0;
@@ -467,29 +485,30 @@ namespace WorkflowsCore.Tests
                 });
 
             var stats = _simulator.RunSimulations(5, 5, randomGeneratorSeed: 171787817, maxConcurrentSimulations: 1);
-            Assert.IsNotNull(stats);
-            Console.WriteLine(stats);
-            Assert.AreEqual(5, stats.NumberOfSimulations);
-            Assert.AreEqual(35, stats.TotalNumberOfEvents);
-            Assert.AreEqual(7.0, stats.AverageNumberOfEventsPerSimulation);
-            Assert.AreEqual(action2Counter, stats.Events[0].Item2);
-            Assert.AreEqual(action1Counter, stats.Events[1].Item2);
+            Assert.NotNull(stats);
+            _output.WriteLine(stats.ToString());
+            Assert.Equal(5, stats.NumberOfSimulations);
+            Assert.Equal(35, stats.TotalNumberOfEvents);
+            Assert.Equal(7.0, stats.AverageNumberOfEventsPerSimulation);
+            Assert.Equal(action2Counter, stats.Events[0].Item2);
+            Assert.Equal(action1Counter, stats.Events[1].Item2);
         }
 
-        [TestMethod]
-        [ExpectedException(typeof(SimulationException))]
+        [Fact]
         public void SimulationShouldFailIfMaxEventProcessingTimeIsExceeded()
         {
-            _simulator.ConfigureCustomEvent(1.0, w => Task.Delay(100));            
-            _simulator.RunSimulations(1, 5, maxEventProcessingTime: 10);
+            _simulator.ConfigureCustomEvent(1.0, w => Task.Delay(100));
+            var ex = Record.Exception(() => _simulator.RunSimulations(1, 5, maxEventProcessingTime: 10));
+
+            Assert.IsType<SimulationException>(ex);
         }
 
-        [TestMethod]
+        [Fact]
         public void IfMaxConcurrentEventsIsGreaterThen1ThenEventsShouldBeRunConcurrently()
         {
             _simulator =
                 new MonteCarloSimulator<TestWorkflow>(
-                    () => _lastWorkflow = new TestWorkflow(() => new WorkflowRepository()),
+                    () => _lastWorkflow = new TestWorkflow(),
                     maxConcurrentEvents: 5);
 
             var action1Counter = 0;
@@ -498,7 +517,7 @@ namespace WorkflowsCore.Tests
                 1.0,
                 (w, concurrentEvents) =>
                 {
-                    Assert.IsTrue(concurrentEvents);
+                    Assert.True(concurrentEvents);
                     ++action1Counter2;
                     Globals.EventMonitor.LogEvent("Custom event 1");
                     Interlocked.Increment(ref action1Counter);
@@ -522,58 +541,57 @@ namespace WorkflowsCore.Tests
                 5000,
                 randomGeneratorSeed: 171787817,
                 getEventsAvailabilityAwaiter: w => new WorkflowActionsAvailabilityAwaiter<States>(w));
-            Assert.IsNotNull(stats);
-            Console.WriteLine(stats);
-            Assert.AreEqual(action2Counter, action2Counter);
-            Assert.AreNotEqual(action1Counter, action1Counter2);
-            Assert.IsTrue(action1Counter > action2Counter);
+            Assert.NotNull(stats);
+            _output.WriteLine(stats.ToString());
+            Assert.Equal(action2Counter, action2Counter);
+            Assert.NotEqual(action1Counter, action1Counter2);
+            Assert.True(action1Counter > action2Counter);
         }
 
-        [TestMethod]
+        [Fact]
         public async Task WorkflowActionsAvailabilityAwaiterShouldWaitForWorkflowStateChange()
         {
             Utilities.TimeProvider = new TestingTimeProvider();
-            var workflow = new TestWorkflow(() => new WorkflowRepository());
+            var workflow = new TestWorkflow();
             workflow.StartWorkflow(initialWorkflowData: new Dictionary<string, object> { ["NoActions"] = true });
-            await workflow.StateInitializedTask;
+            await workflow.StateEventTask; // We cannot wait for StateInitializedTask because it is completed before StateChanged event
 
-#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
-            Task.Delay(10)
-                .ContinueWith(_ => TestingTimeProvider.Current.SetCurrentTime(Globals.TimeProvider.Now.AddHours(17)));
-#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
+            var t = new WorkflowActionsAvailabilityAwaiter<States>(workflow).Task;
+            Assert.False(t.IsCompleted);
+            TestingTimeProvider.Current.SetCurrentTime(Globals.TimeProvider.Now.AddHours(17));
 
-            await new WorkflowActionsAvailabilityAwaiter<States>(workflow).Task;
+            await t.WaitWithTimeout(1000);
 
             var state = await workflow.GetStateAsync();
-            Assert.AreEqual(States.Due, state);
+            Assert.Equal(States.Due, state);
         }
 
-        [TestMethod]
+        [Fact]
         public async Task WorkflowActionsAvailabilityAwaiterShouldCompleteIfWorkflowIsStoppedOrCompleted()
         {
             Utilities.TimeProvider = new TestingTimeProvider();
-            var workflow = new TestWorkflow(() => new WorkflowRepository());
+            var workflow = new TestWorkflow();
             workflow.StartWorkflow(
                 initialWorkflowData: new Dictionary<string, object> { ["NoActions"] = true, ["CompleteFast"] = true });
             await workflow.StateInitializedTask;
 
-            var state = await workflow.GetStateAsync();
-            Assert.AreEqual(States.Contacted, state);
+            var state = await workflow.GetTransientDataFieldAsync<States>("State", forceExecution: true);
+            Assert.Equal(States.Contacted, state);
             await new WorkflowActionsAvailabilityAwaiter<States>(workflow).Task;
 
-            Assert.AreEqual(TaskStatus.RanToCompletion, workflow.CompletedTask.Status);
+            Assert.Equal(TaskStatus.RanToCompletion, workflow.CompletedTask.Status);
         }
 
-        [TestMethod]
+        [Fact]
         public void EventsAvailabilityAwaiterShouldBeAwaitedBeforeGeneratingEventsInNonPrimaryPartitions()
         {
             _simulator =
                 new MonteCarloSimulator<TestWorkflow>(
-                    () => _lastWorkflow = new TestWorkflow(() => new WorkflowRepository()),
+                    () => _lastWorkflow = new TestWorkflow(),
                     maxConcurrentEvents: 2);
 
             _simulator.ConfigureWorldClockAdvancingEvent(
-                0.1,
+                0.01,
                 (w, isAppRestart) =>
                     Task.FromResult(new WorldClockAdvancingEvent(Globals.TimeProvider.Now.AddHours(1))));
 
@@ -594,16 +612,30 @@ namespace WorkflowsCore.Tests
                 randomGeneratorSeed: 171787817,
                 getInitialWorkflowData: () => new Dictionary<string, object> { ["NoActions"] = true },
                 getEventsAvailabilityAwaiter: w => new WorkflowActionsAvailabilityAwaiter<States>(w));
-            Assert.IsNotNull(stats);
-            Console.WriteLine(stats);
+            Assert.NotNull(stats);
+            _output.WriteLine(stats.ToString());
         }
 
         private class TestWorkflow : WorkflowBase<States>
         {
-            public TestWorkflow(Func<IWorkflowStateRepository> workflowRepoFactory)
-                : base(workflowRepoFactory)
-            {
-            }
+            private readonly TaskCompletionSource<bool> _stateEventTcs = new TaskCompletionSource<bool>();
+
+            public Task StateEventTask => _stateEventTcs.Task;
+
+            // ReSharper disable once UnusedAutoPropertyAccessor.Local
+            [DataField]
+            public int TestId { get; set; }
+
+            [DataField(IsTransient = true)]
+            public int TransientTestId { get; set; }
+
+            // ReSharper disable once UnusedAutoPropertyAccessor.Local
+            [DataField]
+            private bool NoActions { get; set; }
+
+            // ReSharper disable once UnusedAutoPropertyAccessor.Local
+            [DataField]
+            private bool CompleteFast { get; set; }
 
             protected override void OnActionsInit()
             {
@@ -616,57 +648,29 @@ namespace WorkflowsCore.Tests
 
             protected override void OnStatesInit()
             {
+                StateChanged += (sender, args) => _stateEventTcs.TrySetResult(true);
                 ConfigureState(States.Due, availableActions: new[] { "Action 1", "Action 3", "Action 4" });
                 ConfigureState(States.Contacted);
             }
 
             protected override async Task RunAsync()
             {
-                SetState(!GetData<bool>("NoActions") ? States.Due : States.Contacted);
+                var date = Globals.TimeProvider.Now.AddHours(17);
+                SetState(!NoActions ? States.Due : States.Contacted);
                 await this.WaitForAny(
-                    () => Task.Delay(GetData<bool>("CompleteFast") ? 1 : 10000, Utilities.CurrentCancellationToken),
+                    () => Task.Delay(CompleteFast ? 1 : 10000, Utilities.CurrentCancellationToken),
                     async () =>
                     {
                         await this.WaitForAction("Action 4");
                         throw new NullReferenceException();
                     },
-                    () => this.Optional(WaitForDueDate()));
+                    () => this.Optional(WaitForDueDate(date)));
             }
 
-            private async Task WaitForDueDate()
+            private async Task WaitForDueDate(DateTime date)
             {
-                await this.WaitForDate(Globals.TimeProvider.Now.AddHours(17));
+                await this.WaitForDate(date);
                 SetState(States.Due);
-            }
-        }
-
-        private class WorkflowRepository : IWorkflowStateRepository
-        {
-            public void SaveWorkflowData(WorkflowBase workflow)
-            {
-            }
-
-            public void MarkWorkflowAsCompleted(WorkflowBase workflow)
-            {
-            }
-
-            public void MarkWorkflowAsFailed(WorkflowBase workflow, Exception exception)
-            {
-            }
-
-            public void MarkWorkflowAsCanceled(WorkflowBase workflow)
-            {
-                throw new NotImplementedException();
-            }
-
-            public void MarkWorkflowAsSleeping(WorkflowBase workflow)
-            {
-                throw new NotImplementedException();
-            }
-
-            public void MarkWorkflowAsInProgress(WorkflowBase workflow)
-            {
-                throw new NotImplementedException();
             }
         }
     }

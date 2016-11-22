@@ -9,7 +9,7 @@ namespace WorkflowsCore.Time
         public static async Task WaitForDate(
             this WorkflowBase workflow,
             DateTime date,
-            Func<Task<bool>> bypassDatesFunc = null)
+            Func<WorkflowBase, Task<bool>> bypassDatesFunc = null)
         {
             if (Utilities.CurrentCancellationToken.IsCancellationRequested)
             {
@@ -31,7 +31,7 @@ namespace WorkflowsCore.Time
                 return;
             }
 
-            var bypassDates = await (bypassDatesFunc?.Invoke() ?? Task.FromResult(false));
+            var bypassDates = await (bypassDatesFunc?.Invoke(workflow) ?? Task.FromResult(false));
             if (bypassDates)
             {
                 return;

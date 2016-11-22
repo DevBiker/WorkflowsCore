@@ -4,494 +4,730 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Xunit;
 
 namespace WorkflowsCore.Tests
 {
-    [TestClass]
     public class WorkflowBaseTests
     {
-        private WorkflowRepository _workflowRepo;
-        private TestWorkflow _workflow;
-
-        [TestInitialize]
-        public void TestInitialize()
+        public class StartedStateInitializedTasksTests : BaseWorkflowTest<TestWorkflow>
         {
-            _workflowRepo = new WorkflowRepository();
-            _workflow = new TestWorkflow(() => _workflowRepo);
-        }
-
-        [TestMethod]
-        public async Task StartedTaskShouldBeCompletedWhenWorkflowIsStarted()
-        {
-            Assert.AreNotEqual(TaskStatus.RanToCompletion, _workflow.StartedTask.Status);
-            _workflow.StartWorkflow(initialWorkflowData: new Dictionary<string, object>());
-            await _workflow.StartedTask;
-            await _workflow.CompletedTask;
-        }
-
-        [TestMethod]
-        public async Task StartedTaskShouldBeCanceledIfStartingIsFailed()
-        {
-            Assert.AreNotEqual(TaskStatus.RanToCompletion, _workflow.StartedTask.Status);
-            _workflow.StartWorkflow(
-                initialWorkflowData: new Dictionary<string, object>(),
-                beforeWorkflowStarted: () => { throw new InvalidOperationException(); });
-            await Task.WhenAny(_workflow.StartedTask, Task.Delay(100));
-            Assert.AreEqual(TaskStatus.Canceled, _workflow.StartedTask.Status);
-        }
-
-        [TestMethod]
-        [ExpectedException(typeof(TaskCanceledException))]
-        public async Task IfWorkflowIsCanceledThenStartedTaskShouldBeCanceledIfItIsNotCompletedYet()
-        {
-            var workflow = new TestWorkflow(() => _workflowRepo, false);
-            workflow.CancelWorkflow();
-            await Task.WhenAny(workflow.StartedTask, Task.Delay(100)).Unwrap();
-        }
-
-        [TestMethod]
-        [ExpectedException(typeof(TaskCanceledException))]
-        public async Task IfWorkflowIsCanceledThenInitializedTaskShouldBeCanceledIfItIsNotCompletedYet()
-        {
-            var workflow = new TestWorkflow(() => _workflowRepo, false);
-            workflow.CancelWorkflow();
-            await Task.WhenAny(workflow.StateInitializedTask, Task.Delay(100)).Unwrap();
-        }
-
-        [TestMethod]
-        [ExpectedException(typeof(InvalidOperationException))]
-        public async Task WorkflowIdCouldBeSetOnlyOnce()
-        {
-            await _workflow.DoWorkflowTaskAsync(
-                w =>
-                {
-                    _workflow.Id = 1;
-                    Assert.AreEqual(1, _workflow.Id);
-                    _workflow.Id = 2;
-                },
-                forceExecution: true);
-        }
-
-        [TestMethod]
-        public async Task GetIdShouldReturnWorkflowId()
-        {
-            _workflow.StartWorkflow();
-            await _workflow.DoWorkflowTaskAsync(w => _workflow.Id = 1);
-            var id = await _workflow.GetIdAsync();
-            Assert.AreEqual(1, (int)id);
-            await _workflow.CompletedTask;
-        }
-
-        [TestMethod]
-        public async Task SetDataForDictionariesShouldOverrideExistingValuesAndIgnoreOthers()
-        {
-            await _workflow.DoWorkflowTaskAsync(
-                w =>
-                {
-                    w.SetData(new Dictionary<string, object> { ["Id"] = 1, ["BypassDates"] = true });
-                    w.SetData(new Dictionary<string, object> { ["Id"] = 2 });
-                    Assert.AreEqual(2, w.Data["Id"]);
-                    Assert.AreEqual(true, w.GetData<bool>("BypassDates"));
-                },
-                forceExecution: true);
-        }
-
-        [TestMethod]
-        public async Task GetDataForNonExistingKeyShouldReturnDefaultValue()
-        {
-            await _workflow.DoWorkflowTaskAsync(w => Assert.AreEqual(0, w.GetData<int>("Id")), forceExecution: true);
-        }
-
-        [TestMethod]
-        public async Task SetDataForKeyShouldRemoveKeyIfValueIsDefault()
-        {
-            await _workflow.DoWorkflowTaskAsync(
-                w =>
-                {
-                    w.SetData("BypassDates", true);
-                    w.SetData("BypassDates", false);
-                    Assert.IsFalse(w.Data.ContainsKey("BypassDates"));
-                },
-                forceExecution: true);
-        }
-
-        [TestMethod]
-        public async Task SetTransientDataForDictionariesShouldOverrideExistingValuesAndIgnoreOthers()
-        {
-            await _workflow.DoWorkflowTaskAsync(
-                w =>
-                {
-                    w.SetTransientData(new Dictionary<string, object> { ["Id"] = 1, ["BypassDates"] = true });
-                    w.SetTransientData(new Dictionary<string, object> { ["Id"] = 2 });
-                    Assert.AreEqual(2, w.TransientData["Id"]);
-                    Assert.AreEqual(true, w.GetTransientData<bool>("BypassDates"));
-                },
-                forceExecution: true);
-        }
-
-        [TestMethod]
-        public async Task GetTransientDataForNonExistingKeyShouldReturnDefaultValue()
-        {
-            await _workflow.DoWorkflowTaskAsync(
-                w => Assert.AreEqual(0, w.GetTransientData<int>("Id")),
-                forceExecution: true);
-        }
-
-        [TestMethod]
-        public async Task DoWorkflowTaskShouldRestoreWorkflowCancellationToken()
-        {
-            var ct = Utilities.CurrentCancellationToken;
-            await _workflow.DoWorkflowTaskAsync(
-                w =>
-                {
-                    Assert.IsFalse(Utilities.CurrentCancellationToken.IsCancellationRequested);
-                    Assert.AreNotEqual(ct, Utilities.CurrentCancellationToken);
-                },
-                forceExecution: true);
-            Assert.AreEqual(ct, Utilities.CurrentCancellationToken);
-        }
-
-        [TestMethod]
-        public async Task DoWorkflowTask2ShouldRestoreWorkflowCancellationToken()
-        {
-            var ct = Utilities.CurrentCancellationToken;
-            await _workflow.DoWorkflowTaskAsync(
-                w =>
-                {
-                    Assert.IsFalse(Utilities.CurrentCancellationToken.IsCancellationRequested);
-                    Assert.AreNotEqual(ct, Utilities.CurrentCancellationToken);
-                    return 1;
-                },
-                forceExecution: true);
-            Assert.AreEqual(ct, Utilities.CurrentCancellationToken);
-        }
-
-        [TestMethod]
-        public async Task DoWorkflowTaskShouldWaitUntilWorkflowIsStarted()
-        {
-#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
-            Task.Delay(100).ContinueWith(_ => _workflow.StartWorkflow());
-#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
-            await _workflow.DoWorkflowTaskAsync(
-                w =>
-                {
-                    Assert.AreEqual(TaskStatus.RanToCompletion, _workflow.StartedTask.Status);
-                });
-
-            await _workflow.CompletedTask;
-        }
-
-        [TestMethod]
-        public async Task DoWorkflowTask2ShouldWaitUntilWorkflowIsStarted()
-        {
-#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
-            Task.Delay(100).ContinueWith(_ => _workflow.StartWorkflow());
-#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
-            await _workflow.DoWorkflowTaskAsync(
-                w =>
-                {
-                    Assert.AreEqual(TaskStatus.RanToCompletion, _workflow.StartedTask.Status);
-                    return 1;
-                });
-
-            await _workflow.CompletedTask;
-        }
-
-        [TestMethod]
-        public async Task DoWorkflowTaskShouldExecuteTaskEvenIfWorkflowIsInCacellationIfForceIsSpecified()
-        {
-            var cts = new CancellationTokenSource();
-            var workflow = new TestWorkflow(() => _workflowRepo, cts.Token);
-            cts.Cancel();
-            await workflow.DoWorkflowTaskAsync(_ => { }, true);
-            await workflow.DoWorkflowTaskAsync(_ => 1, true);
-        }
-
-        [TestMethod]
-        public async Task ConfiguredActionShouldBeExecutedOnRequest()
-        {
-            _workflow.ConfigureAction("Action 1", () => 2);
-            _workflow.StartWorkflow();
-            var res = await _workflow.ExecuteActionAsync<int>("Action 1");
-            Assert.AreEqual(2, res);
-            await _workflow.CompletedTask;
-        }
-
-        [TestMethod]
-        public async Task ConfiguredActionHandlerShouldBeInvokedWithPassedParameters()
-        {
-            NamedValues invocationParameters = null;
-            _workflow.ConfigureAction("Action 1", p => invocationParameters = p, synonym: "Action Synonym");
-            _workflow.StartWorkflow();
-            var parameters = new Dictionary<string, object> { ["Id"] = 1 };
-            await _workflow.ExecuteActionAsync("Action Synonym", parameters);
-            Assert.IsTrue(parameters.SequenceEqual(invocationParameters.Data));
-            await _workflow.CompletedTask;
-        }
-
-        [TestMethod]
-        [ExpectedException(typeof(ArgumentOutOfRangeException))]
-        public async Task NonConfiguredActionsShouldThrowAoore()
-        {
-            _workflow.ConfigureAction("Action 1", () => 2);
-            _workflow.StartWorkflow();
-            await _workflow.ExecuteActionAsync("Action 2");
-        }
-
-        [TestMethod]
-        [ExpectedException(typeof(InvalidOperationException))]
-        public async Task IfActionNotAllowedAndThrowNotAllowedSpecifiedThenActionExecutionShouldThrowIoe()
-        {
-            _workflow.ConfigureAction("Action 1", () => 2);
-            _workflow.StartWorkflow();
-            _workflow.ActionsAllowed = false;
-            await _workflow.ExecuteActionAsync("Action 1");
-        }
-
-        [TestMethod]
-        public async Task IfActionNotAllowedAndThrowNotAllowedDisabledThenActionExecutionShouldSkipAction()
-        {
-            _workflow.ConfigureAction("Action 1", () => 2);
-            _workflow.StartWorkflow();
-            _workflow.ActionsAllowed = false;
-            await _workflow.ExecuteActionAsync("Action 1", throwNotAllowed: false);
-            await _workflow.CompletedTask;
-        }
-
-        [TestMethod]
-        [ExpectedException(typeof(InvalidOperationException))]
-        public void ConfiguringTheSameActionMultipleTimesShouldThrowIoe()
-        {
-            _workflow.ConfigureAction("Action 1", () => 2);
-            _workflow.ConfigureAction("Action 1", () => 3);
-        }
-
-        [TestMethod]
-        public async Task ActionCouldBeInvokedViaSynonym()
-        {
-            _workflow.ConfigureAction("Action 1", () => 3, synonyms: new[] { "Action First" });
-            _workflow.StartWorkflow();
-            var res = await _workflow.ExecuteActionAsync<int>("Action First");
-            Assert.AreEqual(3, res);
-            await _workflow.CompletedTask;
-        }
-
-        [TestMethod]
-        public async Task ExecuteActionShouldWaitUntilWorkflowInitializationCompleted()
-        {
-            var workflow = new TestWorkflow(() => _workflowRepo, false);
-            workflow.ConfigureAction("Action 1", () => 1);
-            workflow.StartWorkflow();
-#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
-            Task.Delay(5).ContinueWith(_ => workflow.SetStateInitialized());
-#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
-            await workflow.ExecuteActionAsync<int>("Action 1");
-            Assert.AreEqual(TaskStatus.RanToCompletion, workflow.StateInitializedTask.Status);
-            await workflow.CompletedTask;
-        }
-
-        [TestMethod]
-        public async Task GetAvailableActionsShouldReturnActionsInOrderOfConfiguringOfThem()
-        {
-            _workflow.ConfigureAction("Action 1", () => 1);
-            _workflow.ConfigureAction("Action 2", () => 2);
-            _workflow.ConfigureAction("Action 0", () => 0);
-            _workflow.StartWorkflow();
-            var res = await _workflow.GetAvailableActionsAsync();
-            Assert.IsTrue(res.SequenceEqual(new[] { "Action 1", "Action 2", "Action 0" }));
-            await _workflow.CompletedTask;
-        }
-
-        [TestMethod]
-        public async Task GetAvailableActionsShouldSkipNotAllowedActions()
-        {
-            _workflow.ConfigureAction("Action 1", () => 1);
-            _workflow.ConfigureAction("Action 2", () => 2);
-            _workflow.ConfigureAction("Action 0", () => 0);
-            _workflow.NotAllowedAction = "Action 2";
-            _workflow.StartWorkflow();
-            var res = await _workflow.GetAvailableActionsAsync();
-            Assert.IsTrue(res.SequenceEqual(new[] { "Action 1", "Action 0" }));
-            await _workflow.CompletedTask;
-        }
-
-        [TestMethod]
-        public async Task GetAvailableActionsShouldNotReturnSynonyms()
-        {
-            _workflow.ConfigureAction("Action 1", () => 1, synonyms: new[] { "Action First" });
-            _workflow.StartWorkflow();
-            var res = await _workflow.GetAvailableActionsAsync();
-            Assert.IsTrue(res.SequenceEqual(new[] { "Action 1" }));
-            await _workflow.CompletedTask;
-        }
-
-        [TestMethod]
-        public async Task GetAvailableActionsShouldNotReturnHiddenActions()
-        {
-            _workflow.ConfigureAction("Action 0", () => 0);
-            _workflow.ConfigureAction("Action 1", () => 1, isHidden: true);
-            _workflow.ConfigureAction("Action 2", () => 2);
-            _workflow.StartWorkflow();
-
-            var res = await _workflow.GetAvailableActionsAsync();
-
-            Assert.IsTrue(res.SequenceEqual(new[] { "Action 0", "Action 2" }));
-            await _workflow.CompletedTask;
-        }
-
-        [TestMethod]
-        public async Task GetAvailableActionsShouldWaitUntilWorkflowInitializationCompleted()
-        {
-            var workflow = new TestWorkflow(() => _workflowRepo, false);
-            workflow.ConfigureAction("Action 1", () => 1);
-            workflow.StartWorkflow();
-#pragma warning disable CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
-            Task.Delay(5).ContinueWith(_ => workflow.SetStateInitialized());
-#pragma warning restore CS4014 // Because this call is not awaited, execution of the current method continues before the call is completed
-            await workflow.GetAvailableActionsAsync();
-            Assert.AreEqual(TaskStatus.RanToCompletion, workflow.StateInitializedTask.Status);
-            await workflow.CompletedTask;
-        }
-
-        [TestMethod]
-        public void ActionMetadataIsAvailableInActionHandler()
-        {
-            _workflow.ConfigureAction(
-                "Action 1",
-                () => 0,
-                metadata: new Dictionary<string, object> { ["Metadata1"] = "Something" });
-
-            var metadata = _workflow.GetActionMetadata("Action 1");
-
-            Assert.IsTrue(metadata.GetData<string>("Metadata1") == "Something");
-        }
-
-        [TestMethod]
-        public async Task WhenActionExecutedSaveWorkflowDataShouldBeCalled()
-        {
-            var workflowRepo = new WorkflowRepository();
-            var workflow = new TestWorkflow(() => workflowRepo, true);
-            workflow.ConfigureAction("Action 1", () => 0);
-            workflow.StartWorkflow();
-
-            await workflow.StartedTask;
-            Assert.AreEqual(1, workflowRepo.SaveWorkflowDataCounter);
-
-            await workflow.ExecuteActionAsync("Action 1");
-
-            Assert.AreEqual(2, workflowRepo.SaveWorkflowDataCounter);
-            await workflow.CompletedTask;
-        }
-
-        [TestMethod]
-        public async Task RunViaWorkflowTaskSchedulerShouldCompleteSyncIfRunFromWorkflowThread()
-        {
-            await _workflow.DoWorkflowTaskAsync(
-                () =>
-                {
-                    var isRun = false;
-                    Assert.AreEqual(Task.CompletedTask, _workflow.RunViaWorkflowTaskScheduler(() => { isRun = true; }));
-                    Assert.IsTrue(isRun);
-                },
-                forceExecution: true);
-        }
-
-        [TestMethod]
-        public async Task RunViaWorkflowTaskSchedulerShouldCompleteAsyncIfRunOutsideOfWorkflowThread()
-        {
-            var isRun = false;
-            var task = _workflow.RunViaWorkflowTaskScheduler(() => { isRun = true; }, forceExecution: true);
-            await task;
-            Assert.AreNotEqual(Task.CompletedTask, task);
-            Assert.IsTrue(isRun);
-        }
-
-        [TestMethod]
-        public async Task RunViaWorkflowTaskScheduler2ShouldCompleteSyncIfRunFromWorkflowThread()
-        {
-            await _workflow.DoWorkflowTaskAsync(
-                () =>
-                {
-                    var task = _workflow.RunViaWorkflowTaskScheduler(() => true);
-                    Assert.AreEqual(TaskStatus.RanToCompletion, task.Status);
-                    Assert.IsTrue(task.Result);
-                },
-                forceExecution: true);
-        }
-
-        [TestMethod]
-        public async Task RunViaWorkflowTaskScheduler2ShouldCompleteASyncIfRunOutsideOfWorkflowThread()
-        {
-            var task = _workflow.RunViaWorkflowTaskScheduler(() => true, forceExecution: true);
-            Assert.AreNotEqual(TaskStatus.RanToCompletion, task.Status);
-            var res = await task;
-            Assert.IsTrue(res);
-        }
-
-        [TestMethod]
-        public async Task WhenActionExecutedItsCounterShouldBeIncremented()
-        {
-            _workflow.ConfigureAction("Action 1", _ => { });
-            _workflow.StartWorkflow();
-
-            Assert.AreEqual(false, _workflow.WasExecuted("Action 1"));
-            Assert.AreEqual(0, _workflow.TimesExecuted("Action 1"));
-
-            await _workflow.ExecuteActionAsync("Action 1");
-
-            Assert.AreEqual(true, _workflow.WasExecuted("Action 1"));
-            Assert.AreEqual(1, _workflow.TimesExecuted("Action 1"));
-
-            await _workflow.ExecuteActionAsync("Action 1");
-
-            Assert.AreEqual(true, _workflow.WasExecuted("Action 1"));
-            Assert.AreEqual(2, _workflow.TimesExecuted("Action 1"));
-
-            await _workflow.CompletedTask;
-        }
-
-        [TestMethod]
-        public async Task ClearTimesExecutedShouldRestActionCounter()
-        {
-            _workflow.ConfigureAction("Action 1", _ => { });
-            _workflow.StartWorkflow();
-
-            await _workflow.ExecuteActionAsync("Action 1");
-
-            Assert.AreEqual(true, _workflow.WasExecuted("Action 1"));
-            Assert.AreEqual(1, _workflow.TimesExecuted("Action 1"));
-
-            _workflow.ClearTimesExecuted("Action 1");
-
-            Assert.AreEqual(false, _workflow.WasExecuted("Action 1"));
-            Assert.AreEqual(0, _workflow.TimesExecuted("Action 1"));
-
-            await _workflow.CompletedTask;
-        }
-
-        private sealed class TestWorkflow : WorkflowBase
-        {
-            public TestWorkflow(
-                Func<IWorkflowStateRepository> workflowRepoFactory,
-                CancellationToken parentCancellationToken = default(CancellationToken))
-                : base(workflowRepoFactory, false, parentCancellationToken)
+            public StartedStateInitializedTasksTests()
             {
-                OnInit();
-                SetStateInitialized();
+                Workflow = new TestWorkflow();
             }
 
+            [Fact]
+            public async Task StartedTaskShouldBeCompletedWhenWorkflowIsStarted()
+            {
+                Assert.NotEqual(TaskStatus.RanToCompletion, Workflow.StartedTask.Status);
+                StartWorkflow();
+                await Workflow.StartedTask;
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
+            public async Task StartedTaskShouldBeCanceledIfStartingIsFailed()
+            {
+                Assert.NotEqual(TaskStatus.RanToCompletion, Workflow.StartedTask.Status);
+                StartWorkflow(beforeWorkflowStarted: () => { throw new InvalidOperationException(); });
+                await Task.WhenAny(Workflow.StartedTask, Task.Delay(100));
+                
+                // ReSharper disable once PossibleNullReferenceException
+                var ex = await Record.ExceptionAsync(() => Workflow.CompletedTask);
+
+                Assert.Equal(TaskStatus.Canceled, Workflow.StartedTask.Status);
+                Assert.IsType<InvalidOperationException>(ex);
+            }
+
+            [Fact]
+            public async Task IfWorkflowIsCanceledThenStartedTaskShouldBeCanceledIfItIsNotCompletedYet()
+            {
+                Workflow = new TestWorkflow(null, false);
+                Workflow.CancelWorkflow();
+
+                // ReSharper disable once PossibleNullReferenceException
+                var ex = await Record.ExceptionAsync(() => Task.WhenAny(Workflow.StartedTask, Task.Delay(100)).Unwrap());
+
+                Assert.IsType<TaskCanceledException>(ex);
+            }
+
+            [Fact]
+            public async Task IfWorkflowIsCanceledThenInitializedTaskShouldBeCanceledIfItIsNotCompletedYet()
+            {
+                Workflow = new TestWorkflow(null, false);
+                Workflow.CancelWorkflow();
+
+                // ReSharper disable once PossibleNullReferenceException
+                var ex = await Record.ExceptionAsync(
+                    () => Task.WhenAny(Workflow.StateInitializedTask, Task.Delay(100)).Unwrap());
+
+                Assert.IsType<TaskCanceledException>(ex);
+            }
+        }
+
+        public class GeneralTests : BaseWorkflowTest<TestWorkflow>
+        {
+            public GeneralTests()
+            {
+                Workflow = new TestWorkflow();
+            }
+
+            [Fact]
+            public void WorkflowIdCouldBeSetOnlyOnce()
+            {
+                Workflow.Id = 1;
+
+                var ex = Record.Exception(() => Workflow.Id = 2);
+
+                Assert.Equal(1, Workflow.Id);
+                Assert.IsType<InvalidOperationException>(ex);
+            }
+
+            [Fact]
+            public async Task GetIdShouldReturnWorkflowId()
+            {
+                StartWorkflow();
+                await Workflow.DoWorkflowTaskAsync(w => Workflow.Id = 1);
+                var id = await Workflow.GetIdAsync();
+                Assert.Equal(1, (int)id);
+                await CancelWorkflowAsync();
+            }
+        }
+
+        public class DoWorkflowTaskTests : BaseWorkflowTest<TestWorkflow>
+        {
+            public DoWorkflowTaskTests()
+            {
+                Workflow = new TestWorkflow();
+            }
+
+            [Fact]
+            public async Task DoWorkflowTaskShouldRestoreWorkflowCancellationToken()
+            {
+                var ct = Utilities.CurrentCancellationToken;
+                StartWorkflow();
+                await Workflow.DoWorkflowTaskAsync(
+                    w =>
+                    {
+                        Assert.False(Utilities.CurrentCancellationToken.IsCancellationRequested);
+                        Assert.NotEqual(ct, Utilities.CurrentCancellationToken);
+                    });
+                Assert.Equal(ct, Utilities.CurrentCancellationToken);
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
+            public async Task DoWorkflowTask2ShouldRestoreWorkflowCancellationToken()
+            {
+                var ct = Utilities.CurrentCancellationToken;
+                StartWorkflow();
+                await Workflow.DoWorkflowTaskAsync(
+                    w =>
+                    {
+                        Assert.False(Utilities.CurrentCancellationToken.IsCancellationRequested);
+                        Assert.NotEqual(ct, Utilities.CurrentCancellationToken);
+                        return 1;
+                    });
+                Assert.Equal(ct, Utilities.CurrentCancellationToken);
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
+            public async Task DoWorkflowTaskShouldWaitUntilWorkflowIsStarted()
+            {
+                Assert.NotEqual(TaskStatus.RanToCompletion, Workflow.StartedTask.Status);
+                var t = Workflow.DoWorkflowTaskAsync(
+                    () => Assert.Equal(TaskStatus.RanToCompletion, Workflow.StartedTask.Status));
+                await Task.Delay(100);
+                StartWorkflow();
+                await t;
+
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
+            public async Task DoWorkflowTask2ShouldWaitUntilWorkflowIsStarted()
+            {
+                Assert.NotEqual(TaskStatus.RanToCompletion, Workflow.StartedTask.Status);
+                var t = Workflow.DoWorkflowTaskAsync(
+                    w =>
+                    {
+                        Assert.Equal(TaskStatus.RanToCompletion, Workflow.StartedTask.Status);
+                        return 1;
+                    });
+                await Task.Delay(100);
+                StartWorkflow();
+                await t;
+
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
+            public async Task DoWorkflowTaskShouldExecuteTaskEvenIfWorkflowIsInCacellationIfForceIsSpecified()
+            {
+                Workflow.CancelWorkflow();
+                await Workflow.DoWorkflowTaskAsync(_ => { }, true);
+                await Workflow.DoWorkflowTaskAsync(_ => 1, true);
+            }
+
+            [Fact]
+            public async Task RunViaWorkflowTaskSchedulerShouldCompleteSyncIfRunFromWorkflowThread()
+            {
+                StartWorkflow();
+                await Workflow.DoWorkflowTaskAsync(
+                    () =>
+                    {
+                        var isRun = false;
+                        Assert.Equal(Task.CompletedTask, Workflow.RunViaWorkflowTaskScheduler(() => { isRun = true; }));
+                        Assert.True(isRun);
+                    });
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
+            public async Task RunViaWorkflowTaskSchedulerShouldCompleteAsyncIfRunOutsideOfWorkflowThread()
+            {
+                StartWorkflow();
+                var isRun = false;
+                var task = Workflow.RunViaWorkflowTaskScheduler(() => { isRun = true; });
+                await task;
+
+                Assert.NotEqual(Task.CompletedTask, task);
+                Assert.True(isRun);
+
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
+            public async Task RunViaWorkflowTaskScheduler2ShouldCompleteSyncIfRunFromWorkflowThread()
+            {
+                StartWorkflow();
+                await Workflow.DoWorkflowTaskAsync(
+                    () =>
+                    {
+                        var task = Workflow.RunViaWorkflowTaskScheduler(() => true);
+                        Assert.Equal(TaskStatus.RanToCompletion, task.Status);
+                        Assert.True(task.Result);
+                    });
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
+            public async Task RunViaWorkflowTaskScheduler2ShouldCompleteAsyncIfRunOutsideOfWorkflowThread()
+            {
+                Assert.False(Workflow.IsWorkflowTaskScheduler);
+                var task = Workflow.RunViaWorkflowTaskScheduler(() => true, forceExecution: true);
+                Assert.NotEqual(Task.CompletedTask, task);
+                var res = await task;
+                Assert.True(res);
+            }
+
+            [Fact]
+            public async Task EnsureWorkflowTaskSchedulerShouldThrowIoeForOtherThreads()
+            {
+                StartWorkflow();
+                await Workflow.DoWorkflowTaskAsync(() => Workflow.EnsureWorkflowTaskScheduler());
+
+                var ex = Record.Exception(() => Workflow.EnsureWorkflowTaskScheduler());
+
+                Assert.IsType<InvalidOperationException>(ex);
+
+                await CancelWorkflowAsync();
+            }
+        }
+
+        public class ActionsTests : BaseWorkflowTest<TestWorkflow>
+        {
+            public ActionsTests()
+            {
+                Workflow = new TestWorkflow();
+            }
+
+            [Fact]
+            public async Task ConfiguredActionShouldBeExecutedOnRequest()
+            {
+                Workflow.ConfigureAction("Action 1", () => 2);
+                StartWorkflow();
+
+                var res = await Workflow.ExecuteActionAsync<int>("Action 1");
+
+                Assert.Equal(2, res);
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
+            public async Task ConfiguredActionHandlerShouldBeInvokedWithPassedParameters()
+            {
+                NamedValues invocationParameters = null;
+                Workflow.ConfigureAction("Action 1", p => invocationParameters = p, synonym: "Action Synonym");
+                StartWorkflow();
+
+                var parameters = new Dictionary<string, object> { ["Id"] = 1 };
+                await Workflow.ExecuteActionAsync("Action Synonym", parameters);
+
+                Assert.Equal(parameters, invocationParameters.Data);
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
+            public async Task NonConfiguredActionsShouldThrowAoore()
+            {
+                Workflow.ConfigureAction("Action 1", () => 2);
+                StartWorkflow();
+
+                // ReSharper disable once PossibleNullReferenceException
+                var ex = await Record.ExceptionAsync(() => Workflow.ExecuteActionAsync("Action 2"));
+
+                Assert.IsType<ArgumentOutOfRangeException>(ex);
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
+            public async Task IfActionNotAllowedAndThrowNotAllowedSpecifiedThenActionExecutionShouldThrowIoe()
+            {
+                Workflow.ConfigureAction("Action 1", () => 2);
+                StartWorkflow();
+                Workflow.ActionsAllowed = false;
+
+                // ReSharper disable once PossibleNullReferenceException
+                var ex = await Record.ExceptionAsync(() => Workflow.ExecuteActionAsync("Action 1"));
+
+                Assert.IsType<InvalidOperationException>(ex);
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
+            public async Task IfActionNotAllowedAndThrowNotAllowedDisabledThenActionExecutionShouldSkipAction()
+            {
+                Workflow.ConfigureAction("Action 1", () => 2);
+                StartWorkflow();
+                Workflow.ActionsAllowed = false;
+
+                await Workflow.ExecuteActionAsync("Action 1", throwNotAllowed: false);
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
+            public void ConfiguringTheSameActionMultipleTimesShouldThrowIoe()
+            {
+                Workflow.ConfigureAction("Action 1", () => 2);
+
+                var ex = Record.Exception(() => Workflow.ConfigureAction("Action 1", () => 3));
+
+                Assert.IsType<InvalidOperationException>(ex);
+            }
+
+            [Fact]
+            public async Task ActionCouldBeInvokedViaSynonym()
+            {
+                Workflow.ConfigureAction("Action 1", () => 3, synonyms: new[] { "Action First" });
+                StartWorkflow();
+
+                var res = await Workflow.ExecuteActionAsync<int>("Action First");
+                Assert.Equal(3, res);
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
+            public async Task ExecuteActionShouldWaitUntilWorkflowInitializationCompleted()
+            {
+                Workflow = new TestWorkflow(null, false);
+                Workflow.ConfigureAction(
+                    "Action 1",
+                    () =>
+                    {
+                        Assert.Equal(TaskStatus.RanToCompletion, Workflow.StateInitializedTask.Status);
+                        return 1;
+                    });
+                StartWorkflow();
+                Assert.NotEqual(TaskStatus.RanToCompletion, Workflow.StateInitializedTask.Status);
+
+                var t = Workflow.ExecuteActionAsync<int>("Action 1");
+                await Task.Delay(100);
+                Workflow.SetStateInitialized();
+                await t;
+
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
+            public async Task GetAvailableActionsShouldReturnActionsInOrderOfConfiguringOfThem()
+            {
+                Workflow.ConfigureAction("Action 1", () => 1);
+                Workflow.ConfigureAction("Action 2", () => 2);
+                Workflow.ConfigureAction("Action 0", () => 0);
+                StartWorkflow();
+
+                var res = await Workflow.GetAvailableActionsAsync();
+
+                Assert.Equal(new[] { "Action 1", "Action 2", "Action 0" }, res.ToArray());
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
+            public async Task GetAvailableActionsShouldSkipNotAllowedActions()
+            {
+                Workflow.ConfigureAction("Action 1", () => 1);
+                Workflow.ConfigureAction("Action 2", () => 2);
+                Workflow.ConfigureAction("Action 0", () => 0);
+                Workflow.NotAllowedAction = "Action 2";
+                StartWorkflow();
+
+                var res = await Workflow.GetAvailableActionsAsync();
+                Assert.Equal(new[] { "Action 1", "Action 0" }, res.ToArray());
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
+            public async Task GetAvailableActionsShouldNotReturnSynonyms()
+            {
+                Workflow.ConfigureAction("Action 1", () => 1, synonyms: new[] { "Action First" });
+                StartWorkflow();
+
+                var res = await Workflow.GetAvailableActionsAsync();
+                Assert.Equal(new[] { "Action 1" }, res.ToArray());
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
+            public async Task GetAvailableActionsShouldNotReturnHiddenActions()
+            {
+                Workflow.ConfigureAction("Action 0", () => 0);
+                Workflow.ConfigureAction("Action 1", () => 1, isHidden: true);
+                Workflow.ConfigureAction("Action 2", () => 2);
+                StartWorkflow();
+
+                var res = await Workflow.GetAvailableActionsAsync();
+
+                Assert.Equal(new[] { "Action 0", "Action 2" }, res.ToArray());
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
+            public async Task GetAvailableActionsShouldWaitUntilWorkflowInitializationCompleted()
+            {
+                Workflow = new TestWorkflow(null, false);
+                Workflow.ConfigureAction("Action 1", () => 1);
+                StartWorkflow();
+
+                Assert.NotEqual(TaskStatus.RanToCompletion, Workflow.StateInitializedTask.Status);
+
+                var t = Workflow.GetAvailableActionsAsync();
+                await Task.Delay(100);
+                Assert.NotEqual(TaskStatus.RanToCompletion, Workflow.StateInitializedTask.Status);
+                Workflow.SetStateInitialized();
+                await t;
+
+                Assert.Equal(TaskStatus.RanToCompletion, Workflow.StateInitializedTask.Status);
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
+            public void ActionMetadataCouldBeRetrieved()
+            {
+                Workflow.ConfigureAction(
+                    "Action 1",
+                    () => 0,
+                    metadata: new Dictionary<string, object> { ["Metadata1"] = "Something" });
+
+                var metadata = Workflow.GetActionMetadata("Action 1");
+
+                Assert.True(metadata.GetData<string>("Metadata1") == "Something");
+            }
+
+            [Fact]
+            public async Task WhenActionExecutedSaveWorkflowDataShouldBeCalled()
+            {
+                var workflowRepo = new WorkflowRepository();
+                Workflow = new TestWorkflow(() => workflowRepo);
+                Workflow.ConfigureAction("Action 1", () => 0);
+                StartWorkflow();
+
+                await Workflow.StartedTask;
+                Assert.Equal(1, workflowRepo.SaveWorkflowDataCounter);
+
+                await Workflow.ExecuteActionAsync("Action 1");
+
+                Assert.Equal(2, workflowRepo.SaveWorkflowDataCounter);
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
+            public async Task WhenActionExecutedItsCounterShouldBeIncremented()
+            {
+                Workflow.ConfigureAction("Action 1", _ => { });
+                StartWorkflow();
+                await Workflow.StartedTask;
+
+                Assert.Equal(false, Workflow.WasExecuted("Action 1"));
+                Assert.Equal(0, Workflow.TimesExecuted("Action 1"));
+
+                await Workflow.ExecuteActionAsync("Action 1");
+
+                Assert.Equal(true, Workflow.WasExecuted("Action 1"));
+                Assert.Equal(1, Workflow.TimesExecuted("Action 1"));
+
+                await Workflow.ExecuteActionAsync("Action 1");
+
+                Assert.Equal(true, Workflow.WasExecuted("Action 1"));
+                Assert.Equal(2, Workflow.TimesExecuted("Action 1"));
+
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
+            public async Task ClearTimesExecutedShouldRestActionCounter()
+            {
+                Workflow.ConfigureAction("Action 1", _ => { });
+                StartWorkflow();
+
+                await Workflow.ExecuteActionAsync("Action 1");
+
+                Assert.Equal(true, Workflow.WasExecuted("Action 1"));
+                Assert.Equal(1, Workflow.TimesExecuted("Action 1"));
+
+                Workflow.ClearTimesExecuted("Action 1");
+
+                Assert.Equal(false, Workflow.WasExecuted("Action 1"));
+                Assert.Equal(0, Workflow.TimesExecuted("Action 1"));
+
+                await CancelWorkflowAsync();
+            }
+        }
+
+        public class TerminalStatusesTests : BaseWorkflowTest<TestWorkflow>
+        {
+            private readonly WorkflowRepository _workflowRepo = new WorkflowRepository();
+
+            [Fact]
+            public async Task WhenWorkflowIsCompletedItShouldMarkedAsSuch()
+            {
+                Workflow = new TestWorkflow(() => _workflowRepo, doNotComplete: false, allowOnCanceled: false);
+                StartWorkflow();
+
+                await WaitUntilWorkflowCompleted().WaitWithTimeout(1000);
+
+                Assert.Equal(1, _workflowRepo.NumberOfCompletedWorkflows);
+                await AssertWorkflowCancellationTokenCanceled();
+            }
+
+            [Fact]
+            public async Task WhenWorkflowIsFailedItShouldMarkedAsSuch()
+            {
+                Workflow = new TestWorkflow(() => _workflowRepo, fail: true);
+                StartWorkflow();
+
+                await WaitUntilWorkflowFailed<ArgumentOutOfRangeException>().WaitWithTimeout(1000);
+
+                Assert.Equal(1, _workflowRepo.NumberOfFailedWorkflows);
+                await AssertWorkflowCancellationTokenCanceled();
+            }
+
+            [Fact]
+            public async Task EachWorkflowShouldHaveUniqueCancellationTokenSource()
+            {
+                Workflow = new TestWorkflow(() => _workflowRepo, doNotComplete: false);
+                StartWorkflow();
+
+                var workflowRepo = new WorkflowRepository();
+                using (var second = new BaseWorkflowTest<TestWorkflow>())
+                {
+                    second.Workflow = new TestWorkflow(() => workflowRepo, doNotComplete: false);
+                    second.StartWorkflow();
+
+                    await Task.WhenAll(WaitUntilWorkflowCompleted(), second.WaitUntilWorkflowCompleted());
+                    Assert.NotEqual(
+                        Workflow.CurrentCancellationToken,
+                        second.Workflow.CurrentCancellationToken);
+                }
+
+                Assert.Equal(1, _workflowRepo.NumberOfCompletedWorkflows);
+                Assert.Equal(1, workflowRepo.NumberOfCompletedWorkflows);
+            }
+
+            [Fact]
+            public async Task UnexpectedCancellationOfChildActivitiesShouldMarkWorkflowAsFaulted()
+            {
+                Workflow = new TestWorkflow(() => _workflowRepo, canceledChild: true, allowOnCanceled: false);
+                StartWorkflow();
+
+                await WaitUntilWorkflowFailed<TaskCanceledException>();
+
+                Assert.Equal(1, _workflowRepo.NumberOfFailedWorkflows);
+                await AssertWorkflowCancellationTokenCanceled();
+            }
+
+            [Fact]
+            public async Task StopWorkflowShouldTerminateItAndMarkAsFaultedEvenItDoesNotHandleCancellationProperly()
+            {
+                Workflow = new TestWorkflow(() => _workflowRepo, badCancellation: true);
+                StartWorkflow();
+                await Workflow.StartedTask;
+
+                Workflow.StopWorkflow(new TimeoutException());
+                Workflow.CompleteLongWork();
+                await WaitUntilWorkflowFailed<TimeoutException>();
+
+                Assert.Equal(1, _workflowRepo.NumberOfFailedWorkflows);
+                await AssertWorkflowCancellationTokenCanceled();
+            }
+
+            [Fact]
+            public async Task StopWorkflowShouldTerminateItAndMarkAsFaulted()
+            {
+                Workflow = new TestWorkflow(() => _workflowRepo, allowOnCanceled: false);
+                StartWorkflow();
+                await Workflow.StartedTask;
+
+                Workflow.StopWorkflow(new TimeoutException());
+                await WaitUntilWorkflowFailed<TimeoutException>();
+
+                Assert.Equal(1, _workflowRepo.NumberOfFailedWorkflows);
+                await AssertWorkflowCancellationTokenCanceled();
+            }
+
+            [Fact]
+            public async Task CancelWorkflowShouldTerminateItAndMarkAsCanceledEvenItDoesNotHandleCancellationProperly()
+            {
+                Workflow = new TestWorkflow(() => _workflowRepo, badCancellation: true);
+                StartWorkflow();
+                await Workflow.StartedTask;
+
+                var t = CancelWorkflowAsync();
+                Workflow.CompleteLongWork();
+                await t;
+
+                Assert.Equal(1, _workflowRepo.NumberOfCanceledWorkflows);
+                Assert.True(Workflow.OnCanceledWasCalled);
+                await AssertWorkflowCancellationTokenCanceled();
+            }
+
+            [Fact]
+            public async Task CancelWorkflowShouldTerminateItAndMarkAsCanceled()
+            {
+                Workflow = new TestWorkflow(() => _workflowRepo);
+                StartWorkflow();
+                await Workflow.StartedTask;
+
+                await CancelWorkflowAsync();
+
+                Assert.Equal(1, _workflowRepo.NumberOfCanceledWorkflows);
+                Assert.True(Workflow.OnCanceledWasCalled);
+                await AssertWorkflowCancellationTokenCanceled();
+            }
+
+            [Fact]
+            public async Task CanceledWorkflowShouldNotBeMarkedAsFaulted()
+            {
+                Workflow = new TestWorkflow(() => _workflowRepo, failCancellation: true);
+                StartWorkflow();
+                await Workflow.StartedTask;
+
+                await CancelWorkflowAsync();
+
+                Assert.Equal(1, _workflowRepo.NumberOfCanceledWorkflows);
+                Assert.True(Workflow.OnCanceledWasCalled);
+                await AssertWorkflowCancellationTokenCanceled();
+            }
+
+            [Fact]
+            public async Task SleepShouldMarkWorkflowAsSleeping()
+            {
+                Workflow = new TestWorkflow(() => _workflowRepo);
+                StartWorkflow();
+
+                await Workflow.RunViaWorkflowTaskScheduler(() => Workflow.Sleep());
+
+                Assert.Equal(1, _workflowRepo.NumberOfSleepingWorkflows);
+
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
+            public async Task CompletedFaultedCanceledWorkflowCannotBeMarkedAsSleeping()
+            {
+                Workflow = new TestWorkflow(() => _workflowRepo, doNotComplete: false);
+                StartWorkflow();
+                await WaitUntilWorkflowCompleted();
+
+                // ReSharper disable once PossibleNullReferenceException
+                var ex = await Record.ExceptionAsync(
+                    () => Workflow.RunViaWorkflowTaskScheduler(() => Workflow.Sleep(), forceExecution: true));
+
+                Assert.IsType<InvalidOperationException>(ex);
+            }
+
+            [Fact]
+            public async Task WakeShouldMarkWorkflowAsInProgress()
+            {
+                Workflow = new TestWorkflow(() => _workflowRepo);
+                StartWorkflow();
+
+                await Workflow.RunViaWorkflowTaskScheduler(() => Workflow.Wake());
+
+                Assert.Equal(1, _workflowRepo.NumberOfInProgressWorkflows);
+
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
+            public async Task CompletedFaultedCanceledWorkflowCannotBeMarkedAsInProgress()
+            {
+                Workflow = new TestWorkflow(() => _workflowRepo, doNotComplete: false);
+                StartWorkflow();
+                await WaitUntilWorkflowCompleted();
+
+                // ReSharper disable once PossibleNullReferenceException
+                var ex = await Record.ExceptionAsync(
+                    () => Workflow.RunViaWorkflowTaskScheduler(() => Workflow.Wake(), forceExecution: true));
+
+                Assert.IsType<InvalidOperationException>(ex);
+            }
+
+            private async Task AssertWorkflowCancellationTokenCanceled()
+            {
+                // ReSharper disable once PossibleNullReferenceException
+                var ex = await Record.ExceptionAsync(() => Workflow.DoWorkflowTaskAsync(() => Assert.True(false)));
+
+                Assert.IsType<TaskCanceledException>(ex);
+            }
+        }
+
+        public sealed class TestWorkflow : WorkflowBase
+        {
+            private readonly bool _canceledChild;
+            private readonly bool _allowOnCanceled;
+            private readonly bool _badCancellation;
+            private readonly bool _failCancellation;
+            private readonly TaskCompletionSource<bool> _badCancellationTcs = new TaskCompletionSource<bool>();
+            private readonly int _timeout;
+
             public TestWorkflow(
-                Func<IWorkflowStateRepository> workflowRepoFactory,
-                bool isStateInitializedImmediatelyAfterStart)
+                Func<IWorkflowStateRepository> workflowRepoFactory = null,
+                bool isStateInitializedImmediatelyAfterStart = true,
+                bool doNotComplete = true,
+                bool fail = false,
+                bool canceledChild = false,
+                bool allowOnCanceled = true,
+                bool badCancellation = false,
+                bool failCancellation = false)
                 : base(workflowRepoFactory, isStateInitializedImmediatelyAfterStart)
             {
-                OnInit();
+                _canceledChild = canceledChild;
+                _allowOnCanceled = allowOnCanceled;
+                _badCancellation = badCancellation;
+                _failCancellation = failCancellation;
+                _timeout = fail ? -2 : (!doNotComplete ? 1 : Timeout.Infinite);
             }
 
             public bool ActionsAllowed { get; set; } = true;
 
             public string NotAllowedAction { get; set; }
+
+            public CancellationToken CurrentCancellationToken { get; private set; }
+
+            public bool OnCanceledWasCalled { get; private set; }
 
             public new void SetStateInitialized() => base.SetStateInitialized();
 
@@ -504,6 +740,10 @@ namespace WorkflowsCore.Tests
             // ReSharper disable once UnusedParameter.Local
             public new void ClearTimesExecuted(string action) => base.ClearTimesExecuted(action);
 
+            public new void Sleep() => base.Sleep();
+
+            public new void Wake() => base.Wake();
+
             [SuppressMessage("ReSharper", "UnusedParameter.Local", Justification = "It is OK")]
             public new void ConfigureAction(
                 string action,
@@ -511,8 +751,10 @@ namespace WorkflowsCore.Tests
                 IReadOnlyDictionary<string, object> metadata = null,
                 string synonym = null,
                 IEnumerable<string> synonyms = null,
-                bool isHidden = false) =>
-                    base.ConfigureAction(action, actionHandler, metadata, synonym, synonyms, isHidden);
+                bool isHidden = false)
+            {
+                base.ConfigureAction(action, actionHandler, metadata, synonym, synonyms, isHidden);
+            }
 
             [SuppressMessage("ReSharper", "UnusedParameter.Local", Justification = "It is OK")]
             public new void ConfigureAction<T>(
@@ -521,52 +763,101 @@ namespace WorkflowsCore.Tests
                 IReadOnlyDictionary<string, object> metadata = null,
                 string synonym = null,
                 IEnumerable<string> synonyms = null,
-                bool isHidden = false) =>
-                    base.ConfigureAction(action, actionHandler, metadata, synonym, synonyms, isHidden);
+                bool isHidden = false)
+            {
+                base.ConfigureAction(action, actionHandler, metadata, synonym, synonyms, isHidden);
+            }
 
             // ReSharper disable once UnusedParameter.Local
             public new NamedValues GetActionMetadata(string action) => base.GetActionMetadata(action);
 
-            protected override Task RunAsync()
+            public void CompleteLongWork() => _badCancellationTcs.SetResult(true);
+
+            protected override async Task RunAsync()
             {
-                return Task.Delay(20);
+                CurrentCancellationToken = Utilities.CurrentCancellationToken;
+
+                if (_badCancellation)
+                {
+                    await _badCancellationTcs.Task.WaitWithTimeout(1000);
+                }
+                else
+                {
+                    var cancellationToken = _canceledChild
+                        ? new CancellationTokenSource(1).Token
+                        : Utilities.CurrentCancellationToken;
+                    try
+                    {
+                        await Task.Delay(_timeout, cancellationToken);
+                    }
+                    catch (TaskCanceledException) when (_failCancellation)
+                    {
+                        throw new InvalidOperationException();
+                    }
+                }
+
+                Assert.Equal(CurrentCancellationToken, Utilities.CurrentCancellationToken);
             }
 
             protected override bool IsActionAllowed(string action) => ActionsAllowed && action != NotAllowedAction;
+
+            protected override void OnCanceled()
+            {
+                Assert.True(_allowOnCanceled);
+                base.OnCanceled();
+                OnCanceledWasCalled = true;
+            }
         }
 
         private class WorkflowRepository : IWorkflowStateRepository
         {
             public int SaveWorkflowDataCounter { get; private set; }
 
+            public int NumberOfCompletedWorkflows { get; private set; }
+
+            public int NumberOfCanceledWorkflows { get; private set; }
+
+            public int NumberOfFailedWorkflows { get; private set; }
+
+            public int NumberOfSleepingWorkflows { get; private set; }
+
+            public int NumberOfInProgressWorkflows { get; private set; }
+
             public void SaveWorkflowData(WorkflowBase workflow)
             {
-                Assert.IsNotNull(workflow);
+                Assert.NotNull(workflow);
                 ++SaveWorkflowDataCounter;
             }
 
             public void MarkWorkflowAsCompleted(WorkflowBase workflow)
             {
+                Assert.NotNull(workflow);
+                ++NumberOfCompletedWorkflows;
+            }
+
+            public void MarkWorkflowAsCanceled(WorkflowBase workflow, Exception exception)
+            {
+                Assert.NotNull(workflow);
+                ++NumberOfCanceledWorkflows;
             }
 
             public void MarkWorkflowAsFailed(WorkflowBase workflow, Exception exception)
             {
-                throw new NotImplementedException();
-            }
-
-            public void MarkWorkflowAsCanceled(WorkflowBase workflow)
-            {
-                throw new NotImplementedException();
+                Assert.NotNull(workflow);
+                Assert.NotNull(exception);
+                ++NumberOfFailedWorkflows;
             }
 
             public void MarkWorkflowAsSleeping(WorkflowBase workflow)
             {
-                throw new NotImplementedException();
+                Assert.NotNull(workflow);
+                ++NumberOfSleepingWorkflows;
             }
 
             public void MarkWorkflowAsInProgress(WorkflowBase workflow)
             {
-                throw new NotImplementedException();
+                Assert.NotNull(workflow);
+                ++NumberOfInProgressWorkflows;
             }
         }
     }
