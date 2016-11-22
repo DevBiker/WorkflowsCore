@@ -294,7 +294,19 @@ namespace WorkflowsCore
                 {
                     if (cts.IsCancellationRequested)
                     {
-                        tcs.SetCanceled();
+                        Task.WhenAll(tasks).ContinueWith(
+                            t =>
+                            {
+                                if (t.IsFaulted)
+                                {
+                                    // ReSharper disable once AssignNullToNotNullAttribute
+                                    tcs.SetException(t.Exception);
+                                    return;
+                                }
+
+                                tcs.SetCanceled();
+                            },
+                            TaskContinuationOptions.ExecuteSynchronously);
                         return;
                     }
 

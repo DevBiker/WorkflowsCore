@@ -194,6 +194,35 @@ namespace WorkflowsCore.Tests
             }
 
             [Fact]
+            public async Task AnyShouldWaitUntilAllOtherTasksAreCompletedOrCanceledWhenWorkflowIsCanceled()
+            {
+                Task task1 = null;
+                Task task2 = null;
+                Task task3 = null;
+                var cts = new CancellationTokenSource();
+
+                // ReSharper disable MethodSupportsCancellation
+                var task = Record.ExceptionAsync(
+                    () => Utilities.SetCurrentCancellationTokenTemporarily(
+                        cts.Token,
+                        () => _workflow.WaitForAny(
+                            () => task1 = Task.Delay(1000, Utilities.CurrentCancellationToken),
+                            () => task2 = Task.Delay(1),
+                            () => task3 = Task.Delay(100))));
+
+                // ReSharper restore MethodSupportsCancellation
+                cts.Cancel();
+
+                // ReSharper disable once PossibleNullReferenceException
+                var ex = await task;
+
+                Assert.IsType<TaskCanceledException>(ex);
+                Assert.Equal(TaskStatus.Canceled, task1.Status);
+                Assert.Equal(TaskStatus.RanToCompletion, task2.Status);
+                Assert.Equal(TaskStatus.RanToCompletion, task3.Status);
+            }
+
+            [Fact]
             public async Task AnyShouldNotStartOtherTasksIfAnyNonOptionalTaskIsCompletedImmediately()
             {
                 var cts = new CancellationTokenSource();
