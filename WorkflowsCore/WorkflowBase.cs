@@ -25,6 +25,8 @@ namespace WorkflowsCore
 
         private readonly ConcurrentExclusiveSchedulerPair _concurrentExclusiveSchedulerPair;
 
+        private readonly ActivationDatesManager _activationDatesManager = new ActivationDatesManager();
+
         private object _id;
         private Exception _exception;
         private bool _wasStared;
@@ -103,6 +105,9 @@ namespace WorkflowsCore
         private TaskScheduler WorkflowTaskScheduler => _concurrentExclusiveSchedulerPair.ExclusiveScheduler;
 
         private TaskCompletionSource<bool> StateInitializedTaskCompletionSource { get; }
+
+        [DataField(IsTransient = true)]
+        private DateTime? NextActivationDate => _activationDatesManager.NextActivationDate;
 
         [DataField]
         private IDictionary<string, int> ActionStats { get; set; }
@@ -358,6 +363,12 @@ namespace WorkflowsCore
                     SaveWorkflowData();
                 });
         }
+
+        internal void AddActivationDate(CancellationToken token, DateTime date) =>
+            _activationDatesManager.AddActivationDate(token, date);
+
+        internal void OnCancellationTokenCancelled(CancellationToken token) =>
+            _activationDatesManager.OnCancellationTokenCancelled(token);
 
         protected internal bool WasExecuted(string action) => TimesExecuted(action) > 0;
 

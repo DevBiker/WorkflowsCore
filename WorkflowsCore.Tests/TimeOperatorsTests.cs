@@ -90,6 +90,34 @@ namespace WorkflowsCore.Tests
             Assert.IsType<TaskCanceledException>(ex);
         }
 
+        [Fact]
+        public async Task WaitForDateShouldAffectNextActivationDateUntilParentTokenIsCancelled()
+        {
+            var cts = new CancellationTokenSource();
+
+            // ReSharper disable once PossibleNullReferenceException
+            var ex = await Record.ExceptionAsync(
+                () => Utilities.SetCurrentCancellationTokenTemporarily(
+                    cts.Token,
+                    async () =>
+                    {
+                        var expected = TestingTimeProvider.Current.Now.AddHours(1);
+                        var t = _workflow.WaitForDate(expected);
+                        var date = await _workflow.GetTransientDataFieldAsync<DateTime?>(
+                            "NextActivationDate",
+                            forceExecution: true);
+                        Assert.Equal(expected, date);
+                        cts.Cancel();
+                        await t;
+                    }));
+
+            var newDate = await _workflow.GetTransientDataFieldAsync<DateTime?>(
+                "NextActivationDate",
+                forceExecution: true);
+            Assert.Null(newDate);
+            Assert.IsType<TaskCanceledException>(ex);
+        }
+
         private class TestWorkflow : WorkflowBase<int>
         {
             protected override void OnStatesInit()

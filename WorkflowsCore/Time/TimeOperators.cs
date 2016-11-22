@@ -11,7 +11,8 @@ namespace WorkflowsCore.Time
             DateTime date,
             Func<WorkflowBase, Task<bool>> bypassDatesFunc = null)
         {
-            if (Utilities.CurrentCancellationToken.IsCancellationRequested)
+            var token = Utilities.CurrentCancellationToken;
+            if (token.IsCancellationRequested)
             {
                 var tcs = new TaskCompletionSource<bool>();
                 tcs.SetCanceled();
@@ -20,9 +21,14 @@ namespace WorkflowsCore.Time
 
             if (date == DateTime.MaxValue)
             {
-                await Task.Delay(Timeout.Infinite, Utilities.CurrentCancellationToken);
+                await Task.Delay(Timeout.Infinite, token);
                 return;
             }
+
+            await workflow.RunViaWorkflowTaskScheduler(w => w.AddActivationDate(token, date), forceExecution: true);
+            token.Register(
+                () => workflow.RunViaWorkflowTaskScheduler(w => w.OnCancellationTokenCancelled(token), forceExecution: true),
+                false);
 
             var now = Utilities.TimeProvider.Now;
             var diff = date - now;
@@ -52,13 +58,13 @@ namespace WorkflowsCore.Time
                     diff = week;
                 }
 
-                await Task.Delay(diff, Utilities.CurrentCancellationToken);
+                await Task.Delay(diff, token);
                 now = Utilities.TimeProvider.Now;
                 diff = date - now;
             }
             while (diff.TotalMilliseconds > 0);
 
-            if (Utilities.CurrentCancellationToken.IsCancellationRequested)
+            if (token.IsCancellationRequested)
             {
                 var tcs = new TaskCompletionSource<bool>();
                 tcs.SetCanceled();
