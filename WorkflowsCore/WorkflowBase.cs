@@ -552,6 +552,8 @@ namespace WorkflowsCore
             return (T)result;
         }
 
+        protected bool IsActionHidden(string action) => _actionsDefinitions[action].IsHidden;
+
         private static Exception GetAggregatedExceptions(Exception exception, Exception newException) => 
             exception == null ? newException : new AggregateException(exception, newException);
 
@@ -696,8 +698,6 @@ namespace WorkflowsCore
 
             return actionDefinition;
         }
-
-        private bool IsActionHidden(string action) => _actionsDefinitions[action].IsHidden;
 
         private IList<string> GetAvailableActions() => 
             _actions.Where(a => IsActionAllowed(a) && !IsActionHidden(a)).ToList();
