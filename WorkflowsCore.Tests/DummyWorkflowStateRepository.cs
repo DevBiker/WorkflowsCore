@@ -4,7 +4,7 @@ namespace WorkflowsCore.Tests
 {
     public class DummyWorkflowStateRepository : IWorkflowStateRepository
     {
-        public virtual void SaveWorkflowData(WorkflowBase workflow)
+        public virtual void SaveWorkflowData(WorkflowBase workflow, DateTime? nextActivationDate)
         {
             throw new NotImplementedException();
         }
@@ -20,16 +20,6 @@ namespace WorkflowsCore.Tests
         }
 
         public virtual void MarkWorkflowAsCanceled(WorkflowBase workflow, Exception exception)
-        {
-            throw new NotImplementedException();
-        }
-
-        public virtual void MarkWorkflowAsSleeping(WorkflowBase workflow)
-        {
-            throw new NotImplementedException();
-        }
-
-        public virtual void MarkWorkflowAsInProgress(WorkflowBase workflow)
         {
             throw new NotImplementedException();
         }

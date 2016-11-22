@@ -9,25 +9,20 @@ namespace WorkflowsCore
         InProgress = 0,
         Completed = 1,
         Canceled = 2,
-        Failed = 3,
-        Sleeping = 4
+        Failed = 3
     }
 
     /// <summary>Repository for managing workflow state and data</summary>
     /// <remarks>Methods of the interface are always called within workflow <c>TaskScheduler</c></remarks>
     public interface IWorkflowStateRepository
     {
-        void SaveWorkflowData(WorkflowBase workflow);
+        void SaveWorkflowData(WorkflowBase workflow, DateTime? nextActivationDate);
 
         void MarkWorkflowAsCompleted(WorkflowBase workflow);
 
         void MarkWorkflowAsFailed(WorkflowBase workflow, Exception exception);
 
         void MarkWorkflowAsCanceled(WorkflowBase workflow, Exception exception);
-
-        void MarkWorkflowAsSleeping(WorkflowBase workflow);
-
-        void MarkWorkflowAsInProgress(WorkflowBase workflow);
     }
 
     public interface IWorkflowMetadata
@@ -94,7 +89,7 @@ namespace WorkflowsCore
         /// </summary>
         IList<WorkflowInstance> GetActiveWorkflows();
 
-        WorkflowInstance GetSleepingOrFaultedWorkflowById(object workflowId);
+        WorkflowInstance GetActiveWorkflowById(object workflowId);
 
         WorkflowStatus GetWorkflowStatusById(object workflowId);
     }

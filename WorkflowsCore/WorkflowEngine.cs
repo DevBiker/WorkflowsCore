@@ -100,7 +100,7 @@ namespace WorkflowsCore
                     return workflow;
                 }
 
-                var instance = _workflowRepoFactory().GetSleepingOrFaultedWorkflowById(id);
+                var instance = _workflowRepoFactory().GetActiveWorkflowById(id);
                 if (instance == null)
                 {
                     return null;

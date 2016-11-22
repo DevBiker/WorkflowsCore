@@ -374,7 +374,7 @@ namespace WorkflowsCore
 
         protected NamedValues GetActionMetadata(string action) => GetActionDefinition(action).Metadata;
 
-        protected void SaveWorkflowData() => _workflowRepoFactory().SaveWorkflowData(this);
+        protected void SaveWorkflowData() => _workflowRepoFactory().SaveWorkflowData(this, NextActivationDate);
 
         protected virtual void OnInit()
         {
@@ -398,26 +398,6 @@ namespace WorkflowsCore
 
         protected virtual void OnCanceled()
         {
-        }
-
-        protected void Sleep()
-        {
-            if (CompletedTask.IsCompleted)
-            {
-                throw new InvalidOperationException();
-            }
-
-            _workflowRepoFactory().MarkWorkflowAsSleeping(this);
-        }
-
-        protected void Wake()
-        {
-            if (CompletedTask.IsCompleted)
-            {
-                throw new InvalidOperationException();
-            }
-
-            _workflowRepoFactory().MarkWorkflowAsInProgress(this);
         }
 
         protected virtual bool IsActionAllowed(string action) => true;
@@ -769,7 +749,7 @@ namespace WorkflowsCore
 
         private class DummyWorkflowStateRepository : IWorkflowStateRepository
         {
-            public void SaveWorkflowData(WorkflowBase workflow)
+            public void SaveWorkflowData(WorkflowBase workflow, DateTime? nextActivationDate)
             {
             }
 
@@ -782,14 +762,6 @@ namespace WorkflowsCore
             }
 
             public void MarkWorkflowAsCanceled(WorkflowBase workflow, Exception exception)
-            {
-            }
-
-            public void MarkWorkflowAsSleeping(WorkflowBase workflow)
-            {
-            }
-
-            public void MarkWorkflowAsInProgress(WorkflowBase workflow)
             {
             }
         }

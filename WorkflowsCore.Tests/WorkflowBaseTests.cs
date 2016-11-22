@@ -631,60 +631,6 @@ namespace WorkflowsCore.Tests
                 await AssertWorkflowCancellationTokenCanceled();
             }
 
-            [Fact]
-            public async Task SleepShouldMarkWorkflowAsSleeping()
-            {
-                Workflow = new TestWorkflow(() => _workflowRepo);
-                StartWorkflow();
-
-                await Workflow.RunViaWorkflowTaskScheduler(() => Workflow.Sleep());
-
-                Assert.Equal(1, _workflowRepo.NumberOfSleepingWorkflows);
-
-                await CancelWorkflowAsync();
-            }
-
-            [Fact]
-            public async Task CompletedFaultedCanceledWorkflowCannotBeMarkedAsSleeping()
-            {
-                Workflow = new TestWorkflow(() => _workflowRepo, doNotComplete: false);
-                StartWorkflow();
-                await WaitUntilWorkflowCompleted();
-
-                // ReSharper disable once PossibleNullReferenceException
-                var ex = await Record.ExceptionAsync(
-                    () => Workflow.RunViaWorkflowTaskScheduler(() => Workflow.Sleep(), forceExecution: true));
-
-                Assert.IsType<InvalidOperationException>(ex);
-            }
-
-            [Fact]
-            public async Task WakeShouldMarkWorkflowAsInProgress()
-            {
-                Workflow = new TestWorkflow(() => _workflowRepo);
-                StartWorkflow();
-
-                await Workflow.RunViaWorkflowTaskScheduler(() => Workflow.Wake());
-
-                Assert.Equal(1, _workflowRepo.NumberOfInProgressWorkflows);
-
-                await CancelWorkflowAsync();
-            }
-
-            [Fact]
-            public async Task CompletedFaultedCanceledWorkflowCannotBeMarkedAsInProgress()
-            {
-                Workflow = new TestWorkflow(() => _workflowRepo, doNotComplete: false);
-                StartWorkflow();
-                await WaitUntilWorkflowCompleted();
-
-                // ReSharper disable once PossibleNullReferenceException
-                var ex = await Record.ExceptionAsync(
-                    () => Workflow.RunViaWorkflowTaskScheduler(() => Workflow.Wake(), forceExecution: true));
-
-                Assert.IsType<InvalidOperationException>(ex);
-            }
-
             private async Task AssertWorkflowCancellationTokenCanceled()
             {
                 // ReSharper disable once PossibleNullReferenceException
@@ -739,10 +685,6 @@ namespace WorkflowsCore.Tests
 
             // ReSharper disable once UnusedParameter.Local
             public new void ClearTimesExecuted(string action) => base.ClearTimesExecuted(action);
-
-            public new void Sleep() => base.Sleep();
-
-            public new void Wake() => base.Wake();
 
             [SuppressMessage("ReSharper", "UnusedParameter.Local", Justification = "It is OK")]
             public new void ConfigureAction(
@@ -819,11 +761,7 @@ namespace WorkflowsCore.Tests
 
             public int NumberOfFailedWorkflows { get; private set; }
 
-            public int NumberOfSleepingWorkflows { get; private set; }
-
-            public int NumberOfInProgressWorkflows { get; private set; }
-
-            public void SaveWorkflowData(WorkflowBase workflow)
+            public void SaveWorkflowData(WorkflowBase workflow, DateTime? nextActivationDate)
             {
                 Assert.NotNull(workflow);
                 ++SaveWorkflowDataCounter;
@@ -846,18 +784,6 @@ namespace WorkflowsCore.Tests
                 Assert.NotNull(workflow);
                 Assert.NotNull(exception);
                 ++NumberOfFailedWorkflows;
-            }
-
-            public void MarkWorkflowAsSleeping(WorkflowBase workflow)
-            {
-                Assert.NotNull(workflow);
-                ++NumberOfSleepingWorkflows;
-            }
-
-            public void MarkWorkflowAsInProgress(WorkflowBase workflow)
-            {
-                Assert.NotNull(workflow);
-                ++NumberOfInProgressWorkflows;
             }
         }
     }

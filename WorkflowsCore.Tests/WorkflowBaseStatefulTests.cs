@@ -509,7 +509,7 @@ namespace WorkflowsCore.Tests
         {
             public int SaveWorkflowDataCounter { get; private set; }
 
-            public override void SaveWorkflowData(WorkflowBase workflow)
+            public override void SaveWorkflowData(WorkflowBase workflow, DateTime? nextActivationDate)
             {
                 Assert.NotNull(workflow);
                 ++SaveWorkflowDataCounter;

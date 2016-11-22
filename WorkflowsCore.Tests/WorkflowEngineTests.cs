@@ -220,7 +220,7 @@ namespace WorkflowsCore.Tests
                 throw new NotImplementedException();
             }
 
-            public WorkflowInstance GetSleepingOrFaultedWorkflowById(object workflowId)
+            public WorkflowInstance GetActiveWorkflowById(object workflowId)
             {
                 if (Equals(workflowId, SleepingWorkflowId))
                 {
@@ -240,7 +240,7 @@ namespace WorkflowsCore.Tests
                 throw new NotImplementedException();
             }
 
-            public override void SaveWorkflowData(WorkflowBase workflow) => workflow.Id = ++_workflowsSaved;
+            public override void SaveWorkflowData(WorkflowBase workflow, DateTime? nextActivationDate) => workflow.Id = ++_workflowsSaved;
 
             public override void MarkWorkflowAsCompleted(WorkflowBase workflow) => Assert.NotNull(workflow);
 
