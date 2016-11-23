@@ -8,9 +8,25 @@ namespace WorkflowsCore
     public class ActivationDatesManager
     {
         private readonly IDictionary<CancellationToken, DateTime> _activationDates =
-            new Dictionary<CancellationToken, DateTime>(); 
+            new Dictionary<CancellationToken, DateTime>();
 
-        public DateTime? NextActivationDate { get; private set; }
+        private DateTime? _nextActivationDate;
+
+        public event EventHandler NextActivationDateChanged;
+
+        public DateTime? NextActivationDate
+        {
+            get
+            {
+                return _nextActivationDate;
+            }
+
+            private set
+            {
+                _nextActivationDate = value;
+                NextActivationDateChanged?.Invoke(this, EventArgs.Empty);
+            }
+        }
 
         public void AddActivationDate(CancellationToken token, DateTime date)
         {

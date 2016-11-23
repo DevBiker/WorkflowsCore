@@ -65,6 +65,7 @@ namespace WorkflowsCore
             }
 
             CancellationTokenSource = new CancellationTokenSource();
+            _activationDatesManager.NextActivationDateChanged += (sender, args) => SaveWorkflowData();
         }
 
         protected internal event EventHandler<ActionExecutedEventArgs> ActionExecuted;

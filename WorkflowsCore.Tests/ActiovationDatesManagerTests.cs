@@ -63,5 +63,23 @@ namespace WorkflowsCore.Tests
             _manager.OnCancellationTokenCancelled(CancellationToken.None);
             _manager.OnCancellationTokenCancelled(CancellationToken.None);
         }
+
+        [Fact]
+        public void IfNextActivationDateIsChangedThenNextActivationDateChangedEventShouldBeFired()
+        {
+            var counter = 0;
+            _manager.NextActivationDateChanged += (sender, args) => ++counter;
+            _manager.AddActivationDate(CancellationToken.None, new DateTime(2016, 11, 23));
+            Assert.Equal(1, counter);
+
+            _manager.AddActivationDate(CancellationToken.None, new DateTime(2016, 11, 24));
+            Assert.Equal(1, counter);
+
+            _manager.AddActivationDate(CancellationToken.None, new DateTime(2016, 11, 22));
+            Assert.Equal(2, counter);
+
+            _manager.OnCancellationTokenCancelled(CancellationToken.None);
+            Assert.Equal(3, counter);
+        }
     }
 }

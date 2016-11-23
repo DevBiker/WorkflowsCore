@@ -64,8 +64,6 @@ namespace WorkflowsCore
 
     public interface IWorkflowEngine
     {
-        Task LoadingTask { get; }
-
         IList<WorkflowBase> RunningWorkflows { get; }
 
         WorkflowBase CreateWorkflow(string fullTypeName);
@@ -79,6 +77,8 @@ namespace WorkflowsCore
 
         Task LoadAndExecuteActiveWorkflowsAsync();
 
+        Task LoadAndExecuteActiveWorkflowsAsync(int preloadHours);
+
         WorkflowBase GetActiveWorkflowById(object id);
     }
 
@@ -87,7 +87,9 @@ namespace WorkflowsCore
         /// <summary>
         /// It should return workflows in progress and faulted. It should not return sleeping workflows.
         /// </summary>
-        IList<WorkflowInstance> GetActiveWorkflows();
+        /// <param name="maxActivationDate"></param>
+        /// <param name="ignoreWorkflowsIds"></param>
+        IList<WorkflowInstance> GetActiveWorkflows(DateTime maxActivationDate, IEnumerable<object> ignoreWorkflowsIds);
 
         WorkflowInstance GetActiveWorkflowById(object workflowId);
 
