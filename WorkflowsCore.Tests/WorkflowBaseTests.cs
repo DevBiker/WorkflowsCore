@@ -12,14 +12,10 @@ namespace WorkflowsCore.Tests
     {
         public class StartedStateInitializedTasksTests : BaseWorkflowTest<TestWorkflow>
         {
-            public StartedStateInitializedTasksTests()
-            {
-                Workflow = new TestWorkflow();
-            }
-
             [Fact]
             public async Task StartedTaskShouldBeCompletedWhenWorkflowIsStarted()
             {
+                Workflow = new TestWorkflow();
                 Assert.NotEqual(TaskStatus.RanToCompletion, Workflow.StartedTask.Status);
                 StartWorkflow();
                 await Workflow.StartedTask;
@@ -29,6 +25,7 @@ namespace WorkflowsCore.Tests
             [Fact]
             public async Task StartedTaskShouldBeCanceledIfStartingIsFailed()
             {
+                Workflow = new TestWorkflow(null, false, allowOnFaulted: true);
                 Assert.NotEqual(TaskStatus.RanToCompletion, Workflow.StartedTask.Status);
                 StartWorkflow(beforeWorkflowStarted: () => { throw new InvalidOperationException(); });
                 await Task.WhenAny(Workflow.StartedTask, Task.Delay(100));
@@ -515,12 +512,13 @@ namespace WorkflowsCore.Tests
             [Fact]
             public async Task WhenWorkflowIsFailedItShouldMarkedAsSuch()
             {
-                Workflow = new TestWorkflow(() => _workflowRepo, fail: true);
+                Workflow = new TestWorkflow(() => _workflowRepo, fail: true, allowOnFaulted: true);
                 StartWorkflow();
 
                 await WaitUntilWorkflowFailed<ArgumentOutOfRangeException>().WaitWithTimeout(1000);
 
                 Assert.Equal(1, _workflowRepo.NumberOfFailedWorkflows);
+                Assert.True(Workflow.OnFaultedWasCalled);
                 await AssertWorkflowCancellationTokenCanceled();
             }
 
@@ -561,7 +559,7 @@ namespace WorkflowsCore.Tests
             [Fact]
             public async Task StopWorkflowShouldTerminateItAndMarkAsFaultedEvenItDoesNotHandleCancellationProperly()
             {
-                Workflow = new TestWorkflow(() => _workflowRepo, badCancellation: true);
+                Workflow = new TestWorkflow(() => _workflowRepo, badCancellation: true, allowOnFaulted: true);
                 StartWorkflow();
                 await Workflow.StartedTask;
 
@@ -576,7 +574,7 @@ namespace WorkflowsCore.Tests
             [Fact]
             public async Task StopWorkflowShouldTerminateItAndMarkAsFaulted()
             {
-                Workflow = new TestWorkflow(() => _workflowRepo, allowOnCanceled: false);
+                Workflow = new TestWorkflow(() => _workflowRepo, allowOnFaulted: true);
                 StartWorkflow();
                 await Workflow.StartedTask;
 
@@ -644,6 +642,7 @@ namespace WorkflowsCore.Tests
         {
             private readonly bool _canceledChild;
             private readonly bool _allowOnCanceled;
+            private readonly bool _allowOnFaulted;
             private readonly bool _badCancellation;
             private readonly bool _failCancellation;
             private readonly TaskCompletionSource<bool> _badCancellationTcs = new TaskCompletionSource<bool>();
@@ -657,14 +656,16 @@ namespace WorkflowsCore.Tests
                 bool canceledChild = false,
                 bool allowOnCanceled = true,
                 bool badCancellation = false,
-                bool failCancellation = false)
+                bool failCancellation = false,
+                bool allowOnFaulted = false)
                 : base(workflowRepoFactory, isStateInitializedImmediatelyAfterStart)
             {
                 _canceledChild = canceledChild;
-                _allowOnCanceled = allowOnCanceled;
+                _allowOnCanceled = allowOnCanceled && !allowOnFaulted;
                 _badCancellation = badCancellation;
                 _failCancellation = failCancellation;
                 _timeout = fail ? -2 : (!doNotComplete ? 1 : Timeout.Infinite);
+                _allowOnFaulted = allowOnFaulted;
             }
 
             public bool ActionsAllowed { get; set; } = true;
@@ -674,6 +675,8 @@ namespace WorkflowsCore.Tests
             public CancellationToken CurrentCancellationToken { get; private set; }
 
             public bool OnCanceledWasCalled { get; private set; }
+
+            public bool OnFaultedWasCalled { get; private set; }
 
             public new void SetStateInitialized() => base.SetStateInitialized();
 
@@ -743,11 +746,18 @@ namespace WorkflowsCore.Tests
 
             protected override bool IsActionAllowed(string action) => ActionsAllowed && action != NotAllowedAction;
 
-            protected override void OnCanceled()
+            protected override void OnCanceled(Exception exception)
             {
                 Assert.True(_allowOnCanceled);
-                base.OnCanceled();
+                base.OnCanceled(exception);
                 OnCanceledWasCalled = true;
+            }
+
+            protected override void OnFaulted(Exception exception)
+            {
+                Assert.True(_allowOnFaulted);
+                base.OnFaulted(exception);
+                OnFaultedWasCalled = true;
             }
         }
 

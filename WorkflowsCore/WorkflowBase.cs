@@ -397,7 +397,11 @@ namespace WorkflowsCore
 
         protected abstract Task RunAsync();
 
-        protected virtual void OnCanceled()
+        protected virtual void OnCanceled(Exception exception)
+        {
+        }
+
+        protected virtual void OnFaulted(Exception exception)
         {
         }
 
@@ -610,12 +614,13 @@ namespace WorkflowsCore
             {
                 _workflowRepoFactory().MarkWorkflowAsFailed(this, _exception);
                 exception = _exception;
+                OnFaulted(_exception);
                 return;
             }
 
             _workflowRepoFactory().MarkWorkflowAsCanceled(this, _exception);
-            OnCanceled();
             canceled = true;
+            OnCanceled(_exception);
         }
 
         private void Cancel(Exception exception = null)
