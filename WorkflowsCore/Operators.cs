@@ -44,8 +44,18 @@ namespace WorkflowsCore
                         ex = RequestCancellation(cts, ex);
 
                         // ReSharper disable once MethodSupportsCancellation
-                        Task.WhenAll(tasks)
-                            .ContinueWith(t => tcs.SetException(ex), TaskContinuationOptions.ExecuteSynchronously);
+                        Task.WhenAll(tasks).ContinueWith(
+                            t =>
+                            {
+                                if (t.IsFaulted)
+                                {
+                                    // ReSharper disable once PossibleNullReferenceException
+                                    ex = WorkflowBase.GetAggregatedExceptions(ex, t.Exception.GetBaseException());
+                                }
+
+                                tcs.SetException(ex);
+                            },
+                            TaskContinuationOptions.ExecuteSynchronously);
                         return tcs.Task;
                     }
 
@@ -299,8 +309,8 @@ namespace WorkflowsCore
                             {
                                 if (t.IsFaulted)
                                 {
-                                    // ReSharper disable once AssignNullToNotNullAttribute
-                                    tcs.SetException(t.Exception);
+                                    // ReSharper disable once PossibleNullReferenceException
+                                    tcs.SetException(t.Exception.GetBaseException());
                                     return;
                                 }
 
@@ -314,12 +324,14 @@ namespace WorkflowsCore
                     if (faultedTask != null)
                     {
                         // ReSharper disable once PossibleNullReferenceException
-                        var exception = RequestCancellation(cts, faultedTask.Exception.GetBaseException());
+                        var exception = RequestCancellation(cts);
 
                         // ReSharper disable once MethodSupportsCancellation
+                        // ReSharper disable once PossibleNullReferenceException
                         Task.WhenAll(tasks)
                             .ContinueWith(
-                                t => tcs.SetException(exception),
+                                t => tcs.SetException(
+                                    WorkflowBase.GetAggregatedExceptions(exception, t.Exception.GetBaseException())),
                                 TaskContinuationOptions.ExecuteSynchronously);
                         return;
                     }
@@ -336,8 +348,9 @@ namespace WorkflowsCore
                             {
                                 if (t.IsFaulted)
                                 {
-                                    // ReSharper disable once AssignNullToNotNullAttribute
-                                    tcs.SetException(WorkflowBase.GetAggregatedExceptions(exception, t.Exception));
+                                    // ReSharper disable once PossibleNullReferenceException
+                                    tcs.SetException(
+                                        WorkflowBase.GetAggregatedExceptions(exception, t.Exception.GetBaseException()));
                                     return;
                                 }
 

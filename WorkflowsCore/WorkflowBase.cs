@@ -584,8 +584,7 @@ namespace WorkflowsCore
                         }
                         else
                         {
-                            exception =
-                                new TaskCanceledException("Unexpected cancellation of child activity");
+                            exception = new TaskCanceledException("Unexpected cancellation of child activity");
                             _workflowRepoFactory().MarkWorkflowAsFailed(this, exception);
                         }
 
