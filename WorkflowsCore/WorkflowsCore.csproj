@@ -52,6 +52,10 @@
     <Compile Include="MonteCarlo\SimulationException.cs" />
     <Compile Include="MonteCarlo\SimulationsStats.cs" />
     <Compile Include="SingleThreadTaskScheduler.cs" />
+    <Compile Include="StateMachines\AsyncOperation.cs" />
+    <Compile Include="StateMachines\State.cs" />
+    <Compile Include="StateMachines\StateExtensions.cs" />
+    <Compile Include="StateMachines\StateMachine.cs" />
     <Compile Include="Time\TimeOperators.cs" />
     <Compile Include="Time\TimeProvider.cs" />
     <Compile Include="Interfaces.cs" />

@@ -4,7 +4,7 @@ using Xunit;
 
 namespace WorkflowsCore.Tests
 {
-    public class ActiovationDatesManagerTests
+    public class ActivationDatesManagerTests
     {
         private readonly ActivationDatesManager _manager = new ActivationDatesManager();
 

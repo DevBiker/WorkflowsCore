@@ -572,6 +572,48 @@ namespace WorkflowsCore.Tests
             }
         }
 
+        public class WaitForReadyAndStartOperationTests : BaseWorkflowTest<TestWorkflow>
+        {
+            public WaitForReadyAndStartOperationTests()
+            {
+                Workflow = new TestWorkflow(doInit: false);
+            }
+
+            [Fact]
+            public async Task WaitForReadyShouldStartOperationIfWorkflowIsReady()
+            {
+                StartWorkflow();
+                Assert.Equal(TaskStatus.RanToCompletion, Workflow.ReadyTask.Status);
+                using (await Workflow.WaitForReadyAndStartOperation())
+                {
+                    Assert.NotEqual(TaskStatus.RanToCompletion, Workflow.ReadyTask.Status);
+                }
+
+                Assert.Equal(TaskStatus.RanToCompletion, Workflow.ReadyTask.Status);
+
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
+            public async Task WaitForReadyShouldWaitUntilWorkflowReady()
+            {
+                StartWorkflow();
+                var disposable = await Workflow.DoWorkflowTaskAsync(() => Workflow.TryStartOperation());
+
+                Assert.NotEqual(TaskStatus.RanToCompletion, Workflow.ReadyTask.Status);
+                var t = Workflow.WaitForReadyAndStartOperation();
+                await Task.Delay(1);
+                Assert.NotEqual(TaskStatus.RanToCompletion, t.Status);
+
+                await Workflow.DoWorkflowTaskAsync(() => disposable.Dispose());
+                await t;
+
+                await CancelWorkflowAsync();
+            }
+
+            // TODO: Cancellation tests
+        }
+
         public sealed class TestWorkflow : WorkflowBase
         {
             public TestWorkflow(bool doInit = true)
@@ -587,6 +629,8 @@ namespace WorkflowsCore.Tests
             public string Action { get; private set; }
 
             public NamedValues Parameters { get; private set; }
+
+            public new IDisposable TryStartOperation() => base.TryStartOperation();
 
             protected override void OnActionsInit()
             {

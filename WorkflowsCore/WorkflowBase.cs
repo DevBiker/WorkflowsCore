@@ -91,6 +91,8 @@ namespace WorkflowsCore
 
         public Task StartedTask => _startedTaskCompletionSource.Task;
 
+        public Task ReadyTask { get; private set; } = Task.CompletedTask;
+
         public Task StateInitializedTask { get; }
 
         public Task CompletedTask => _completedTaskCompletionSource.Task;
@@ -317,7 +319,10 @@ namespace WorkflowsCore
                 async () =>
                 {
                     await StateInitializedTask;
-                    return ExecuteAction<T>(action, parameters, throwNotAllowed);
+                    using (await this.WaitForReadyAndStartOperation())
+                    {
+                        return ExecuteAction<T>(action, parameters, throwNotAllowed);
+                    }
                 }).Unwrap();
         }
 
@@ -370,6 +375,21 @@ namespace WorkflowsCore
 
         internal void OnCancellationTokenCancelled(CancellationToken token) =>
             _activationDatesManager.OnCancellationTokenCancelled(token);
+
+        protected internal IDisposable TryStartOperation()
+        {
+            if (ReadyTask.IsCanceled)
+            {
+                return null;
+            }
+
+            if (ReadyTask.IsCompleted)
+            {
+                return new Operation(this);
+            }
+
+            return Operation.CurrentOperation.Value?.StartInnerOperation();
+        }
 
         protected internal bool WasExecuted(string action) => TimesExecuted(action) > 0;
 
@@ -641,6 +661,10 @@ namespace WorkflowsCore
                         {
                             _exception = GetAggregatedExceptions(_exception, ex);
                         }
+                        finally
+                        {
+                            ReadyTask = Task.FromCanceled(CancellationTokenSource.Token);
+                        }
                     },
                     forceExecution: exception == null);
 
@@ -750,6 +774,37 @@ namespace WorkflowsCore
             public IList<string> Synonyms { get; set; }
 
             public bool IsHidden { get; set; }
+        }
+
+        private sealed class Operation : IDisposable
+        {
+            private readonly TaskCompletionSource<bool> _tcs =
+                new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            private int _counter = 1;
+
+            public Operation(WorkflowBase workflow)
+            {
+                workflow.ReadyTask = _tcs.Task;
+                CurrentOperation.Value = this;
+            }
+
+            public static AsyncLocal<Operation> CurrentOperation { get; } = new AsyncLocal<Operation>();
+
+            public void Dispose()
+            {
+                if (Interlocked.Decrement(ref _counter) <= 0)
+                {
+                    _tcs.SetResult(true);
+                    CurrentOperation.Value = null;
+                }
+            }
+
+            public Operation StartInnerOperation()
+            {
+                ++_counter;
+                return this;
+            }
         }
 
         private class DummyWorkflowStateRepository : IWorkflowStateRepository

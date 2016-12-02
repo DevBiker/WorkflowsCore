@@ -228,6 +228,24 @@ namespace WorkflowsCore
             return tcs.Task;
         }
 
+        public static Task<IDisposable> WaitForReadyAndStartOperation(this WorkflowBase workflow)
+        {
+            return workflow.RunViaWorkflowTaskScheduler(
+                async w =>
+                {
+                    while (true)
+                    {
+                        var operation = w.TryStartOperation();
+                        if (operation != null)
+                        {
+                            return operation;
+                        }
+
+                        await workflow.ReadyTask;
+                    }
+                }).Unwrap();
+        }
+
         public static Task Then(this Task task, Action action)
         {
             var tcs = new TaskCompletionSource<bool>();

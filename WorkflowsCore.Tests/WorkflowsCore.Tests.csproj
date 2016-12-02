@@ -68,12 +68,14 @@
     <Otherwise />
   </Choose>
   <ItemGroup>
-    <Compile Include="ActiovationDatesManagerTests.cs" />
+    <Compile Include="ActivationDatesManagerTests.cs" />
+    <Compile Include="AsyncOperationTests.cs" />
     <Compile Include="BaseWorkflowTest.cs" />
     <Compile Include="DummyWorkflowStateRepository.cs" />
     <Compile Include="MonteCarloSimulatorTests.cs" />
     <Compile Include="OperatorTests.cs" />
     <Compile Include="RealTimeOperatorsTests.cs" />
+    <Compile Include="StateTests.cs" />
     <Compile Include="TimeOperatorsTests.cs" />
     <Compile Include="WorkflowMetadataCacheTests.cs" />
     <Compile Include="WorkflowMetadataTests.cs" />
