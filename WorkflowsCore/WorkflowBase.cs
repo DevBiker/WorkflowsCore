@@ -373,8 +373,8 @@ namespace WorkflowsCore
         internal void AddActivationDate(CancellationToken token, DateTime date) =>
             _activationDatesManager.AddActivationDate(token, date);
 
-        internal void OnCancellationTokenCancelled(CancellationToken token) =>
-            _activationDatesManager.OnCancellationTokenCancelled(token);
+        internal void OnCancellationTokenCanceled(CancellationToken token) =>
+            _activationDatesManager.OnCancellationTokenCanceled(token);
 
         protected internal IDisposable TryStartOperation()
         {

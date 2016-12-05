@@ -43,7 +43,7 @@ namespace WorkflowsCore.Tests
 
             Assert.Equal(min, _manager.NextActivationDate);
 
-            _manager.OnCancellationTokenCancelled(cts.Token);
+            _manager.OnCancellationTokenCanceled(cts.Token);
             Assert.Equal(expected, _manager.NextActivationDate);
         }
 
@@ -51,7 +51,7 @@ namespace WorkflowsCore.Tests
         public void IfAllTokensAreRemovedNextActivationDateShouldBeNull()
         {
             _manager.AddActivationDate(CancellationToken.None, new DateTime(2016, 11, 23));
-            _manager.OnCancellationTokenCancelled(CancellationToken.None);
+            _manager.OnCancellationTokenCanceled(CancellationToken.None);
 
             Assert.Null(_manager.NextActivationDate);
         }
@@ -60,8 +60,8 @@ namespace WorkflowsCore.Tests
         public void OnCancellationTokenCancelledMayBeCalledManyTimesForTheSameToken()
         {
             _manager.AddActivationDate(CancellationToken.None, new DateTime(2016, 11, 23));
-            _manager.OnCancellationTokenCancelled(CancellationToken.None);
-            _manager.OnCancellationTokenCancelled(CancellationToken.None);
+            _manager.OnCancellationTokenCanceled(CancellationToken.None);
+            _manager.OnCancellationTokenCanceled(CancellationToken.None);
         }
 
         [Fact]
@@ -78,7 +78,7 @@ namespace WorkflowsCore.Tests
             _manager.AddActivationDate(CancellationToken.None, new DateTime(2016, 11, 22));
             Assert.Equal(2, counter);
 
-            _manager.OnCancellationTokenCancelled(CancellationToken.None);
+            _manager.OnCancellationTokenCanceled(CancellationToken.None);
             Assert.Equal(3, counter);
         }
     }

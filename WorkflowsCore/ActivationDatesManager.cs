@@ -46,7 +46,7 @@ namespace WorkflowsCore
             }
         }
 
-        public void OnCancellationTokenCancelled(CancellationToken token)
+        public void OnCancellationTokenCanceled(CancellationToken token)
         {
             DateTime cur;
             if (!_activationDates.TryGetValue(token, out cur))

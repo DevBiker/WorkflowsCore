@@ -27,7 +27,7 @@ namespace WorkflowsCore.Time
 
             await workflow.RunViaWorkflowTaskScheduler(w => w.AddActivationDate(token, date), forceExecution: true);
             token.Register(
-                () => workflow.RunViaWorkflowTaskScheduler(w => w.OnCancellationTokenCancelled(token), forceExecution: true),
+                () => workflow.RunViaWorkflowTaskScheduler(w => w.OnCancellationTokenCanceled(token), forceExecution: true),
                 false);
 
             var now = Utilities.TimeProvider.Now;
