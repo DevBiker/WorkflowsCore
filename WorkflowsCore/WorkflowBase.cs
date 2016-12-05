@@ -91,7 +91,7 @@ namespace WorkflowsCore
 
         public Task StartedTask => _startedTaskCompletionSource.Task;
 
-        public Task ReadyTask { get; private set; } = Task.CompletedTask;
+        public Task ReadyTask => OperationInProgress?.Task ?? Task.CompletedTask;
 
         public Task StateInitializedTask { get; }
 
@@ -108,6 +108,10 @@ namespace WorkflowsCore
         private TaskScheduler WorkflowTaskScheduler => _concurrentExclusiveSchedulerPair.ExclusiveScheduler;
 
         private TaskCompletionSource<bool> StateInitializedTaskCompletionSource { get; }
+
+        private AsyncLocal<Operation> CurrentOperation { get; } = new AsyncLocal<Operation>();
+
+        private Operation OperationInProgress { get; set; }
 
         [DataField(IsTransient = true)]
         private DateTime? NextActivationDate => _activationDatesManager.NextActivationDate;
@@ -376,8 +380,23 @@ namespace WorkflowsCore
         internal void OnCancellationTokenCanceled(CancellationToken token) =>
             _activationDatesManager.OnCancellationTokenCanceled(token);
 
+        protected internal void CreateOperation()
+        {
+            if (CurrentOperation.Value == null)
+            {
+                CurrentOperation.Value = new Operation(this);
+            }
+        }
+
+        protected internal void ResetOperation() => CurrentOperation.Value = null;
+
         protected internal IDisposable TryStartOperation()
         {
+            if (CurrentOperation.Value == null)
+            {
+                throw new InvalidOperationException("Operation should be created first");
+            }
+
             if (ReadyTask.IsCanceled)
             {
                 return null;
@@ -385,10 +404,10 @@ namespace WorkflowsCore
 
             if (ReadyTask.IsCompleted)
             {
-                return new Operation(this);
+                return CurrentOperation.Value.StartOperation();
             }
 
-            return Operation.CurrentOperation.Value?.StartInnerOperation();
+            return CurrentOperation.Value.TryStartInnerOperation();
         }
 
         protected internal bool WasExecuted(string action) => TimesExecuted(action) > 0;
@@ -653,6 +672,8 @@ namespace WorkflowsCore
                     {
                         _startedTaskCompletionSource.TrySetCanceled();
                         StateInitializedTaskCompletionSource?.TrySetCanceled();
+                        OperationInProgress?.TryCancel();
+                        OperationInProgress = Operation.Canceled;
                         try
                         {
                             CancellationTokenSource.Cancel();
@@ -660,10 +681,6 @@ namespace WorkflowsCore
                         catch (Exception ex)
                         {
                             _exception = GetAggregatedExceptions(_exception, ex);
-                        }
-                        finally
-                        {
-                            ReadyTask = Task.FromCanceled(CancellationTokenSource.Token);
                         }
                     },
                     forceExecution: exception == null);
@@ -778,6 +795,10 @@ namespace WorkflowsCore
 
         private sealed class Operation : IDisposable
         {
+            public static readonly Operation Canceled = new Operation();
+
+            private readonly WorkflowBase _workflow;
+
             private readonly TaskCompletionSource<bool> _tcs =
                 new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -785,26 +806,42 @@ namespace WorkflowsCore
 
             public Operation(WorkflowBase workflow)
             {
-                workflow.ReadyTask = _tcs.Task;
-                CurrentOperation.Value = this;
+                _workflow = workflow;
             }
 
-            public static AsyncLocal<Operation> CurrentOperation { get; } = new AsyncLocal<Operation>();
+            private Operation()
+            {
+                TryCancel();
+            }
+
+            public Task Task => _tcs.Task;
 
             public void Dispose()
             {
                 if (Interlocked.Decrement(ref _counter) <= 0)
                 {
-                    _tcs.SetResult(true);
-                    CurrentOperation.Value = null;
+                    if (_workflow.CurrentOperation.Value == this)
+                    {
+                        _workflow.CurrentOperation.Value = null;
+                    }
+
+                    _tcs.TrySetResult(true);
                 }
             }
 
-            public Operation StartInnerOperation()
+            public Operation StartOperation() => _workflow.OperationInProgress = this;
+
+            public Operation TryStartInnerOperation()
             {
-                ++_counter;
-                return this;
+                if (_workflow.OperationInProgress != this)
+                {
+                    return null;
+                }
+
+                return Interlocked.Increment(ref _counter) <= 1 ? null : this;
             }
+
+            public void TryCancel() => _tcs.TrySetCanceled();
         }
 
         private class DummyWorkflowStateRepository : IWorkflowStateRepository

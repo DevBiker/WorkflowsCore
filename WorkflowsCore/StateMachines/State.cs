@@ -123,8 +123,8 @@ namespace WorkflowsCore.StateMachines
 
             private StateInstance Child { get; set; }
 
-            private TaskCompletionSource<State<T>> StateTransitionTaskCompletionSource { get; set; } =
-                new TaskCompletionSource<State<T>>();
+            private TaskCompletionSource<StateTransition> StateTransitionTaskCompletionSource { get; set; } =
+                new TaskCompletionSource<StateTransition>();
 
             public void InitiateTransitionTo(State<T> state)
             {
@@ -134,7 +134,9 @@ namespace WorkflowsCore.StateMachines
                 }
                 else
                 {
-                    StateTransitionTaskCompletionSource.SetResult(state);
+                    Workflow.CreateOperation();
+                    var operation = Workflow.TryStartOperation();
+                    StateTransitionTaskCompletionSource.SetResult(new StateTransition(state, operation));
                 }
             }
 
@@ -188,18 +190,31 @@ namespace WorkflowsCore.StateMachines
                 return onAsyncs.Any() ? Workflow.WaitForAny(onAsyncs) : System.Threading.Tasks.Task.CompletedTask;
             }
 
-            private void HandleStateTransition(State<T> state)
+            private void HandleStateTransition(StateTransition transition)
             {
-                if (!State.HasChild(state))
+                if (!State.HasChild(transition.State))
                 {
                     return;
                 }
             }
         }
 
-        public class StateTransition
+        private class StateTransition
         {
-            public IDisposable WorkflowOperation { get; set; }
+            public StateTransition(State<T> state, IDisposable workflowOperation)
+            {
+                if (workflowOperation == null)
+                {
+                    throw new ArgumentNullException(nameof(workflowOperation));
+                }
+
+                State = state;
+                WorkflowOperation = workflowOperation;
+            }
+
+            public State<T> State { get; } 
+
+            public IDisposable WorkflowOperation { get; }
         }
 
         private class AsyncOperationWrapper : IAsyncOperationWrapper
@@ -227,6 +242,8 @@ namespace WorkflowsCore.StateMachines
                             instance.InitiateTransitionTo(newState);
                         }
                     }
+
+                    Workflow.ResetOperation();
                 }
             }
         }
@@ -247,8 +264,16 @@ namespace WorkflowsCore.StateMachines
                 while (true)
                 {
                     var res = await _taskFactory();
-                    await _operation.ExecuteAsync(res);
-                    await Workflow.ReadyTask;
+                    using (await Workflow.WaitForReadyAndStartOperation())
+                    {
+                        var newState = await _operation.ExecuteAsync(res);
+                        if (newState != null)
+                        {
+                            instance.InitiateTransitionTo(newState);
+                        }
+                    }
+
+                    Workflow.ResetOperation();
                 }
             }
         }

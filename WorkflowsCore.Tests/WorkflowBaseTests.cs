@@ -66,11 +66,43 @@ namespace WorkflowsCore.Tests
         public class StartOperationTests : BaseWorkflowTest<TestWorkflow>
         {
             [Fact]
+            public async Task IfNoOperationIsCreatedThenStartingOperationShouldFail()
+            {
+                Workflow = new TestWorkflow();
+                StartWorkflow();
+
+                // ReSharper disable once PossibleNullReferenceException
+                var ex =
+                    await Record.ExceptionAsync(() => Workflow.DoWorkflowTaskAsync(() => Workflow.TryStartOperation()));
+
+                Assert.IsType<InvalidOperationException>(ex);
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
+            public async Task ResetOperationShouldSetItToNull()
+            {
+                Workflow = new TestWorkflow();
+                StartWorkflow();
+
+                Workflow.CreateOperation();
+                Workflow.ResetOperation();
+
+                // ReSharper disable once PossibleNullReferenceException
+                var ex =
+                    await Record.ExceptionAsync(() => Workflow.DoWorkflowTaskAsync(() => Workflow.TryStartOperation()));
+
+                Assert.IsType<InvalidOperationException>(ex);
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
             public async Task IfNoOperationIsStartedWorkflowShouldBeReady()
             {
                 Workflow = new TestWorkflow();
                 StartWorkflow();
 
+                Workflow.CreateOperation();
                 await Workflow.DoWorkflowTaskAsync(
                     () =>
                     {
@@ -93,8 +125,18 @@ namespace WorkflowsCore.Tests
                 Workflow = new TestWorkflow();
                 StartWorkflow();
 
-                var operation = await Workflow.DoWorkflowTaskAsync(() => Workflow.TryStartOperation());
-                var operation2 = await Workflow.DoWorkflowTaskAsync(() => Workflow.TryStartOperation());
+                var operation = await Workflow.DoWorkflowTaskAsync(
+                    () =>
+                    {
+                        Workflow.CreateOperation();
+                        return Workflow.TryStartOperation();
+                    });
+                var operation2 = await Workflow.DoWorkflowTaskAsync(
+                    () =>
+                    {
+                        Workflow.CreateOperation();
+                        return Workflow.TryStartOperation();
+                    });
 
                 Assert.NotNull(operation);
                 operation.Dispose();
@@ -113,6 +155,7 @@ namespace WorkflowsCore.Tests
                     async () =>
                     {
                         IDisposable outerOp;
+                        Workflow.CreateOperation();
                         using (outerOp = Workflow.TryStartOperation())
                         {
                             await Task.Delay(1);
@@ -127,6 +170,7 @@ namespace WorkflowsCore.Tests
 
                         Assert.Equal(TaskStatus.RanToCompletion, Workflow.ReadyTask.Status);
 
+                        Workflow.CreateOperation();
                         using (var outerOp2 = Workflow.TryStartOperation())
                         {
                             Assert.NotSame(outerOp, outerOp2);
@@ -164,10 +208,27 @@ namespace WorkflowsCore.Tests
 
                 await CancelWorkflowAsync();
 
+                Workflow.CreateOperation();
                 var operation =
                     await Workflow.DoWorkflowTaskAsync(() => Workflow.TryStartOperation(), forceExecution: true);
 
                 Assert.Null(operation);
+            }
+
+            [Fact]
+            public async Task IfWorkflowCanceledThenNonCompletedOperationShouldBeCanceled()
+            {
+                Workflow = new TestWorkflow();
+                StartWorkflow();
+
+                Workflow.CreateOperation();
+                await Workflow.DoWorkflowTaskAsync(() => Workflow.TryStartOperation());
+                var task = Workflow.ReadyTask;
+
+                await CancelWorkflowAsync();
+
+                Assert.Equal(TaskStatus.Canceled, task.Status);
+                Assert.Equal(TaskStatus.Canceled, Workflow.ReadyTask.Status);
             }
         }
 
@@ -836,6 +897,10 @@ namespace WorkflowsCore.Tests
 
             // ReSharper disable once UnusedParameter.Local
             public new NamedValues GetActionMetadata(string action) => base.GetActionMetadata(action);
+
+            public new void CreateOperation() => base.CreateOperation();
+
+            public new void ResetOperation() => base.ResetOperation();
 
             public new IDisposable TryStartOperation() => base.TryStartOperation();
 

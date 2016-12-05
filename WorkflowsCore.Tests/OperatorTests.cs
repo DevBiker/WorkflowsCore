@@ -598,7 +598,12 @@ namespace WorkflowsCore.Tests
             public async Task WaitForReadyShouldWaitUntilWorkflowReady()
             {
                 StartWorkflow();
-                var disposable = await Workflow.DoWorkflowTaskAsync(() => Workflow.TryStartOperation());
+                var disposable = await Workflow.DoWorkflowTaskAsync(
+                    () =>
+                    {
+                        Workflow.CreateOperation();
+                        return Workflow.TryStartOperation();
+                    });
 
                 Assert.NotEqual(TaskStatus.RanToCompletion, Workflow.ReadyTask.Status);
                 var t = Workflow.WaitForReadyAndStartOperation();
@@ -607,6 +612,49 @@ namespace WorkflowsCore.Tests
 
                 await Workflow.DoWorkflowTaskAsync(() => disposable.Dispose());
                 await t;
+
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
+            public async Task InnerWaitForReadyShouldSucceed()
+            {
+                StartWorkflow();
+                Assert.Equal(TaskStatus.RanToCompletion, Workflow.ReadyTask.Status);
+                using (await Workflow.WaitForReadyAndStartOperation())
+                {
+                    using (await Workflow.WaitForReadyAndStartOperation())
+                    {
+                    }
+
+                    Assert.NotEqual(TaskStatus.RanToCompletion, Workflow.ReadyTask.Status);
+                }
+
+                Assert.Equal(TaskStatus.RanToCompletion, Workflow.ReadyTask.Status);
+
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
+            public async Task WaitForReadyShouldBeCanceledIfParentCancellationTokenCanceled()
+            {
+                StartWorkflow();
+
+                var cts = new CancellationTokenSource();
+
+                using (await Workflow.WaitForReadyAndStartOperation())
+                {
+                    Workflow.ResetOperation();
+                    var task = Utilities.SetCurrentCancellationTokenTemporarily(
+                        cts.Token,
+                        () => Workflow.WaitForReadyAndStartOperation());
+
+                    cts.Cancel();
+
+                    // ReSharper disable once PossibleNullReferenceException
+                    var ex = await Record.ExceptionAsync(() => task);
+                    Assert.IsType<TaskCanceledException>(ex);
+                }
 
                 await CancelWorkflowAsync();
             }
@@ -629,6 +677,10 @@ namespace WorkflowsCore.Tests
             public string Action { get; private set; }
 
             public NamedValues Parameters { get; private set; }
+
+            public new void CreateOperation() => base.CreateOperation();
+
+            public new void ResetOperation() => base.ResetOperation();
 
             public new IDisposable TryStartOperation() => base.TryStartOperation();
 

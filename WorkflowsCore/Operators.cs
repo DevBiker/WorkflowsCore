@@ -230,6 +230,8 @@ namespace WorkflowsCore
 
         public static Task<IDisposable> WaitForReadyAndStartOperation(this WorkflowBase workflow)
         {
+            var cts = CancellationTokenSource.CreateLinkedTokenSource(Utilities.CurrentCancellationToken);
+            workflow.CreateOperation();
             return workflow.RunViaWorkflowTaskScheduler(
                 async w =>
                 {
@@ -241,7 +243,9 @@ namespace WorkflowsCore
                             return operation;
                         }
 
-                        await workflow.ReadyTask;
+                        var t = await Task.WhenAny(workflow.ReadyTask, Task.Delay(Timeout.Infinite, cts.Token));
+                        cts.Cancel();
+                        await t;
                     }
                 }).Unwrap();
         }

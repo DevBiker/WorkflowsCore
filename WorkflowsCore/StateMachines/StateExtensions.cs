@@ -15,6 +15,20 @@ namespace WorkflowsCore.StateMachines
             private set { AsyncWorkflow.Value = value; }
         }
 
+        public static void SetWorkflowTemporarily(WorkflowBase workflow, Action action)
+        {
+            var old = Workflow;
+            Workflow = workflow;
+            try
+            {
+                action();
+            }
+            finally
+            {
+                Workflow = old;
+            }
+        }
+
         public static T SetWorkflowTemporarily<T>(WorkflowBase workflow, Func<T> func)
         {
             var old = Workflow;

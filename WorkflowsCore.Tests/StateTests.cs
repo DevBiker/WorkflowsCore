@@ -87,16 +87,14 @@ namespace WorkflowsCore.Tests
         [Fact]
         public async Task WhenTransitionToNonChildStateInitiatedStateInstanceShouldBeStopped()
         {
-            var instance = SetWorkflowTemporarily(
-                Workflow,
-                () => _state.Run(new State<States>[0], false));
+            var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(new State<States>[0], false));
 
             var state2 = new State<States>(States.State2);
             Assert.False(_state.HasChild(state2));
 
-            instance.InitiateTransitionTo(state2);
+            SetWorkflowTemporarily(Workflow, () => instance.InitiateTransitionTo(state2));
 
-            await instance.Task.WaitWithTimeout(100);
+            await instance.Task;
         }
 
         [Fact]
@@ -108,16 +106,14 @@ namespace WorkflowsCore.Tests
                 .OnExit().Do(() => Assert.Equal(1, counter++))
                 .OnExit().Do(() => Assert.Equal(2, counter++));
 
-            var instance = SetWorkflowTemporarily(
-                Workflow,
-                () => _state.Run(new State<States>[0], false));
+            var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(new State<States>[0], false));
 
             var state2 = new State<States>(States.State2);
             Assert.False(_state.HasChild(state2));
 
-            instance.InitiateTransitionTo(state2);
+            SetWorkflowTemporarily(Workflow, () => instance.InitiateTransitionTo(state2));
 
-            await instance.Task.WaitWithTimeout(100);
+            await instance.Task;
 
             Assert.Equal(3, counter);
         }
@@ -147,9 +143,9 @@ namespace WorkflowsCore.Tests
             var state2 = new State<States>(States.State2);
             Assert.False(_state.HasChild(state2));
 
-            instance.InitiateTransitionTo(state2);
+            SetWorkflowTemporarily(Workflow, () => instance.InitiateTransitionTo(state2));
 
-            await instance.Task.WaitWithTimeout(100);
+            await instance.Task;
 
             Assert.Equal(3, counter);
         }
@@ -157,6 +153,8 @@ namespace WorkflowsCore.Tests
         [Fact]
         public async Task WhenOnAsyncTaskCompletesItsDoHandlerShouldBeExecuted()
         {
+            StartWorkflow();
+
             var date = DateTime.Now.AddDays(3);
             var tcs = new TaskCompletionSource<bool>();
             _state
@@ -192,9 +190,13 @@ namespace WorkflowsCore.Tests
 
             await tcs.Task;
 
-            instance.InitiateTransitionTo(new State<States>(States.State2));
+            await Workflow.ReadyTask;
+
+            SetWorkflowTemporarily(Workflow, () => instance.InitiateTransitionTo(new State<States>(States.State2)));
 
             await instance.Task;
+
+            await CancelWorkflowAsync();
         }
 
         [Fact]
