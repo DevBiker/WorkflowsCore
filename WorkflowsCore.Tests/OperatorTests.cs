@@ -610,7 +610,7 @@ namespace WorkflowsCore.Tests
                 await Task.Delay(1);
                 Assert.NotEqual(TaskStatus.RanToCompletion, t.Status);
 
-                await Workflow.DoWorkflowTaskAsync(() => disposable.Dispose());
+                disposable.Dispose();
                 await t;
 
                 await CancelWorkflowAsync();
@@ -642,19 +642,61 @@ namespace WorkflowsCore.Tests
 
                 var cts = new CancellationTokenSource();
 
-                using (await Workflow.WaitForReadyAndStartOperation())
-                {
-                    Workflow.ResetOperation();
-                    var task = Utilities.SetCurrentCancellationTokenTemporarily(
-                        cts.Token,
-                        () => Workflow.WaitForReadyAndStartOperation());
+                await Workflow.DoWorkflowTaskAsync(() => Workflow.WaitForReadyAndStartOperation());
 
-                    cts.Cancel();
+                var task = Utilities.SetCurrentCancellationTokenTemporarily(
+                    cts.Token,
+                    () => Workflow.WaitForReadyAndStartOperation());
 
-                    // ReSharper disable once PossibleNullReferenceException
-                    var ex = await Record.ExceptionAsync(() => task);
-                    Assert.IsType<TaskCanceledException>(ex);
-                }
+                cts.Cancel();
+
+                // ReSharper disable once PossibleNullReferenceException
+                var ex = await Record.ExceptionAsync(() => task);
+                Assert.IsType<TaskCanceledException>(ex);
+
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
+            public async Task WaitForReadySimpleShouldWaitUntilWorkflowReady()
+            {
+                StartWorkflow();
+                var disposable = await Workflow.DoWorkflowTaskAsync(
+                    () =>
+                    {
+                        Workflow.CreateOperation();
+                        return Workflow.TryStartOperation();
+                    });
+
+                Assert.NotEqual(TaskStatus.RanToCompletion, Workflow.ReadyTask.Status);
+                var t = Workflow.WaitForReady();
+                await Task.Delay(1);
+                Assert.NotEqual(TaskStatus.RanToCompletion, t.Status);
+
+                disposable.Dispose();
+                await t;
+
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
+            public async Task WaitForReadySimpleShouldBeCanceledIfParentCancellationTokenCanceled()
+            {
+                StartWorkflow();
+
+                var cts = new CancellationTokenSource();
+
+                await Workflow.DoWorkflowTaskAsync(() => Workflow.WaitForReadyAndStartOperation());
+
+                var task = Utilities.SetCurrentCancellationTokenTemporarily(
+                    cts.Token,
+                    () => Workflow.WaitForReady());
+
+                cts.Cancel();
+
+                // ReSharper disable once PossibleNullReferenceException
+                var ex = await Record.ExceptionAsync(() => task);
+                Assert.IsType<TaskCanceledException>(ex);
 
                 await CancelWorkflowAsync();
             }
@@ -679,8 +721,6 @@ namespace WorkflowsCore.Tests
             public NamedValues Parameters { get; private set; }
 
             public new void CreateOperation() => base.CreateOperation();
-
-            public new void ResetOperation() => base.ResetOperation();
 
             public new IDisposable TryStartOperation() => base.TryStartOperation();
 

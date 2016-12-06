@@ -250,6 +250,14 @@ namespace WorkflowsCore
                 }).Unwrap();
         }
 
+        public static async Task WaitForReady(this WorkflowBase workflow)
+        {
+            var cts = CancellationTokenSource.CreateLinkedTokenSource(Utilities.CurrentCancellationToken);
+            var t = await Task.WhenAny(workflow.ReadyTask, Task.Delay(Timeout.Infinite, cts.Token));
+            cts.Cancel();
+            await t;
+        }
+
         public static Task Then(this Task task, Action action)
         {
             var tcs = new TaskCompletionSource<bool>();

@@ -80,23 +80,6 @@ namespace WorkflowsCore.Tests
             }
 
             [Fact]
-            public async Task ResetOperationShouldSetItToNull()
-            {
-                Workflow = new TestWorkflow();
-                StartWorkflow();
-
-                Workflow.CreateOperation();
-                Workflow.ResetOperation();
-
-                // ReSharper disable once PossibleNullReferenceException
-                var ex =
-                    await Record.ExceptionAsync(() => Workflow.DoWorkflowTaskAsync(() => Workflow.TryStartOperation()));
-
-                Assert.IsType<InvalidOperationException>(ex);
-                await CancelWorkflowAsync();
-            }
-
-            [Fact]
             public async Task IfNoOperationIsStartedWorkflowShouldBeReady()
             {
                 Workflow = new TestWorkflow();
@@ -899,8 +882,6 @@ namespace WorkflowsCore.Tests
             public new NamedValues GetActionMetadata(string action) => base.GetActionMetadata(action);
 
             public new void CreateOperation() => base.CreateOperation();
-
-            public new void ResetOperation() => base.ResetOperation();
 
             public new IDisposable TryStartOperation() => base.TryStartOperation();
 

@@ -243,7 +243,7 @@ namespace WorkflowsCore.StateMachines
                         }
                     }
 
-                    Workflow.ResetOperation();
+                    await Workflow.WaitForReady();
                 }
             }
         }
@@ -259,6 +259,7 @@ namespace WorkflowsCore.StateMachines
                 _operation = operation;
             }
 
+            // ReSharper disable once FunctionNeverReturns
             public async Task WaitAndHandle(StateInstance instance)
             {
                 while (true)
@@ -273,7 +274,7 @@ namespace WorkflowsCore.StateMachines
                         }
                     }
 
-                    Workflow.ResetOperation();
+                    await Workflow.WaitForReady();
                 }
             }
         }

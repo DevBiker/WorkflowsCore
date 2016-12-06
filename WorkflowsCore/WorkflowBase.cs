@@ -388,8 +388,6 @@ namespace WorkflowsCore
             }
         }
 
-        protected internal void ResetOperation() => CurrentOperation.Value = null;
-
         protected internal IDisposable TryStartOperation()
         {
             if (CurrentOperation.Value == null)
