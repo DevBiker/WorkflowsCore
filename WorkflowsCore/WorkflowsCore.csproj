@@ -56,6 +56,7 @@
     <Compile Include="StateMachines\State.cs" />
     <Compile Include="StateMachines\StateExtensions.cs" />
     <Compile Include="StateMachines\StateMachine.cs" />
+    <Compile Include="StateMachines\StateTransition.cs" />
     <Compile Include="Time\TimeOperators.cs" />
     <Compile Include="Time\TimeProvider.cs" />
     <Compile Include="Interfaces.cs" />

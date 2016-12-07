@@ -100,8 +100,8 @@ namespace WorkflowsCore.StateMachines
             throw new NotImplementedException();
         }
 
-        public StateInstance Run(IList<State<T>> initialChildrenStates, bool isStateRestoring) => 
-            new StateInstance(this, initialChildrenStates, isStateRestoring);
+        public StateInstance Run(StateTransition<T> transition, IList<State<T>> initialChildrenStates) => 
+            new StateInstance(this, transition, initialChildrenStates);
 
         private void AddChild(State<T> state)
         {
@@ -111,20 +111,20 @@ namespace WorkflowsCore.StateMachines
 
         public class StateInstance
         {
-            public StateInstance(State<T> state, IList<State<T>> initialChildrenStates, bool isStateRestoring)
+            public StateInstance(State<T> state, StateTransition<T> transition, IList<State<T>> initialChildrenStates)
             {
                 State = state;
-                Task = Run(initialChildrenStates, isStateRestoring);
+                Task = Run(transition, initialChildrenStates);
             }
 
             public State<T> State { get; }
 
             public Task<IList<State<T>>> Task { get; }
 
-            private StateInstance Child { get; set; }
+            public StateInstance Child { get; private set; }
 
-            private TaskCompletionSource<StateTransition> StateTransitionTaskCompletionSource { get; set; } =
-                new TaskCompletionSource<StateTransition>();
+            private TaskCompletionSource<StateTransition<T>> StateTransitionTaskCompletionSource { get; set; } =
+                new TaskCompletionSource<StateTransition<T>>();
 
             public void InitiateTransitionTo(State<T> state)
             {
@@ -136,11 +136,13 @@ namespace WorkflowsCore.StateMachines
                 {
                     Workflow.CreateOperation();
                     var operation = Workflow.TryStartOperation();
-                    StateTransitionTaskCompletionSource.SetResult(new StateTransition(state, operation));
+                    StateTransitionTaskCompletionSource.SetResult(new StateTransition<T>(state, operation));
                 }
             }
 
-            private async Task<IList<State<T>>> Run(IList<State<T>> initialChildrenStates, bool isStateRestoring)
+            private async Task<IList<State<T>>> Run(
+                StateTransition<T> transition,
+                IList<State<T>> initialChildrenStates)
             {
                 foreach (var enterHandler in State._enterHandlers)
                 {
@@ -148,7 +150,7 @@ namespace WorkflowsCore.StateMachines
                 }
 
                 await Workflow.WaitForAny(
-                    () => HandleStateTransitions(initialChildrenStates, isStateRestoring),
+                    () => HandleStateTransitions(transition, initialChildrenStates),
                     () => Workflow.Optional(ProcessOnAsyncs()));
 
                 foreach (var enterHandler in State._exitHandlers)
@@ -159,15 +161,18 @@ namespace WorkflowsCore.StateMachines
                 return new List<State<T>>();
             }
 
-            private async Task HandleStateTransitions(IList<State<T>> initialChildrenStates, bool isStateRestoring)
+            private async Task HandleStateTransitions(
+                StateTransition<T> transition,
+                IList<State<T>> initialChildrenStates)
             {
                 if (initialChildrenStates.Any())
                 {
-                    Child = initialChildrenStates.First().Run(initialChildrenStates.Skip(1).ToList(), isStateRestoring);
+                    Child = initialChildrenStates.First().Run(transition, initialChildrenStates.Skip(1).ToList());
                     await Child.Task;
                 }
                 else
                 {
+                    transition.WorkflowOperation.Dispose();
                     var task = await System.Threading.Tasks.Task.WhenAny(
                         Workflow.WaitForDate(DateTime.MaxValue),
                         StateTransitionTaskCompletionSource.Task);
@@ -190,31 +195,13 @@ namespace WorkflowsCore.StateMachines
                 return onAsyncs.Any() ? Workflow.WaitForAny(onAsyncs) : System.Threading.Tasks.Task.CompletedTask;
             }
 
-            private void HandleStateTransition(StateTransition transition)
+            private void HandleStateTransition(StateTransition<T> transition)
             {
                 if (!State.HasChild(transition.State))
                 {
                     return;
                 }
             }
-        }
-
-        private class StateTransition
-        {
-            public StateTransition(State<T> state, IDisposable workflowOperation)
-            {
-                if (workflowOperation == null)
-                {
-                    throw new ArgumentNullException(nameof(workflowOperation));
-                }
-
-                State = state;
-                WorkflowOperation = workflowOperation;
-            }
-
-            public State<T> State { get; } 
-
-            public IDisposable WorkflowOperation { get; }
         }
 
         private class AsyncOperationWrapper : IAsyncOperationWrapper

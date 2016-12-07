@@ -143,6 +143,7 @@ namespace WorkflowsCore.Tests
                         {
                             await Task.Delay(1);
 
+                            Workflow.CreateOperation();
                             using (var innerOp = Workflow.TryStartOperation())
                             {
                                 Assert.Same(outerOp, innerOp);

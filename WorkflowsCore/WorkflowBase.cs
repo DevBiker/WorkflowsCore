@@ -382,7 +382,7 @@ namespace WorkflowsCore
 
         protected internal void CreateOperation()
         {
-            if (CurrentOperation.Value == null)
+            if (CurrentOperation.Value?.TryCreateInnerOperation() == null)
             {
                 CurrentOperation.Value = new Operation(this);
             }
@@ -818,26 +818,15 @@ namespace WorkflowsCore
             {
                 if (Interlocked.Decrement(ref _counter) <= 0)
                 {
-                    if (_workflow.CurrentOperation.Value == this)
-                    {
-                        _workflow.CurrentOperation.Value = null;
-                    }
-
                     _tcs.TrySetResult(true);
                 }
             }
 
+            public Operation TryCreateInnerOperation() => Interlocked.Increment(ref _counter) <= 1 ? null : this;
+
             public Operation StartOperation() => _workflow.OperationInProgress = this;
 
-            public Operation TryStartInnerOperation()
-            {
-                if (_workflow.OperationInProgress != this)
-                {
-                    return null;
-                }
-
-                return Interlocked.Increment(ref _counter) <= 1 ? null : this;
-            }
+            public Operation TryStartInnerOperation() => _workflow.OperationInProgress != this ? null : this;
 
             public void TryCancel() => _tcs.TrySetCanceled();
         }
