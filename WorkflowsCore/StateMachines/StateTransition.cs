@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Linq;
 
 namespace WorkflowsCore.StateMachines
 {
@@ -25,6 +26,12 @@ namespace WorkflowsCore.StateMachines
         public IReadOnlyCollection<State<T>> Path { get; }
 
         public bool IsRestoringState { get; } = false;
+
+        public IList<State<T>> FindPathFrom(State<T> parentState)
+        {
+            var res = Path.SkipWhile(s => s != parentState).Skip(1).ToList();
+            return res.Any() ? res : null;
+        } 
 
         private IReadOnlyCollection<State<T>> GetPath()
         {

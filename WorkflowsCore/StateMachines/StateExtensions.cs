@@ -43,8 +43,6 @@ namespace WorkflowsCore.StateMachines
             }
         }
 
-        public static bool HasChild<T>(this State<T> state, State<T> child) => false;
-
         public static AsyncOperation<T, DateTime> OnDate<T>(
             this State<T> state,
             Func<Task<DateTime>> dateTaskFactory,

@@ -132,7 +132,7 @@ namespace WorkflowsCore.StateMachines
 
             public State<T> State { get; }
 
-            public Task<IList<State<T>>> Task { get; }
+            public Task<StateTransition<T>> Task { get; }
 
             public StateInstance Child { get; private set; }
 
@@ -153,7 +153,7 @@ namespace WorkflowsCore.StateMachines
                 }
             }
 
-            private async Task<IList<State<T>>> Run(
+            private async Task<StateTransition<T>> Run(
                 StateTransition<T> transition,
                 IList<State<T>> initialChildrenStates)
             {
@@ -163,7 +163,7 @@ namespace WorkflowsCore.StateMachines
                 }
 
                 await Workflow.WaitForAny(
-                    () => HandleStateTransitions(transition, initialChildrenStates),
+                    async () => transition = await HandleStateTransitions(transition, initialChildrenStates),
                     () => Workflow.Optional(ProcessOnAsyncs()));
 
                 foreach (var enterHandler in State._exitHandlers)
@@ -171,49 +171,49 @@ namespace WorkflowsCore.StateMachines
                     var newState = await enterHandler.ExecuteAsync();
                 }
 
-                return new List<State<T>>();
+                return transition;
             }
 
-            private async Task HandleStateTransitions(
+            private async Task<StateTransition<T>> HandleStateTransitions(
                 StateTransition<T> transition,
                 IList<State<T>> initialChildrenStates)
             {
-                if (initialChildrenStates.Any())
+                do
                 {
-                    Child = initialChildrenStates.First().Run(transition, initialChildrenStates.Skip(1).ToList());
-                    await Child.Task;
-                }
-                else
-                {
-                    transition.WorkflowOperation.Dispose();
-                    var task = await System.Threading.Tasks.Task.WhenAny(
-                        Workflow.WaitForDate(DateTime.MaxValue),
-                        StateTransitionTaskCompletionSource.Task);
-
-                    if (task == StateTransitionTaskCompletionSource.Task)
+                    if (initialChildrenStates.Any())
                     {
-                        HandleStateTransition(StateTransitionTaskCompletionSource.Task.Result);
+                        Child = initialChildrenStates.First().Run(transition, initialChildrenStates.Skip(1).ToList());
+                        transition = await Child.Task;
                     }
                     else
                     {
-                        StateTransitionTaskCompletionSource.SetCanceled();
-                        await task;
+                        transition.WorkflowOperation.Dispose();
+                        var task = await System.Threading.Tasks.Task.WhenAny(
+                            Workflow.WaitForDate(DateTime.MaxValue),
+                            StateTransitionTaskCompletionSource.Task);
+
+                        if (task == StateTransitionTaskCompletionSource.Task)
+                        {
+                            transition = StateTransitionTaskCompletionSource.Task.Result;
+                        }
+                        else
+                        {
+                            StateTransitionTaskCompletionSource.SetCanceled();
+                            await task; // Exit via TaskCanceledException
+                        }
                     }
+
+                    initialChildrenStates = transition.FindPathFrom(State);
                 }
+                while (initialChildrenStates != null);
+
+                return transition;
             }
 
             private Task ProcessOnAsyncs()
             {
                 var onAsyncs = State._onAsyncHandlers.Select(h => (Func<Task>)(() => h.WaitAndHandle(this))).ToArray();
                 return onAsyncs.Any() ? Workflow.WaitForAny(onAsyncs) : System.Threading.Tasks.Task.CompletedTask;
-            }
-
-            private void HandleStateTransition(StateTransition<T> transition)
-            {
-                if (!State.HasChild(transition.State))
-                {
-                    return;
-                }
             }
         }
 

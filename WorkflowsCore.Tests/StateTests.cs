@@ -88,7 +88,6 @@ namespace WorkflowsCore.Tests
             var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(_state)));
 
             var state2 = new State<States>(States.State2);
-            Assert.False(_state.HasChild(state2));
 
             SetWorkflowTemporarily(Workflow, () => instance.InitiateTransitionTo(state2));
 
@@ -107,7 +106,6 @@ namespace WorkflowsCore.Tests
             var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(_state)));
 
             var state2 = new State<States>(States.State2);
-            Assert.False(_state.HasChild(state2));
 
             SetWorkflowTemporarily(Workflow, () => instance.InitiateTransitionTo(state2));
 
@@ -137,7 +135,6 @@ namespace WorkflowsCore.Tests
             var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(stateChild2Child1)));
 
             var state2 = new State<States>(States.State2);
-            Assert.False(_state.HasChild(state2));
 
             SetWorkflowTemporarily(Workflow, () => instance.InitiateTransitionTo(state2));
 
@@ -211,6 +208,35 @@ namespace WorkflowsCore.Tests
 
             await instance.Task;
 
+            await CancelWorkflowAsync();
+        }
+
+        [Fact]
+        public async Task TransitionToInnerStateShouldNotExecuteExitHandlersForParentState()
+        {
+            StartWorkflow();
+
+            var counter = 0;
+            _state.OnExit().Do(() => ++counter);
+
+            var childState = new State<States>(States.State1Child1).SubstateOf(_state);
+
+            var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(_state)));
+
+            await Workflow.ReadyTask;
+
+            SetWorkflowTemporarily(Workflow, () => instance.InitiateTransitionTo(childState));
+
+            await Workflow.ReadyTask;
+
+            Assert.Same(childState, instance.Child.State);
+            Assert.Equal(0, counter);
+
+            SetWorkflowTemporarily(Workflow, () => instance.InitiateTransitionTo(new State<States>(States.State2)));
+
+            await instance.Task;
+
+            await Workflow.StartedTask;
             await CancelWorkflowAsync();
         }
 
