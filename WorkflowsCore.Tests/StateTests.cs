@@ -359,10 +359,34 @@ namespace WorkflowsCore.Tests
             await CancelWorkflowAsync();
         }
 
-        private StateTransition<States> CreateTransition(State<States> state)
+        [Fact]
+        public async Task OnActivateHandlersShouldBeCalledDuringStateRestoring()
+        {
+            StartWorkflow();
+
+            var enterCounter = 0;
+            _state.OnEnter().Do(() => ++enterCounter);
+
+            var activateCounter = 0;
+            _state.OnActivate().Do(() => ++activateCounter);
+
+            var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(_state, true)));
+
+            SetWorkflowTemporarily(Workflow, () => instance.InitiateTransitionTo(new State<States>(States.State2)));
+
+            await instance.Task;
+
+            Assert.Equal(0, enterCounter);
+            Assert.Equal(1, activateCounter);
+
+            await Workflow.StartedTask;
+            await CancelWorkflowAsync();
+        }
+
+        private StateTransition<States> CreateTransition(State<States> state, bool isRestoring = false)
         {
             Workflow.CreateOperation();
-            return new StateTransition<States>(state, Workflow.TryStartOperation());
+            return new StateTransition<States>(state, Workflow.TryStartOperation(), isRestoring);
         }
 
         public class TestWorkflow : WorkflowBase

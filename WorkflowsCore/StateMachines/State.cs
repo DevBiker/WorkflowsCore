@@ -11,6 +11,7 @@ namespace WorkflowsCore.StateMachines
     public class State<T>
     {
         private readonly IList<AsyncOperation<T>> _enterHandlers = new List<AsyncOperation<T>>();
+        private readonly IList<AsyncOperation<T>> _activationHandlers = new List<AsyncOperation<T>>();
         private readonly IList<AsyncOperation<T>> _exitHandlers = new List<AsyncOperation<T>>();
         private readonly IList<IAsyncOperationWrapper> _onAsyncHandlers = new List<IAsyncOperationWrapper>();
         private readonly IList<State<T>> _children = new List<State<T>>();
@@ -48,7 +49,9 @@ namespace WorkflowsCore.StateMachines
 
         public AsyncOperation<T> OnActivate(string description = null)
         {
-            throw new NotImplementedException();
+            var asyncOperation = new AsyncOperation<T>(this, description);
+            _activationHandlers.Add(asyncOperation);
+            return asyncOperation;
         }
 
         public AsyncOperation<T, TR> OnAsync<TR>(Func<Task<TR>> taskFactory, string description = null)
@@ -154,12 +157,13 @@ namespace WorkflowsCore.StateMachines
                 StateTransition<T> transition,
                 IList<State<T>> initialChildrenStates)
             {
-                foreach (var enterHandler in State._enterHandlers)
+                var handlers = !transition.IsRestoringState ? State._enterHandlers : State._activationHandlers;
+                foreach (var enterHandler in handlers)
                 {
                     var newState = await enterHandler.ExecuteAsync();
                     if (newState != null)
                     {
-                        transition = new StateTransition<T>(newState, transition.WorkflowOperation);
+                        transition = new StateTransition<T>(newState, transition);
                         initialChildrenStates = transition.FindPathFrom(State);
                         if (newState == State)
                         {
@@ -183,7 +187,7 @@ namespace WorkflowsCore.StateMachines
                     var newState = await enterHandler.ExecuteAsync();
                     if (newState != null)
                     {
-                        transition = new StateTransition<T>(newState, transition.WorkflowOperation);
+                        transition = new StateTransition<T>(newState, transition);
                     }
                 }
 

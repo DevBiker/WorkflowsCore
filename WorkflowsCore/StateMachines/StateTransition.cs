@@ -7,7 +7,7 @@ namespace WorkflowsCore.StateMachines
 {
     public class StateTransition<T>
     {
-        public StateTransition(State<T> state, IDisposable workflowOperation)
+        public StateTransition(State<T> state, IDisposable workflowOperation, bool isRestoringState = false)
         {
             if (workflowOperation == null)
             {
@@ -16,7 +16,13 @@ namespace WorkflowsCore.StateMachines
 
             State = state;
             WorkflowOperation = workflowOperation;
+            IsRestoringState = isRestoringState;
             Path = GetPath();
+        }
+
+        public StateTransition(State<T> state, StateTransition<T> transition)
+            : this(state, transition.WorkflowOperation, transition.IsRestoringState)
+        {
         }
 
         public State<T> State { get; }
@@ -25,7 +31,7 @@ namespace WorkflowsCore.StateMachines
 
         public IReadOnlyCollection<State<T>> Path { get; }
 
-        public bool IsRestoringState { get; } = false;
+        public bool IsRestoringState { get; }
 
         public IList<State<T>> FindPathFrom(State<T> parentState)
         {
