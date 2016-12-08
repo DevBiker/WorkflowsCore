@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 
 namespace WorkflowsCore.StateMachines
 {
@@ -14,14 +15,30 @@ namespace WorkflowsCore.StateMachines
 
             State = state;
             WorkflowOperation = workflowOperation;
+            Path = GetPath();
         }
 
-        public State<T> State { get; } 
+        public State<T> State { get; }
 
         public IDisposable WorkflowOperation { get; }
 
-        public IReadOnlyList<State<T>> Path { get; } = null; 
+        public IReadOnlyCollection<State<T>> Path { get; }
 
         public bool IsRestoringState { get; } = false;
+
+        private IReadOnlyCollection<State<T>> GetPath()
+        {
+            var path = new List<State<T>>();
+            var cur = State;
+            do
+            {
+                path.Add(cur);
+                cur = cur.Parent;
+            }
+            while (cur != null);
+
+            path.Reverse();
+            return new ReadOnlyCollection<State<T>>(path);
+        }
     }
 }

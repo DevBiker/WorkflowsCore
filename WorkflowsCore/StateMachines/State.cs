@@ -100,7 +100,9 @@ namespace WorkflowsCore.StateMachines
             throw new NotImplementedException();
         }
 
-        public StateInstance Run(StateTransition<T> transition, IList<State<T>> initialChildrenStates) => 
+        public StateInstance Run(StateTransition<T> transition) => new StateInstance(this, transition);
+
+        private StateInstance Run(StateTransition<T> transition, IList<State<T>> initialChildrenStates) => 
             new StateInstance(this, transition, initialChildrenStates);
 
         private void AddChild(State<T> state)
@@ -111,7 +113,18 @@ namespace WorkflowsCore.StateMachines
 
         public class StateInstance
         {
-            public StateInstance(State<T> state, StateTransition<T> transition, IList<State<T>> initialChildrenStates)
+            internal StateInstance(State<T> state, StateTransition<T> transition)
+            {
+                if (transition.Path.First() != state)
+                {
+                    throw new ArgumentOutOfRangeException(nameof(transition));
+                }
+
+                State = state;
+                Task = Run(transition, transition.Path.Skip(1).ToList());
+            }
+
+            internal StateInstance(State<T> state, StateTransition<T> transition, IList<State<T>> initialChildrenStates)
             {
                 State = state;
                 Task = Run(transition, initialChildrenStates);

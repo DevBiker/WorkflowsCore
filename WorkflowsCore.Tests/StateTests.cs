@@ -39,7 +39,7 @@ namespace WorkflowsCore.Tests
             var cts = new CancellationTokenSource();
             var instance = Utilities.SetCurrentCancellationTokenTemporarily(
                 cts.Token,
-                () => SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(_state), new State<States>[0])));
+                () => SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(_state))));
 
             cts.Cancel();
 
@@ -71,9 +71,7 @@ namespace WorkflowsCore.Tests
             var cts = new CancellationTokenSource();
             var instance = Utilities.SetCurrentCancellationTokenTemporarily(
                 cts.Token,
-                () => SetWorkflowTemporarily(
-                    Workflow,
-                    () => _state.Run(CreateTransition(_state), new[] { stateChild2, stateChild2Child1 })));
+                () => SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(stateChild2Child1))));
 
             cts.Cancel();
 
@@ -87,7 +85,7 @@ namespace WorkflowsCore.Tests
         [Fact]
         public async Task WhenTransitionToNonChildStateInitiatedStateInstanceShouldBeStopped()
         {
-            var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(_state), new State<States>[0]));
+            var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(_state)));
 
             var state2 = new State<States>(States.State2);
             Assert.False(_state.HasChild(state2));
@@ -106,7 +104,7 @@ namespace WorkflowsCore.Tests
                 .OnExit().Do(() => Assert.Equal(1, counter++))
                 .OnExit().Do(() => Assert.Equal(2, counter++));
 
-            var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(_state), new State<States>[0]));
+            var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(_state)));
 
             var state2 = new State<States>(States.State2);
             Assert.False(_state.HasChild(state2));
@@ -136,9 +134,7 @@ namespace WorkflowsCore.Tests
                 .SubstateOf(stateChild2)
                 .OnExit().Do(() => Assert.Equal(0, counter++));
 
-            var instance = SetWorkflowTemporarily(
-                Workflow,
-                () => _state.Run(CreateTransition(_state), new[] { stateChild2, stateChild2Child1 }));
+            var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(stateChild2Child1)));
 
             var state2 = new State<States>(States.State2);
             Assert.False(_state.HasChild(state2));
@@ -176,9 +172,7 @@ namespace WorkflowsCore.Tests
 
             Utilities.TimeProvider = new TestingTimeProvider();
 
-            var instance = SetWorkflowTemporarily(
-                Workflow,
-                () => _state.Run(CreateTransition(_state), new State<States>[0]));
+            var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(_state)));
 
             TestingTimeProvider.Current.SetCurrentTime(date);
 
@@ -209,7 +203,7 @@ namespace WorkflowsCore.Tests
 
             Utilities.TimeProvider = new TestingTimeProvider();
 
-            var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(_state), new State<States>[0]));
+            var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(_state)));
 
             await Workflow.ReadyTask;
 
