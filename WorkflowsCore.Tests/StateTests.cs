@@ -269,6 +269,96 @@ namespace WorkflowsCore.Tests
             await CancelWorkflowAsync();
         }
 
+        [Fact]
+        public async Task TargetStateCouldBeUpdatedToInnerByOnEnterHandlers()
+        {
+            StartWorkflow();
+
+            var childState = new State<States>(States.State1Child1).SubstateOf(_state);
+            _state.OnEnter().GoTo(childState);
+
+            var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(_state)));
+
+            await Workflow.ReadyTask;
+
+            Assert.Same(childState, instance.Child.State);
+
+            SetWorkflowTemporarily(Workflow, () => instance.InitiateTransitionTo(new State<States>(States.State2)));
+
+            await instance.Task;
+
+            await Workflow.StartedTask;
+            await CancelWorkflowAsync();
+        }
+
+        [Fact]
+        public async Task TargetStateCouldBeUpdatedToItselfByOnEnterHandlers()
+        {
+            StartWorkflow();
+
+            _state.OnEnter().GoTo(_state);
+
+            var childState = new State<States>(States.State1Child1).SubstateOf(_state);
+            var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(childState)));
+
+            await Workflow.ReadyTask;
+
+            Assert.Null(instance.Child);
+
+            SetWorkflowTemporarily(Workflow, () => instance.InitiateTransitionTo(new State<States>(States.State2)));
+
+            await instance.Task;
+
+            await Workflow.StartedTask;
+            await CancelWorkflowAsync();
+        }
+
+        [Fact]
+        public async Task TargetStateCouldBeUpdatedToSiblingByOnEnterHandlers()
+        {
+            StartWorkflow();
+
+            var counter = 0;
+            _state.OnExit().Do(() => ++counter);
+            var state2 = new State<States>(States.State2);
+            _state.OnEnter().GoTo(state2);
+
+            var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(_state)));
+
+            var transition = await instance.Task;
+
+            Assert.Same(state2, transition.State);
+            Assert.Equal(0, counter);
+
+            await Workflow.StartedTask;
+            await CancelWorkflowAsync();
+        }
+
+        [Fact]
+        public async Task TargetStateCouldBeUpdatedToOtherByOnExitHandlers()
+        {
+            StartWorkflow();
+
+            var childState = new State<States>(States.State1Child1).SubstateOf(_state);
+            _state.OnExit().GoTo(childState);
+
+            var counter = 0;
+            _state.OnExit().Do(() => ++counter);
+
+            var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(_state)));
+
+            await Workflow.ReadyTask;
+
+            SetWorkflowTemporarily(Workflow, () => instance.InitiateTransitionTo(new State<States>(States.State2)));
+
+            var transition = await instance.Task;
+            Assert.Same(childState, transition.State);
+            Assert.Equal(1, counter);
+
+            await Workflow.StartedTask;
+            await CancelWorkflowAsync();
+        }
+
         private StateTransition<States> CreateTransition(State<States> state)
         {
             Workflow.CreateOperation();

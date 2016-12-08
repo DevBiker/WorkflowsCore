@@ -157,8 +157,23 @@ namespace WorkflowsCore.StateMachines
                 foreach (var enterHandler in State._enterHandlers)
                 {
                     var newState = await enterHandler.ExecuteAsync();
+                    if (newState != null)
+                    {
+                        transition = new StateTransition<T>(newState, transition.WorkflowOperation);
+                        initialChildrenStates = transition.FindPathFrom(State);
+                        if (newState == State)
+                        {
+                            initialChildrenStates = new State<T>[0];
+                        }
+
+                        if (initialChildrenStates == null)
+                        {
+                            return transition;
+                        }
+                    }
                 }
 
+                // ReSharper disable once AccessToModifiedClosure
                 await Workflow.WaitForAny(
                     async () => transition = await HandleStateTransitions(transition, initialChildrenStates),
                     () => Workflow.Optional(ProcessOnAsyncs()));
@@ -166,6 +181,10 @@ namespace WorkflowsCore.StateMachines
                 foreach (var enterHandler in State._exitHandlers)
                 {
                     var newState = await enterHandler.ExecuteAsync();
+                    if (newState != null)
+                    {
+                        transition = new StateTransition<T>(newState, transition.WorkflowOperation);
+                    }
                 }
 
                 return transition;
