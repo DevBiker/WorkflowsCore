@@ -39,8 +39,6 @@ namespace WorkflowsCore.StateMachines
 
         public IReadOnlyCollection<State<T>> Children { get; }
 
-        public int Depth { get; private set; }
-
         public AsyncOperation<T> OnEnter(string description = null)
         {
             var asyncOperation = new AsyncOperation<T>(this, description);
@@ -136,8 +134,7 @@ namespace WorkflowsCore.StateMachines
 
             public StateInstance Child { get; private set; }
 
-            private TaskCompletionSource<StateTransition<T>> StateTransitionTaskCompletionSource { get; set; } =
-                new TaskCompletionSource<StateTransition<T>>();
+            private TaskCompletionSource<StateTransition<T>> StateTransitionTaskCompletionSource { get; set; }
 
             public void InitiateTransitionTo(State<T> state)
             {
@@ -190,6 +187,7 @@ namespace WorkflowsCore.StateMachines
                     }
                     else
                     {
+                        StateTransitionTaskCompletionSource = new TaskCompletionSource<StateTransition<T>>();
                         transition.WorkflowOperation.Dispose();
                         var task = await System.Threading.Tasks.Task.WhenAny(
                             Workflow.WaitForDate(DateTime.MaxValue),
