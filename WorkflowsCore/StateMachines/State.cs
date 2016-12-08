@@ -180,10 +180,13 @@ namespace WorkflowsCore.StateMachines
             {
                 do
                 {
+                    var isFromInner = false;
                     if (initialChildrenStates.Any())
                     {
                         Child = initialChildrenStates.First().Run(transition, initialChildrenStates.Skip(1).ToList());
                         transition = await Child.Task;
+                        isFromInner = true;
+                        Child = null;
                     }
                     else
                     {
@@ -204,6 +207,10 @@ namespace WorkflowsCore.StateMachines
                     }
 
                     initialChildrenStates = transition.FindPathFrom(State);
+                    if (isFromInner && transition.State == State)
+                    {
+                        initialChildrenStates = new State<T>[0];
+                    }
                 }
                 while (initialChildrenStates != null);
 

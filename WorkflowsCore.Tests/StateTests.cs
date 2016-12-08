@@ -240,6 +240,35 @@ namespace WorkflowsCore.Tests
             await CancelWorkflowAsync();
         }
 
+        [Fact]
+        public async Task TransitionFromInnerStateShouldNotExecuteExitHandlersForParentState()
+        {
+            StartWorkflow();
+
+            var counter = 0;
+            _state.OnExit().Do(() => ++counter);
+
+            var childState = new State<States>(States.State1Child1).SubstateOf(_state);
+
+            var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(childState)));
+
+            await Workflow.ReadyTask;
+
+            SetWorkflowTemporarily(Workflow, () => instance.InitiateTransitionTo(_state));
+
+            await Workflow.ReadyTask;
+
+            Assert.Null(instance.Child);
+            Assert.Equal(0, counter);
+
+            SetWorkflowTemporarily(Workflow, () => instance.InitiateTransitionTo(new State<States>(States.State2)));
+
+            await instance.Task;
+
+            await Workflow.StartedTask;
+            await CancelWorkflowAsync();
+        }
+
         private StateTransition<States> CreateTransition(State<States> state)
         {
             Workflow.CreateOperation();
