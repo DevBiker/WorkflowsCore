@@ -4,16 +4,16 @@
     {
         public StateId(TState state)
         {
+            IsHiddenState = false;
             Id = state;
             HiddenId = default(THiddenState);
-            IsHiddenState = false;
         }
 
         public StateId(THiddenState state)
         {
+            IsHiddenState = true;
             Id = default(TState);
             HiddenId = state;
-            IsHiddenState = true;
         }
 
         public bool IsHiddenState { get; }

@@ -225,7 +225,7 @@ namespace WorkflowsCore.StateMachines
                         StateTransitionTaskCompletionSource =
                             new TaskCompletionSource<StateTransition<TState, THiddenState>>();
 
-                        transition.WorkflowOperation.Dispose();
+                        transition.CompleteTransition();
                         var task = await System.Threading.Tasks.Task.WhenAny(
                             Workflow.WaitForDate(DateTime.MaxValue),
                             StateTransitionTaskCompletionSource.Task);

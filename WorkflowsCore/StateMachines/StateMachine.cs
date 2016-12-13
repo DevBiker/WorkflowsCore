@@ -40,7 +40,7 @@ namespace WorkflowsCore.StateMachines
 
         public Task Run(
             WorkflowBase workflow,
-            State<TState, THiddenState> initialState,
+            StateId<TState, THiddenState> initialState,
             bool isRestoringState,
             Action<State<TState, THiddenState>> onStateChangedHandler = null)
         {

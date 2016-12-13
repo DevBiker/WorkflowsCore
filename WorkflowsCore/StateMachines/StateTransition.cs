@@ -7,6 +7,8 @@ namespace WorkflowsCore.StateMachines
 {
     public class StateTransition<TState, THiddenState>
     {
+        private readonly IDisposable _workflowOperation;
+
         public StateTransition(
             State<TState, THiddenState> state,
             IDisposable workflowOperation,
@@ -19,27 +21,29 @@ namespace WorkflowsCore.StateMachines
             }
 
             State = state;
-            WorkflowOperation = workflowOperation;
+            _workflowOperation = workflowOperation;
             IsRestoringState = isRestoringState;
+            OnStateChangedHandler = onStateChangedHandler;
             Path = GetPath();
         }
 
         public StateTransition(State<TState, THiddenState> state, StateTransition<TState, THiddenState> transition)
-            : this(state, transition.WorkflowOperation, transition.IsRestoringState)
+            : this(state, transition._workflowOperation, transition.IsRestoringState, transition.OnStateChangedHandler)
         {
         }
 
         public State<TState, THiddenState> State { get; }
 
-        public IDisposable WorkflowOperation { get; }
-
         public IReadOnlyCollection<State<TState, THiddenState>> Path { get; }
 
         public bool IsRestoringState { get; }
 
+        public Action<State<TState, THiddenState>> OnStateChangedHandler { get; }
+
         public void CompleteTransition()
         {
-            throw new NotImplementedException();
+            OnStateChangedHandler?.Invoke(State);
+            _workflowOperation.Dispose();
         }
 
         public IList<State<TState, THiddenState>> FindPathFrom(State<TState, THiddenState> parentState)

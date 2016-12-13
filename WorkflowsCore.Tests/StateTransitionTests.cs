@@ -70,11 +70,42 @@ namespace WorkflowsCore.Tests
             Assert.Null(transition.FindPathFrom(state));
         }
 
+        [Fact]
+        public void CompleteTransitionShouldInvokeCallbackAndDisposeOperation()
+        {
+            var state = CreateState(States.State1);
+
+            var workflowOperation = new Disposable(true);
+            State<States, string> newState = null;
+            var transition = new StateTransition<States, string>(
+                state,
+                workflowOperation,
+                onStateChangedHandler: s => newState = s);
+            transition.CompleteTransition();
+
+            Assert.True(workflowOperation.DisposeCalled);
+            Assert.Same(state, newState);
+        }
+
         private sealed class Disposable : IDisposable
         {
+            private readonly bool _allowDispose;
+
+            public Disposable(bool allowDispose = false)
+            {
+                _allowDispose = allowDispose;
+            }
+
+            public bool DisposeCalled { get; private set; }
+
             public void Dispose()
             {
-                throw new NotImplementedException();
+                if (!_allowDispose)
+                {
+                    throw new NotImplementedException();
+                }
+
+                DisposeCalled = true;
             }
         }
     }
