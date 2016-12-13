@@ -3,17 +3,17 @@ using System.Threading.Tasks;
 
 namespace WorkflowsCore.StateMachines
 {
-    public class BaseAsyncOperation<TState, TData>
+    public class BaseAsyncOperation<TState, THiddenState, TData>
     {
         private AsyncOperationHandler _handler;
 
-        public BaseAsyncOperation(State<TState> parent, string description)
+        public BaseAsyncOperation(State<TState, THiddenState> parent, string description)
         {
             Parent = parent;
             Description = description;
         }
 
-        public State<TState> Parent { get; }
+        public State<TState, THiddenState> Parent { get; }
 
         public string Description { get; }
 
@@ -35,28 +35,23 @@ namespace WorkflowsCore.StateMachines
             }
         }
 
-        public AsyncOperation<TState, TR> Middleware<TR>(Func<Task<TR>> taskFactory)
+        public AsyncOperation<TState, THiddenState, TR> Middleware<TR>(Func<Task<TR>> taskFactory)
         {
             throw new NotImplementedException();
         }
 
-        public State<TState> GoTo(TState state)
+        public State<TState, THiddenState> GoTo(StateId<TState, THiddenState> state)
         {
             throw new NotImplementedException();
         }
 
-        public State<TState> GoTo(string hiddenStateName)
-        {
-            throw new NotImplementedException();
-        }
-
-        public State<TState> GoTo(State<TState> state)
+        public State<TState, THiddenState> GoTo(State<TState, THiddenState> state)
         {
             Handler = new GoToHandler(state);
             return Parent;
         }
 
-        public State<TState> Do(Action action)
+        public State<TState, THiddenState> Do(Action action)
         {
             return Do(
                 () =>
@@ -66,7 +61,7 @@ namespace WorkflowsCore.StateMachines
                 });
         }
 
-        public State<TState> Do(Func<Task> taskFactory)
+        public State<TState, THiddenState> Do(Func<Task> taskFactory)
         {
             Handler = new DoHandler(taskFactory);
             return Parent;
@@ -74,9 +69,9 @@ namespace WorkflowsCore.StateMachines
 
         protected abstract class AsyncOperationHandler
         {
-            public abstract Task<State<TState>> ExecuteAsync();
+            public abstract Task<State<TState, THiddenState>> ExecuteAsync();
 
-            public virtual Task<State<TState>> ExecuteAsync(TData data) => ExecuteAsync();
+            public virtual Task<State<TState, THiddenState>> ExecuteAsync(TData data) => ExecuteAsync();
         }
 
         private class DoHandler : AsyncOperationHandler
@@ -88,7 +83,7 @@ namespace WorkflowsCore.StateMachines
                 _taskFactory = taskFactory;
             }
 
-            public override async Task<State<TState>> ExecuteAsync()
+            public override async Task<State<TState, THiddenState>> ExecuteAsync()
             {
                 await _taskFactory();
                 return null;
@@ -97,14 +92,14 @@ namespace WorkflowsCore.StateMachines
 
         private class GoToHandler : AsyncOperationHandler
         {
-            private readonly State<TState> _newState;
+            private readonly State<TState, THiddenState> _newState;
 
-            public GoToHandler(State<TState> newState)
+            public GoToHandler(State<TState, THiddenState> newState)
             {
                 _newState = newState;
             }
 
-            public override Task<State<TState>> ExecuteAsync() => Task.FromResult(_newState);
+            public override Task<State<TState, THiddenState>> ExecuteAsync() => Task.FromResult(_newState);
         }
     }
 
@@ -112,102 +107,104 @@ namespace WorkflowsCore.StateMachines
     {
     }
 
-    public class AsyncOperation<TState> : BaseAsyncOperation<TState, AsyncOperationVoidData>
+    public class AsyncOperation<TState, THiddenState> : BaseAsyncOperation<TState, THiddenState, AsyncOperationVoidData>
     {
-        public AsyncOperation(State<TState> parent, string description) 
+        public AsyncOperation(State<TState, THiddenState> parent, string description)
             : base(parent, description)
         {
         }
 
-        public AsyncOperation<TState> Middleware(Func<Task> taskFactory)
+        public AsyncOperation<TState, THiddenState> Middleware(Func<Task> taskFactory)
         {
             throw new NotImplementedException();
         }
 
-        public AsyncOperation<TState> If(Func<Task<bool>> taskFactory, string description = null)
+        public AsyncOperation<TState, THiddenState> If(Func<Task<bool>> taskFactory, string description = null)
         {
             throw new NotImplementedException();
         }
 
-        public AsyncOperation<TState> IfThenGoTo(
+        public AsyncOperation<TState, THiddenState> IfThenGoTo(
             Func<Task<bool>> taskFactory,
-            TState state,
+            StateId<TState, THiddenState> state,
             string description = null)
         {
             throw new NotImplementedException();
         }
 
-        public AsyncOperation<TState> IfThenGoTo(
+        public AsyncOperation<TState, THiddenState> IfThenGoTo(
             Func<Task<bool>> taskFactory,
-            State<TState> state,
+            State<TState, THiddenState> state,
             string description = null)
         {
             throw new NotImplementedException();
         }
 
-        public Task<State<TState>> ExecuteAsync() => Handler.ExecuteAsync();
+        public Task<State<TState, THiddenState>> ExecuteAsync() => Handler.ExecuteAsync();
     }
 
-    public class AsyncOperation<TState, TData> : BaseAsyncOperation<TState, TData>
+    public class AsyncOperation<TState, THiddenState, TData> : BaseAsyncOperation<TState, THiddenState, TData>
     {
-        public AsyncOperation(State<TState> parent, string description) 
+        public AsyncOperation(State<TState, THiddenState> parent, string description)
             : base(parent, description)
         {
         }
 
-        public AsyncOperation<TState, TR> Middleware<TR>(Func<TData, Task<TR>> taskFactory)
+        public AsyncOperation<TState, THiddenState, TR> Middleware<TR>(Func<TData, Task<TR>> taskFactory)
         {
             throw new NotImplementedException();
         }
 
-        public AsyncOperation<TState, TData> Middleware(Func<Task> taskFactory)
+        public AsyncOperation<TState, THiddenState, TData> Middleware(Func<Task> taskFactory)
         {
             throw new NotImplementedException();
         }
 
-        public AsyncOperation<TState, TData> If(Func<TData, Task<bool>> taskFactory, string description = null)
-        {
-            throw new NotImplementedException();
-        }
-
-        public AsyncOperation<TState, TData> If(Func<Task<bool>> taskFactory, string description = null)
-        {
-            throw new NotImplementedException();
-        }
-
-        public AsyncOperation<TState, TData> IfThenGoTo(
+        public AsyncOperation<TState, THiddenState, TData> If(
             Func<TData, Task<bool>> taskFactory,
-            TState state,
             string description = null)
         {
             throw new NotImplementedException();
         }
 
-        public AsyncOperation<TState, TData> IfThenGoTo(
-            Func<Task<bool>> taskFactory,
-            TState state,
-            string description = null)
+        public AsyncOperation<TState, THiddenState, TData> If(Func<Task<bool>> taskFactory, string description = null)
         {
             throw new NotImplementedException();
         }
 
-        public AsyncOperation<TState, TData> IfThenGoTo(
+        public AsyncOperation<TState, THiddenState, TData> IfThenGoTo(
             Func<TData, Task<bool>> taskFactory,
-            State<TState> state,
+            StateId<TState, THiddenState> state,
             string description = null)
         {
             throw new NotImplementedException();
         }
 
-        public AsyncOperation<TState, TData> IfThenGoTo(
+        public AsyncOperation<TState, THiddenState, TData> IfThenGoTo(
             Func<Task<bool>> taskFactory,
-            State<TState> state,
+            StateId<TState, THiddenState> state,
             string description = null)
         {
             throw new NotImplementedException();
         }
 
-        public State<TState> Do(Action<TData> action)
+        public AsyncOperation<TState, THiddenState, TData> IfThenGoTo(
+            Func<TData, Task<bool>> taskFactory,
+            State<TState, THiddenState> state,
+            string description = null)
+        {
+            throw new NotImplementedException();
+        }
+
+        public AsyncOperation<TState, THiddenState, TData> IfThenGoTo(
+            Func<Task<bool>> taskFactory,
+            State<TState, THiddenState> state,
+            string description = null)
+        {
+            throw new NotImplementedException();
+        }
+
+        public State<TState, THiddenState> Do(Action<TData> action)
         {
             return Do(
                 data =>
@@ -217,13 +214,13 @@ namespace WorkflowsCore.StateMachines
                 });
         }
 
-        public State<TState> Do(Func<TData, Task> taskFactory)
+        public State<TState, THiddenState> Do(Func<TData, Task> taskFactory)
         {
             Handler = new DoHandlerWithData(taskFactory);
             return Parent;
         }
 
-        public Task<State<TState>> ExecuteAsync(TData data) => Handler.ExecuteAsync(data);
+        public Task<State<TState, THiddenState>> ExecuteAsync(TData data) => Handler.ExecuteAsync(data);
 
         private class DoHandlerWithData : AsyncOperationHandler
         {
@@ -234,12 +231,12 @@ namespace WorkflowsCore.StateMachines
                 _taskFactory = taskFactory;
             }
 
-            public override Task<State<TState>> ExecuteAsync()
+            public override Task<State<TState, THiddenState>> ExecuteAsync()
             {
                 throw new NotImplementedException();
             }
 
-            public override async Task<State<TState>> ExecuteAsync(TData data)
+            public override async Task<State<TState, THiddenState>> ExecuteAsync(TData data)
             {
                 await _taskFactory(data);
                 return null;

@@ -15,13 +15,13 @@ namespace WorkflowsCore.Tests
 
         public class AsyncOperationWithoutDataTests : BaseStateTest<States>
         {
-            private readonly AsyncOperation<States> _asyncOperation;
-            private readonly State<States> _parent;
+            private readonly AsyncOperation<States, string> _asyncOperation;
+            private readonly State<States, string> _parent;
 
             public AsyncOperationWithoutDataTests()
             {
                 _parent = CreateState(States.None);
-                _asyncOperation = new AsyncOperation<States>(_parent, "Test description");
+                _asyncOperation = new AsyncOperation<States, string>(_parent, "Test description");
             }
 
             [Fact]
@@ -66,13 +66,13 @@ namespace WorkflowsCore.Tests
 
         public class AsyncOperationWithDataTests : BaseStateTest<States>
         {
-            private readonly AsyncOperation<States, int> _asyncOperation;
-            private readonly State<States> _parent;
+            private readonly AsyncOperation<States, string, int> _asyncOperation;
+            private readonly State<States, string> _parent;
 
             public AsyncOperationWithDataTests()
             {
                 _parent = CreateState(States.None);
-                _asyncOperation = new AsyncOperation<States, int>(_parent, "Test description");
+                _asyncOperation = new AsyncOperation<States, string, int>(_parent, "Test description");
             }
 
             [Fact]

@@ -5,13 +5,13 @@ using System.Linq;
 
 namespace WorkflowsCore.StateMachines
 {
-    public class StateTransition<T>
+    public class StateTransition<TState, THiddenState>
     {
         public StateTransition(
-            State<T> state,
+            State<TState, THiddenState> state,
             IDisposable workflowOperation,
             bool isRestoringState = false,
-            Action<State<T>> onStateChangedHandler = null)
+            Action<State<TState, THiddenState>> onStateChangedHandler = null)
         {
             if (workflowOperation == null)
             {
@@ -24,16 +24,16 @@ namespace WorkflowsCore.StateMachines
             Path = GetPath();
         }
 
-        public StateTransition(State<T> state, StateTransition<T> transition)
+        public StateTransition(State<TState, THiddenState> state, StateTransition<TState, THiddenState> transition)
             : this(state, transition.WorkflowOperation, transition.IsRestoringState)
         {
         }
 
-        public State<T> State { get; }
+        public State<TState, THiddenState> State { get; }
 
         public IDisposable WorkflowOperation { get; }
 
-        public IReadOnlyCollection<State<T>> Path { get; }
+        public IReadOnlyCollection<State<TState, THiddenState>> Path { get; }
 
         public bool IsRestoringState { get; }
 
@@ -42,15 +42,15 @@ namespace WorkflowsCore.StateMachines
             throw new NotImplementedException();
         }
 
-        public IList<State<T>> FindPathFrom(State<T> parentState)
+        public IList<State<TState, THiddenState>> FindPathFrom(State<TState, THiddenState> parentState)
         {
             var res = Path.SkipWhile(s => s != parentState).Skip(1).ToList();
             return res.Any() ? res : null;
-        } 
+        }
 
-        private IReadOnlyCollection<State<T>> GetPath()
+        private IReadOnlyCollection<State<TState, THiddenState>> GetPath()
         {
-            var path = new List<State<T>>();
+            var path = new List<State<TState, THiddenState>>();
             var cur = State;
             do
             {
@@ -60,7 +60,7 @@ namespace WorkflowsCore.StateMachines
             while (cur != null);
 
             path.Reverse();
-            return new ReadOnlyCollection<State<T>>(path);
+            return new ReadOnlyCollection<State<TState, THiddenState>>(path);
         }
     }
 }

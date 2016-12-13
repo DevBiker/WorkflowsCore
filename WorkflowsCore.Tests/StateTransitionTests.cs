@@ -26,9 +26,9 @@ namespace WorkflowsCore.Tests
             var stateChild1Child1 = CreateState(States.State1Child1Child1)
                 .SubstateOf(stateChild1);
 
-            var trasition = new StateTransition<States>(stateChild1Child1, new Disposable());
+            var transition = new StateTransition<States, string>(stateChild1Child1, new Disposable());
 
-            Assert.Equal(new[] { state, stateChild1, stateChild1Child1 }, trasition.Path.ToArray());
+            Assert.Equal(new[] { state, stateChild1, stateChild1Child1 }, transition.Path.ToArray());
         }
 
         [Fact]
@@ -42,9 +42,9 @@ namespace WorkflowsCore.Tests
             var stateChild1Child1 = CreateState(States.State1Child1Child1)
                 .SubstateOf(stateChild1);
 
-            var trasition = new StateTransition<States>(stateChild1Child1, new Disposable());
+            var transition = new StateTransition<States, string>(stateChild1Child1, new Disposable());
 
-            Assert.Equal(new[] { stateChild1Child1 }, trasition.FindPathFrom(stateChild1).ToArray());
+            Assert.Equal(new[] { stateChild1Child1 }, transition.FindPathFrom(stateChild1).ToArray());
         }
 
         [Fact]
@@ -55,7 +55,7 @@ namespace WorkflowsCore.Tests
             var stateChild1 = CreateState(States.State1Child1)
                 .SubstateOf(state);
 
-            var transition = new StateTransition<States>(stateChild1, new Disposable());
+            var transition = new StateTransition<States, string>(stateChild1, new Disposable());
 
             Assert.Null(transition.FindPathFrom(CreateState(States.State2)));
         }
@@ -65,7 +65,7 @@ namespace WorkflowsCore.Tests
         {
             var state = CreateState(States.State1);
 
-            var transition = new StateTransition<States>(state, new Disposable());
+            var transition = new StateTransition<States, string>(state, new Disposable());
 
             Assert.Null(transition.FindPathFrom(state));
         }

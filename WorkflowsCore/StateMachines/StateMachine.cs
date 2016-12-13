@@ -4,44 +4,51 @@ using System.Threading.Tasks;
 
 namespace WorkflowsCore.StateMachines
 {
-    public class StateMachine<T>
+    public class StateMachine<TState, THiddenState>
     {
-        private readonly IDictionary<T, State<T>> _states = new Dictionary<T, State<T>>();
-        private readonly IDictionary<string, State<T>> _hiddenStates = new Dictionary<string, State<T>>();
+        private readonly IDictionary<TState, State<TState, THiddenState>> _states =
+            new Dictionary<TState, State<TState, THiddenState>>();
 
-        public State<T> ConfigureState(T state)
+        private readonly IDictionary<THiddenState, State<TState, THiddenState>> _hiddenStates =
+            new Dictionary<THiddenState, State<TState, THiddenState>>();
+
+        public State<TState, THiddenState> ConfigureState(TState state)
         {
-            State<T> stateObj;
+            State<TState, THiddenState> stateObj;
             if (_states.TryGetValue(state, out stateObj))
             {
                 return stateObj;
             }
 
-            stateObj = new State<T>(this, state);
+            stateObj = new State<TState, THiddenState>(this, state);
             _states.Add(state, stateObj);
             return stateObj;
         }
 
-        public State<T> ConfigureHiddenState(string name)
+        public State<TState, THiddenState> ConfigureHiddenState(THiddenState state)
         {
-            State<T> stateObj;
-            if (_hiddenStates.TryGetValue(name, out stateObj))
+            State<TState, THiddenState> stateObj;
+            if (_hiddenStates.TryGetValue(state, out stateObj))
             {
                 return stateObj;
             }
 
-            stateObj = new State<T>(this, name);
-            _hiddenStates.Add(name, stateObj);
+            stateObj = new State<TState, THiddenState>(this, state);
+            _hiddenStates.Add(state, stateObj);
             return stateObj;
         }
 
         public Task Run(
             WorkflowBase workflow,
-            State<T> initialState,
+            State<TState, THiddenState> initialState,
             bool isRestoringState,
-            Action<State<T>> onStateChangedHandler = null)
+            Action<State<TState, THiddenState>> onStateChangedHandler = null)
         {
             throw new NotImplementedException();
         }
+    }
+
+    public class StateMachine<TState> : StateMachine<TState, string>
+    {
     }
 }

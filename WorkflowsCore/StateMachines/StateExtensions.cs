@@ -43,32 +43,32 @@ namespace WorkflowsCore.StateMachines
             }
         }
 
-        public static AsyncOperation<T, DateTime> OnDate<T>(
-            this State<T> state,
+        public static AsyncOperation<TState, THiddenState, DateTime> OnDate<TState, THiddenState>(
+            this State<TState, THiddenState> state,
             Func<Task<DateTime>> dateTaskFactory,
             string description = null)
         {
             throw new NotImplementedException();
         }
 
-        public static AsyncOperation<T, DateTime> OnDate<T>(
-            this State<T> state,
+        public static AsyncOperation<TState, DateTime> OnDate<TState, THiddenState>(
+            this State<TState, THiddenState> state,
             Func<DateTime> dateFactory,
             string description = null)
         {
             throw new NotImplementedException();
         }
 
-        public static AsyncOperation<T, NamedValues> OnAction<T>(
-            this State<T> state,
+        public static AsyncOperation<TState, NamedValues> OnAction<TState, THiddenState>(
+            this State<TState, THiddenState> state,
             string action,
             string description = null)
         {
             throw new NotImplementedException();
         }
 
-        public static AsyncOperation<T> OnActionWithWasExecutedCheck<T>(
-            this State<T> state,
+        public static AsyncOperation<TState, THiddenState> OnActionWithWasExecutedCheck<TState, THiddenState>(
+            this State<TState, THiddenState> state,
             string action,
             string description = null)
         {

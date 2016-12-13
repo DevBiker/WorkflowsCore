@@ -11,7 +11,7 @@ namespace WorkflowsCore.Tests
     public class StateTests : BaseWorkflowTest<StateTests.TestWorkflow>
     {
         private readonly BaseStateTest<States> _baseStateTest = new BaseStateTest<States>(); 
-        private readonly State<States> _state;
+        private readonly State<States, string> _state;
 
         public StateTests()
         {
@@ -384,12 +384,12 @@ namespace WorkflowsCore.Tests
             await CancelWorkflowAsync();
         }
 
-        private State<States> CreateState(States state) => _baseStateTest.CreateState(state);
+        private State<States, string> CreateState(States state) => _baseStateTest.CreateState(state);
 
-        private StateTransition<States> CreateTransition(State<States> state, bool isRestoring = false)
+        private StateTransition<States, string> CreateTransition(State<States, string> state, bool isRestoring = false)
         {
             Workflow.CreateOperation();
-            return new StateTransition<States>(state, Workflow.TryStartOperation(), isRestoring);
+            return new StateTransition<States, string>(state, Workflow.TryStartOperation(), isRestoring);
         }
 
         public class TestWorkflow : WorkflowBase

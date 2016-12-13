@@ -8,28 +8,25 @@ using static WorkflowsCore.StateMachines.StateExtensions;
 
 namespace WorkflowsCore.StateMachines
 {
-    public class State<T>
+    public class State<TState, THiddenState>
     {
-        private readonly IList<AsyncOperation<T>> _enterHandlers = new List<AsyncOperation<T>>();
-        private readonly IList<AsyncOperation<T>> _activationHandlers = new List<AsyncOperation<T>>();
-        private readonly IList<AsyncOperation<T>> _exitHandlers = new List<AsyncOperation<T>>();
+        private readonly IList<AsyncOperation<TState, THiddenState>> _enterHandlers =
+            new List<AsyncOperation<TState, THiddenState>>();
+
+        private readonly IList<AsyncOperation<TState, THiddenState>> _activationHandlers =
+            new List<AsyncOperation<TState, THiddenState>>();
+
+        private readonly IList<AsyncOperation<TState, THiddenState>> _exitHandlers =
+            new List<AsyncOperation<TState, THiddenState>>();
+
         private readonly IList<IAsyncOperationWrapper> _onAsyncHandlers = new List<IAsyncOperationWrapper>();
-        private readonly IList<State<T>> _children = new List<State<T>>();
+        private readonly IList<State<TState, THiddenState>> _children = new List<State<TState, THiddenState>>();
 
-        internal State(StateMachine<T> stateMachine, T state) 
-            : this(stateMachine)
-        {
-        }
-
-        internal State(StateMachine<T> stateMachine, string hiddenStateName) 
-            : this(stateMachine)
-        {
-        }
-
-        private State(StateMachine<T> stateMachine)
+        internal State(StateMachine<TState, THiddenState> stateMachine, StateId<TState, THiddenState> stateId)
         {
             StateMachine = stateMachine;
-            Children = new ReadOnlyCollection<State<T>>(_children);
+            StateId = stateId;
+            Children = new ReadOnlyCollection<State<TState, THiddenState>>(_children);
         }
 
         private interface IAsyncOperationWrapper
@@ -37,79 +34,86 @@ namespace WorkflowsCore.StateMachines
             Task WaitAndHandle(StateInstance instance);
         }
 
-        public StateMachine<T> StateMachine { get; } 
+        public StateMachine<TState, THiddenState> StateMachine { get; }
 
-        public State<T> Parent { get; private set; }
+        public StateId<TState, THiddenState> StateId { get; }
 
-        public IReadOnlyCollection<State<T>> Children { get; }
+        public State<TState, THiddenState> Parent { get; private set; }
 
-        public AsyncOperation<T> OnEnter(string description = null)
+        public IReadOnlyCollection<State<TState, THiddenState>> Children { get; }
+
+        public AsyncOperation<TState, THiddenState> OnEnter(string description = null)
         {
-            var asyncOperation = new AsyncOperation<T>(this, description);
+            var asyncOperation = new AsyncOperation<TState, THiddenState>(this, description);
             _enterHandlers.Add(asyncOperation);
             return asyncOperation;
         }
 
-        public AsyncOperation<T> OnActivate(string description = null)
+        public AsyncOperation<TState, THiddenState> OnActivate(string description = null)
         {
-            var asyncOperation = new AsyncOperation<T>(this, description);
+            var asyncOperation = new AsyncOperation<TState, THiddenState>(this, description);
             _activationHandlers.Add(asyncOperation);
             return asyncOperation;
         }
 
-        public AsyncOperation<T, TR> OnAsync<TR>(Func<Task<TR>> taskFactory, string description = null)
+        public AsyncOperation<TState, THiddenState, TR> OnAsync<TR>(
+            Func<Task<TR>> taskFactory,
+            string description = null)
         {
-            var asyncOperation = new AsyncOperation<T, TR>(this, description);
+            var asyncOperation = new AsyncOperation<TState, THiddenState, TR>(this, description);
             _onAsyncHandlers.Add(new AsyncOperationWrapper<TR>(taskFactory, asyncOperation));
             return asyncOperation;
         }
 
-        public AsyncOperation<T> OnAsync(Func<Task> taskFactory, string description = null)
+        public AsyncOperation<TState, THiddenState> OnAsync(Func<Task> taskFactory, string description = null)
         {
-            var asyncOperation = new AsyncOperation<T>(this, description);
+            var asyncOperation = new AsyncOperation<TState, THiddenState>(this, description);
             _onAsyncHandlers.Add(new AsyncOperationWrapper(taskFactory, asyncOperation));
             return asyncOperation;
         }
 
-        public AsyncOperation<T> OnExit(string description = null)
+        public AsyncOperation<TState, THiddenState> OnExit(string description = null)
         {
-            var asyncOperation = new AsyncOperation<T>(this, description);
+            var asyncOperation = new AsyncOperation<TState, THiddenState>(this, description);
             _exitHandlers.Add(asyncOperation);
             return asyncOperation;
         }
 
-        public State<T> SubstateOf(T state)
+        public State<TState, THiddenState> SubstateOf(TState state)
         {
             throw new NotImplementedException();
         }
 
-        public State<T> SubstateOf(State<T> state)
+        public State<TState, THiddenState> SubstateOf(State<TState, THiddenState> state)
         {
             state.AddChild(this);
             return this;
         }
 
-        public State<T> AllowActions(params string[] actions)
+        public State<TState, THiddenState> AllowActions(params string[] actions)
         {
             throw new NotImplementedException();
         }
 
-        public State<T> DisallowActions(params string[] actions)
+        public State<TState, THiddenState> DisallowActions(params string[] actions)
         {
             throw new NotImplementedException();
         }
 
-        public State<T> Description(string description)
+        public State<TState, THiddenState> Description(string description)
         {
             throw new NotImplementedException();
         }
 
-        public StateInstance Run(StateTransition<T> transition) => new StateInstance(this, transition);
+        public StateInstance Run(StateTransition<TState, THiddenState> transition) => 
+            new StateInstance(this, transition);
 
-        private StateInstance Run(StateTransition<T> transition, IList<State<T>> initialChildrenStates) => 
-            new StateInstance(this, transition, initialChildrenStates);
+        private StateInstance Run(
+            StateTransition<TState, THiddenState> transition,
+            IList<State<TState, THiddenState>> initialChildrenStates) =>
+                new StateInstance(this, transition, initialChildrenStates);
 
-        private void AddChild(State<T> state)
+        private void AddChild(State<TState, THiddenState> state)
         {
             state.Parent = this;
             _children.Add(state);
@@ -117,7 +121,7 @@ namespace WorkflowsCore.StateMachines
 
         public class StateInstance
         {
-            internal StateInstance(State<T> state, StateTransition<T> transition)
+            internal StateInstance(State<TState, THiddenState> state, StateTransition<TState, THiddenState> transition)
             {
                 if (transition.Path.First() != state)
                 {
@@ -128,21 +132,25 @@ namespace WorkflowsCore.StateMachines
                 Task = Run(transition, transition.Path.Skip(1).ToList());
             }
 
-            internal StateInstance(State<T> state, StateTransition<T> transition, IList<State<T>> initialChildrenStates)
+            internal StateInstance(
+                State<TState, THiddenState> state,
+                StateTransition<TState, THiddenState> transition,
+                IList<State<TState, THiddenState>> initialChildrenStates)
             {
                 State = state;
                 Task = Run(transition, initialChildrenStates);
             }
 
-            public State<T> State { get; }
+            public State<TState, THiddenState> State { get; }
 
-            public Task<StateTransition<T>> Task { get; }
+            public Task<StateTransition<TState, THiddenState>> Task { get; }
 
             public StateInstance Child { get; private set; }
 
-            private TaskCompletionSource<StateTransition<T>> StateTransitionTaskCompletionSource { get; set; }
+            private TaskCompletionSource<StateTransition<TState, THiddenState>> 
+                StateTransitionTaskCompletionSource { get; set; }
 
-            public void InitiateTransitionTo(State<T> state)
+            public void InitiateTransitionTo(State<TState, THiddenState> state)
             {
                 if (Child != null)
                 {
@@ -152,13 +160,14 @@ namespace WorkflowsCore.StateMachines
                 {
                     Workflow.CreateOperation();
                     var operation = Workflow.TryStartOperation();
-                    StateTransitionTaskCompletionSource.SetResult(new StateTransition<T>(state, operation));
+                    StateTransitionTaskCompletionSource.SetResult(
+                        new StateTransition<TState, THiddenState>(state, operation));
                 }
             }
 
-            private async Task<StateTransition<T>> Run(
-                StateTransition<T> transition,
-                IList<State<T>> initialChildrenStates)
+            private async Task<StateTransition<TState, THiddenState>> Run(
+                StateTransition<TState, THiddenState> transition,
+                IList<State<TState, THiddenState>> initialChildrenStates)
             {
                 var handlers = !transition.IsRestoringState ? State._enterHandlers : State._activationHandlers;
                 foreach (var enterHandler in handlers)
@@ -166,11 +175,11 @@ namespace WorkflowsCore.StateMachines
                     var newState = await enterHandler.ExecuteAsync();
                     if (newState != null)
                     {
-                        transition = new StateTransition<T>(newState, transition);
+                        transition = new StateTransition<TState, THiddenState>(newState, transition);
                         initialChildrenStates = transition.FindPathFrom(State);
                         if (newState == State)
                         {
-                            initialChildrenStates = new State<T>[0];
+                            initialChildrenStates = new State<TState, THiddenState>[0];
                         }
 
                         if (initialChildrenStates == null)
@@ -190,16 +199,16 @@ namespace WorkflowsCore.StateMachines
                     var newState = await enterHandler.ExecuteAsync();
                     if (newState != null)
                     {
-                        transition = new StateTransition<T>(newState, transition);
+                        transition = new StateTransition<TState, THiddenState>(newState, transition);
                     }
                 }
 
                 return transition;
             }
 
-            private async Task<StateTransition<T>> HandleStateTransitions(
-                StateTransition<T> transition,
-                IList<State<T>> initialChildrenStates)
+            private async Task<StateTransition<TState, THiddenState>> HandleStateTransitions(
+                StateTransition<TState, THiddenState> transition,
+                IList<State<TState, THiddenState>> initialChildrenStates)
             {
                 do
                 {
@@ -213,7 +222,9 @@ namespace WorkflowsCore.StateMachines
                     }
                     else
                     {
-                        StateTransitionTaskCompletionSource = new TaskCompletionSource<StateTransition<T>>();
+                        StateTransitionTaskCompletionSource =
+                            new TaskCompletionSource<StateTransition<TState, THiddenState>>();
+
                         transition.WorkflowOperation.Dispose();
                         var task = await System.Threading.Tasks.Task.WhenAny(
                             Workflow.WaitForDate(DateTime.MaxValue),
@@ -233,7 +244,7 @@ namespace WorkflowsCore.StateMachines
                     initialChildrenStates = transition.FindPathFrom(State);
                     if (isFromInner && transition.State == State)
                     {
-                        initialChildrenStates = new State<T>[0];
+                        initialChildrenStates = new State<TState, THiddenState>[0];
                     }
                 }
                 while (initialChildrenStates != null);
@@ -251,9 +262,9 @@ namespace WorkflowsCore.StateMachines
         private class AsyncOperationWrapper : IAsyncOperationWrapper
         {
             private readonly Func<Task> _taskFactory;
-            private readonly AsyncOperation<T> _operation;
+            private readonly AsyncOperation<TState, THiddenState> _operation;
 
-            public AsyncOperationWrapper(Func<Task> taskFactory, AsyncOperation<T> operation)
+            public AsyncOperationWrapper(Func<Task> taskFactory, AsyncOperation<TState, THiddenState> operation)
             {
                 _taskFactory = taskFactory;
                 _operation = operation;
@@ -282,9 +293,9 @@ namespace WorkflowsCore.StateMachines
         private class AsyncOperationWrapper<TR> : IAsyncOperationWrapper
         {
             private readonly Func<Task<TR>> _taskFactory;
-            private readonly AsyncOperation<T, TR> _operation;
+            private readonly AsyncOperation<TState, THiddenState, TR> _operation;
 
-            public AsyncOperationWrapper(Func<Task<TR>> taskFactory, AsyncOperation<T, TR> operation)
+            public AsyncOperationWrapper(Func<Task<TR>> taskFactory, AsyncOperation<TState, THiddenState, TR> operation)
             {
                 _taskFactory = taskFactory;
                 _operation = operation;
