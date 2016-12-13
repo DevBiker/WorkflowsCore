@@ -111,6 +111,7 @@ namespace WorkflowsCore.Tests
             await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name1, _src.Workflow);
             await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name2, _dst.Workflow);
 
+            await _src.Workflow.StartedTask;
             await _workflowsCoordinator.CancelWorkflowAsync(WorkflowNames.Name1);
             await tcs.Task.WaitWithTimeout(100);
 

@@ -45,6 +45,11 @@ namespace WorkflowsCore.StateMachines
             throw new NotImplementedException();
         }
 
+        public State<TState> GoTo(string hiddenStateName)
+        {
+            throw new NotImplementedException();
+        }
+
         public State<TState> GoTo(State<TState> state)
         {
             Handler = new GoToHandler(state);

@@ -16,18 +16,19 @@ namespace WorkflowsCore.StateMachines
         private readonly IList<IAsyncOperationWrapper> _onAsyncHandlers = new List<IAsyncOperationWrapper>();
         private readonly IList<State<T>> _children = new List<State<T>>();
 
-        public State(T state) 
-            : this()
+        internal State(StateMachine<T> stateMachine, T state) 
+            : this(stateMachine)
         {
         }
 
-        public State(string hiddenStateName) 
-            : this()
+        internal State(StateMachine<T> stateMachine, string hiddenStateName) 
+            : this(stateMachine)
         {
         }
 
-        private State()
+        private State(StateMachine<T> stateMachine)
         {
+            StateMachine = stateMachine;
             Children = new ReadOnlyCollection<State<T>>(_children);
         }
 
@@ -35,6 +36,8 @@ namespace WorkflowsCore.StateMachines
         {
             Task WaitAndHandle(StateInstance instance);
         }
+
+        public StateMachine<T> StateMachine { get; } 
 
         public State<T> Parent { get; private set; }
 

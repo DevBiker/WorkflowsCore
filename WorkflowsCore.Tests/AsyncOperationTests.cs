@@ -13,14 +13,14 @@ namespace WorkflowsCore.Tests
             State1
         }
 
-        public class AsyncOperationWithoutDataTests
+        public class AsyncOperationWithoutDataTests : BaseStateTest<States>
         {
             private readonly AsyncOperation<States> _asyncOperation;
             private readonly State<States> _parent;
 
             public AsyncOperationWithoutDataTests()
             {
-                _parent = new State<States>(States.None);
+                _parent = CreateState(States.None);
                 _asyncOperation = new AsyncOperation<States>(_parent, "Test description");
             }
 
@@ -54,7 +54,7 @@ namespace WorkflowsCore.Tests
             [Fact]
             public async Task GoToShouldReturnNewStateWhenAsyncOperationIsExecuted()
             {
-                var newState = new State<States>(States.State1);
+                var newState = CreateState(States.State1);
                 var state = _asyncOperation.GoTo(newState);
 
                 var res = await _asyncOperation.ExecuteAsync();
@@ -64,14 +64,14 @@ namespace WorkflowsCore.Tests
             }
         }
 
-        public class AsyncOperationWithDataTests
+        public class AsyncOperationWithDataTests : BaseStateTest<States>
         {
             private readonly AsyncOperation<States, int> _asyncOperation;
             private readonly State<States> _parent;
 
             public AsyncOperationWithDataTests()
             {
-                _parent = new State<States>(States.None);
+                _parent = CreateState(States.None);
                 _asyncOperation = new AsyncOperation<States, int>(_parent, "Test description");
             }
 

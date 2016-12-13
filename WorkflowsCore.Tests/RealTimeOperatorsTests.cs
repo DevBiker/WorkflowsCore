@@ -31,7 +31,7 @@ namespace WorkflowsCore.Tests
             var date = before.AddSeconds(-1);
             await _workflow.WaitForDate(date);
             var now = Utilities.TimeProvider.Now;
-            Assert.True((now - before).TotalMilliseconds < 10);
+            Assert.True((now - before).TotalMilliseconds < 100);
         }
 
         [Fact]

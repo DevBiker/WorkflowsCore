@@ -7,7 +7,11 @@ namespace WorkflowsCore.StateMachines
 {
     public class StateTransition<T>
     {
-        public StateTransition(State<T> state, IDisposable workflowOperation, bool isRestoringState = false)
+        public StateTransition(
+            State<T> state,
+            IDisposable workflowOperation,
+            bool isRestoringState = false,
+            Action<State<T>> onStateChangedHandler = null)
         {
             if (workflowOperation == null)
             {
@@ -32,6 +36,11 @@ namespace WorkflowsCore.StateMachines
         public IReadOnlyCollection<State<T>> Path { get; }
 
         public bool IsRestoringState { get; }
+
+        public void CompleteTransition()
+        {
+            throw new NotImplementedException();
+        }
 
         public IList<State<T>> FindPathFrom(State<T> parentState)
         {

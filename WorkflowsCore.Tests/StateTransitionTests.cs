@@ -5,9 +5,9 @@ using Xunit;
 
 namespace WorkflowsCore.Tests
 {
-    public class StateTransitionTests
+    public class StateTransitionTests : BaseStateTest<StateTransitionTests.States>
     {
-        private enum States
+        public enum States
         {
             State1,
             State1Child1,
@@ -18,12 +18,12 @@ namespace WorkflowsCore.Tests
         [Fact]
         public void PathShouldBeInitializedToPathFromRootStateToTargetStateOfTransition()
         {
-            var state = new State<States>(States.State1);
+            var state = CreateState(States.State1);
 
-            var stateChild1 = new State<States>(States.State1Child1)
+            var stateChild1 = CreateState(States.State1Child1)
                 .SubstateOf(state);
 
-            var stateChild1Child1 = new State<States>(States.State1Child1Child1)
+            var stateChild1Child1 = CreateState(States.State1Child1Child1)
                 .SubstateOf(stateChild1);
 
             var trasition = new StateTransition<States>(stateChild1Child1, new Disposable());
@@ -34,12 +34,12 @@ namespace WorkflowsCore.Tests
         [Fact]
         public void FindPathFromShouldReturnPathAfterSpecifiedStateTillTarget()
         {
-            var state = new State<States>(States.State1);
+            var state = CreateState(States.State1);
 
-            var stateChild1 = new State<States>(States.State1Child1)
+            var stateChild1 = CreateState(States.State1Child1)
                 .SubstateOf(state);
 
-            var stateChild1Child1 = new State<States>(States.State1Child1Child1)
+            var stateChild1Child1 = CreateState(States.State1Child1Child1)
                 .SubstateOf(stateChild1);
 
             var trasition = new StateTransition<States>(stateChild1Child1, new Disposable());
@@ -50,20 +50,20 @@ namespace WorkflowsCore.Tests
         [Fact]
         public void FindPathFromShouldReturnNullIfNoPathCouldBeFound()
         {
-            var state = new State<States>(States.State1);
+            var state = CreateState(States.State1);
 
-            var stateChild1 = new State<States>(States.State1Child1)
+            var stateChild1 = CreateState(States.State1Child1)
                 .SubstateOf(state);
 
             var transition = new StateTransition<States>(stateChild1, new Disposable());
 
-            Assert.Null(transition.FindPathFrom(new State<States>(States.State2)));
+            Assert.Null(transition.FindPathFrom(CreateState(States.State2)));
         }
 
         [Fact]
         public void FindPathFromShouldReturnNullForReenterTransition()
         {
-            var state = new State<States>(States.State1);
+            var state = CreateState(States.State1);
 
             var transition = new StateTransition<States>(state, new Disposable());
 
