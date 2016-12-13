@@ -27,5 +27,7 @@
 
         public static implicit operator StateId<TState, THiddenState>(THiddenState state) =>
             new StateId<TState, THiddenState>(state);
+
+        public override string ToString() => !IsHiddenState ? $"{Id}" : $"{HiddenId} (hidden)";
     }
 }

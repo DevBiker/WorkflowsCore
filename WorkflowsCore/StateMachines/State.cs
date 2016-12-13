@@ -121,6 +121,8 @@ namespace WorkflowsCore.StateMachines
 
         public class StateInstance
         {
+            private readonly Action<State<TState, THiddenState>> _onStateChangedHandler;
+
             internal StateInstance(State<TState, THiddenState> state, StateTransition<TState, THiddenState> transition)
             {
                 if (transition.Path.First() != state)
@@ -129,6 +131,7 @@ namespace WorkflowsCore.StateMachines
                 }
 
                 State = state;
+                _onStateChangedHandler = transition.OnStateChangedHandler;
                 Task = Run(transition, transition.Path.Skip(1).ToList());
             }
 
@@ -138,6 +141,7 @@ namespace WorkflowsCore.StateMachines
                 IList<State<TState, THiddenState>> initialChildrenStates)
             {
                 State = state;
+                _onStateChangedHandler = transition.OnStateChangedHandler;
                 Task = Run(transition, initialChildrenStates);
             }
 
@@ -161,7 +165,10 @@ namespace WorkflowsCore.StateMachines
                     Workflow.CreateOperation();
                     var operation = Workflow.TryStartOperation();
                     StateTransitionTaskCompletionSource.SetResult(
-                        new StateTransition<TState, THiddenState>(state, operation));
+                        new StateTransition<TState, THiddenState>(
+                            state,
+                            operation,
+                            onStateChangedHandler: _onStateChangedHandler));
                 }
             }
 

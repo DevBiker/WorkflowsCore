@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace WorkflowsCore.StateMachines
@@ -38,13 +39,52 @@ namespace WorkflowsCore.StateMachines
             return stateObj;
         }
 
-        public Task Run(
+        // ReSharper disable once FunctionNeverReturns
+        public async Task Run(
             WorkflowBase workflow,
             StateId<TState, THiddenState> initialState,
             bool isRestoringState,
             Action<State<TState, THiddenState>> onStateChangedHandler = null)
         {
-            throw new NotImplementedException();
+            var state = GetState(initialState);
+            var operation = await workflow.WaitForReadyAndStartOperation();
+            var stateInstance = StateExtensions.SetWorkflowTemporarily(
+                workflow,
+                () => state.Run(
+                    new StateTransition<TState, THiddenState>(
+                        state,
+                        operation,
+                        isRestoringState,
+                        onStateChangedHandler)));
+
+            while (true)
+            {
+                var transition = await stateInstance.Task;
+                stateInstance = StateExtensions.SetWorkflowTemporarily(
+                    workflow,
+                    () => transition.Path.First().Run(transition));
+            }
+        }
+
+        private State<TState, THiddenState> GetState(StateId<TState, THiddenState> stateId)
+        {
+            State<TState, THiddenState> res;
+
+            if (!stateId.IsHiddenState)
+            {
+                _states.TryGetValue(stateId.Id, out res);
+            }
+            else
+            {
+                _hiddenStates.TryGetValue(stateId.HiddenId, out res);
+            }
+
+            if (res == null)
+            {
+                throw new ArgumentOutOfRangeException(nameof(stateId), $"State is not configured: {stateId}");
+            }
+
+            return res;
         }
     }
 
