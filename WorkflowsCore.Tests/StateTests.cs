@@ -384,6 +384,91 @@ namespace WorkflowsCore.Tests
             await CancelWorkflowAsync();
         }
 
+        [Fact]
+        public async Task AllowedActionShouldBeReportedAsAllowed()
+        {
+            StartWorkflow();
+
+            var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(_state)));
+
+            _state.AllowActions("Action 1");
+
+            var allowed = instance.IsActionAllowed("Action 1");
+
+            Assert.True(allowed);
+
+            SetWorkflowTemporarily(Workflow, () => instance.InitiateTransitionTo(CreateState(States.State2)));
+
+            await instance.Task;
+
+            await Workflow.StartedTask;
+            await CancelWorkflowAsync();
+        }
+
+        [Fact]
+        public async Task DisallowedActionShouldBeReportedAsDisallowed()
+        {
+            StartWorkflow();
+
+            var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(_state)));
+
+            _state.AllowActions("Action 1");
+            _state.DisallowActions("Action 1");
+
+            var allowed = instance.IsActionAllowed("Action 1");
+
+            Assert.False(allowed);
+
+            SetWorkflowTemporarily(Workflow, () => instance.InitiateTransitionTo(CreateState(States.State2)));
+
+            await instance.Task;
+
+            await Workflow.StartedTask;
+            await CancelWorkflowAsync();
+        }
+
+        [Fact]
+        public async Task UnknownActionShouldBeReportedAsUnknown()
+        {
+            StartWorkflow();
+
+            var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(_state)));
+
+            var allowed = instance.IsActionAllowed("Action 1");
+
+            Assert.Null(allowed);
+
+            SetWorkflowTemporarily(Workflow, () => instance.InitiateTransitionTo(CreateState(States.State2)));
+
+            await instance.Task;
+
+            await Workflow.StartedTask;
+            await CancelWorkflowAsync();
+        }
+
+        [Fact]
+        public async Task ChildStateOverridesActionAllowance()
+        {
+            StartWorkflow();
+
+            var child = CreateState(States.State1Child1).SubstateOf(_state);
+            var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(child)));
+
+            _state.AllowActions("Action 1");
+            child.DisallowActions("Action 1");
+
+            var allowed = instance.IsActionAllowed("Action 1");
+
+            Assert.False(allowed);
+
+            SetWorkflowTemporarily(Workflow, () => instance.InitiateTransitionTo(CreateState(States.State2)));
+
+            await instance.Task;
+
+            await Workflow.StartedTask;
+            await CancelWorkflowAsync();
+        }
+
         private State<States, string> CreateState(States state) => _baseStateTest.CreateState(state);
 
         private StateTransition<States, string> CreateTransition(State<States, string> state, bool isRestoring = false)

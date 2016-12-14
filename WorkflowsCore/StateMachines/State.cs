@@ -22,6 +22,9 @@ namespace WorkflowsCore.StateMachines
         private readonly IList<IAsyncOperationWrapper> _onAsyncHandlers = new List<IAsyncOperationWrapper>();
         private readonly IList<State<TState, THiddenState>> _children = new List<State<TState, THiddenState>>();
 
+        private readonly List<string> _allowedActions = new List<string>();
+        private readonly List<string> _disallowedActions = new List<string>();
+
         internal State(StateMachine<TState, THiddenState> stateMachine, StateId<TState, THiddenState> stateId)
         {
             StateMachine = stateMachine;
@@ -92,12 +95,14 @@ namespace WorkflowsCore.StateMachines
 
         public State<TState, THiddenState> AllowActions(params string[] actions)
         {
-            throw new NotImplementedException();
+            _allowedActions.AddRange(actions.Except(_allowedActions));
+            return this;
         }
 
         public State<TState, THiddenState> DisallowActions(params string[] actions)
         {
-            throw new NotImplementedException();
+            _disallowedActions.AddRange(actions.Except(_disallowedActions));
+            return this;
         }
 
         public State<TState, THiddenState> Description(string description)
@@ -151,6 +156,27 @@ namespace WorkflowsCore.StateMachines
             public Task<StateTransition<TState, THiddenState>> Task { get; }
 
             public StateInstance Child { get; private set; }
+
+            public bool? IsActionAllowed(string action)
+            {
+                var child = Child?.IsActionAllowed(action);
+                if (child.HasValue)
+                {
+                    return child;
+                }
+
+                if (State._disallowedActions.Contains(action))
+                {
+                    return false;
+                }
+
+                if (State._allowedActions.Contains(action))
+                {
+                    return true;
+                }
+
+                return null;
+            }
 
             public void InitiateTransitionTo(State<TState, THiddenState> state)
             {
