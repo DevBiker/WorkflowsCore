@@ -90,10 +90,7 @@ namespace WorkflowsCore.StateMachines
 
             public Task Task { get; }
 
-            public bool IsActionAllowed(string action)
-            {
-                throw new NotImplementedException();
-            }
+            public bool IsActionAllowed(string action) => _stateInstance.IsActionAllowed(action) ?? false;
 
             // ReSharper disable once FunctionNeverReturns
             private async Task Run(State<TState, THiddenState> initialState, bool isRestoringState)

@@ -82,9 +82,12 @@ namespace WorkflowsCore.StateMachines
             return asyncOperation;
         }
 
-        public State<TState, THiddenState> SubstateOf(TState state)
+        public State<TState, THiddenState> SubstateOf(StateId<TState, THiddenState> state)
         {
-            throw new NotImplementedException();
+            return SubstateOf(
+                !state.IsHiddenState
+                    ? StateMachine.ConfigureState(state.Id)
+                    : StateMachine.ConfigureHiddenState(state.HiddenId));
         }
 
         public State<TState, THiddenState> SubstateOf(State<TState, THiddenState> state)

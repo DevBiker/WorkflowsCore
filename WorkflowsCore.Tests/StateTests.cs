@@ -61,12 +61,12 @@ namespace WorkflowsCore.Tests
                 .SubstateOf(_state)
                 .OnEnter().Do(() => Assert.True(false));
 
-            var stateChild2 = CreateState(States.State1Child2)
+            CreateState(States.State1Child2)
                 .SubstateOf(_state)
                 .OnEnter().Do(() => Assert.Equal(1, counter++));
 
             var stateChild2Child1 = CreateState(States.State1Child2Child1)
-                .SubstateOf(stateChild2)
+                .SubstateOf(States.State1Child2)
                 .OnEnter().Do(() => Assert.Equal(2, counter++));
 
             var cts = new CancellationTokenSource();
