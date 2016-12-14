@@ -225,8 +225,8 @@ namespace WorkflowsCore.StateMachines
 
                 // ReSharper disable once AccessToModifiedClosure
                 await Workflow.WaitForAny(
-                    async () => transition = await HandleStateTransitions(transition, initialChildrenStates),
-                    () => Workflow.Optional(ProcessOnAsyncs()));
+                    () => Workflow.Optional(ProcessOnAsyncs()),
+                    async () => transition = await HandleStateTransitions(transition, initialChildrenStates));
 
                 foreach (var enterHandler in State._exitHandlers)
                 {

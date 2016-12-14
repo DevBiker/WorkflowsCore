@@ -11,7 +11,7 @@ namespace WorkflowsCore.Tests
     {
         private readonly StateMachine<States> _stateMachine = new StateMachine<States>();
 
-        public enum States
+        private enum States
         {
             State1,
             State2

@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Threading;
 using System.Threading.Tasks;
+using WorkflowsCore.Time;
 
 namespace WorkflowsCore.StateMachines
 {
@@ -46,25 +47,34 @@ namespace WorkflowsCore.StateMachines
         public static AsyncOperation<TState, THiddenState, DateTime> OnDate<TState, THiddenState>(
             this State<TState, THiddenState> state,
             Func<Task<DateTime>> dateTaskFactory,
-            string description = null)
+            string description = null,
+            Func<WorkflowBase, Task<bool>> bypassDatesFunc = null)
         {
-            throw new NotImplementedException();
+            return state.OnAsync(
+                async () =>
+                {
+                    var date = await dateTaskFactory();
+                    await Workflow.WaitForDate(date, bypassDatesFunc);
+                    return date;
+                },
+                description);
         }
 
-        public static AsyncOperation<TState, DateTime> OnDate<TState, THiddenState>(
+        public static AsyncOperation<TState, THiddenState, DateTime> OnDate<TState, THiddenState>(
             this State<TState, THiddenState> state,
             Func<DateTime> dateFactory,
-            string description = null)
+            string description = null,
+            Func<WorkflowBase, Task<bool>> bypassDatesFunc = null)
         {
-            throw new NotImplementedException();
+            return state.OnDate(() => Task.FromResult(dateFactory()), description, bypassDatesFunc);
         }
 
-        public static AsyncOperation<TState, NamedValues> OnAction<TState, THiddenState>(
+        public static AsyncOperation<TState, THiddenState, NamedValues> OnAction<TState, THiddenState>(
             this State<TState, THiddenState> state,
             string action,
             string description = null)
         {
-            throw new NotImplementedException();
+            return state.OnAsync(() => Workflow.WaitForAction(action), description);
         }
 
         public static AsyncOperation<TState, THiddenState> OnActionWithWasExecutedCheck<TState, THiddenState>(
