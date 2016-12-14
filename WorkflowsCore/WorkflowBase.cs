@@ -410,6 +410,8 @@ namespace WorkflowsCore
 
         protected internal bool WasExecuted(string action) => TimesExecuted(action) > 0;
 
+        protected internal IList<string> GetActionSynonyms(string action) => GetActionDefinition(action).Synonyms;
+
         protected NamedValues GetActionMetadata(string action) => GetActionDefinition(action).Metadata;
 
         protected void SaveWorkflowData() => _workflowRepoFactory().SaveWorkflowData(this, NextActivationDate);
@@ -553,8 +555,6 @@ namespace WorkflowsCore
                     isHidden);
             }
         }
-
-        protected IList<string> GetActionSynonyms(string action) => GetActionDefinition(action).Synonyms;
 
         protected void ExecuteAction(string action, bool throwNotAllowed = true) =>
             ExecuteAction<object>(action, new Dictionary<string, object>(), throwNotAllowed);

@@ -168,12 +168,13 @@ namespace WorkflowsCore.StateMachines
                     return child;
                 }
 
-                if (State._disallowedActions.Contains(action))
+                var actionSynonyms = Workflow.GetActionSynonyms(action);
+                if (State._disallowedActions.Intersect(actionSynonyms).Any())
                 {
                     return false;
                 }
 
-                if (State._allowedActions.Contains(action))
+                if (State._allowedActions.Intersect(actionSynonyms).Any())
                 {
                     return true;
                 }

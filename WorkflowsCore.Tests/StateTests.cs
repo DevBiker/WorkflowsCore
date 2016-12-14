@@ -388,12 +388,13 @@ namespace WorkflowsCore.Tests
         public async Task AllowedActionShouldBeReportedAsAllowed()
         {
             StartWorkflow();
+            await Workflow.StartedTask;
 
             var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(_state)));
 
             _state.AllowActions("Action 1");
 
-            var allowed = instance.IsActionAllowed("Action 1");
+            var allowed = SetWorkflowTemporarily(Workflow, () => instance.IsActionAllowed("Action 1"));
 
             Assert.True(allowed);
 
@@ -401,7 +402,6 @@ namespace WorkflowsCore.Tests
 
             await instance.Task;
 
-            await Workflow.StartedTask;
             await CancelWorkflowAsync();
         }
 
@@ -409,13 +409,14 @@ namespace WorkflowsCore.Tests
         public async Task DisallowedActionShouldBeReportedAsDisallowed()
         {
             StartWorkflow();
+            await Workflow.StartedTask;
 
             var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(_state)));
 
             _state.AllowActions("Action 1");
             _state.DisallowActions("Action 1");
 
-            var allowed = instance.IsActionAllowed("Action 1");
+            var allowed = SetWorkflowTemporarily(Workflow, () => instance.IsActionAllowed("Action 1"));
 
             Assert.False(allowed);
 
@@ -423,7 +424,6 @@ namespace WorkflowsCore.Tests
 
             await instance.Task;
 
-            await Workflow.StartedTask;
             await CancelWorkflowAsync();
         }
 
@@ -431,10 +431,11 @@ namespace WorkflowsCore.Tests
         public async Task UnknownActionShouldBeReportedAsUnknown()
         {
             StartWorkflow();
+            await Workflow.StartedTask;
 
             var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(_state)));
 
-            var allowed = instance.IsActionAllowed("Action 1");
+            var allowed = SetWorkflowTemporarily(Workflow, () => instance.IsActionAllowed("Action 1"));
 
             Assert.Null(allowed);
 
@@ -442,7 +443,6 @@ namespace WorkflowsCore.Tests
 
             await instance.Task;
 
-            await Workflow.StartedTask;
             await CancelWorkflowAsync();
         }
 
@@ -450,6 +450,7 @@ namespace WorkflowsCore.Tests
         public async Task ChildStateOverridesActionAllowance()
         {
             StartWorkflow();
+            await Workflow.StartedTask;
 
             var child = CreateState(States.State1Child1).SubstateOf(_state);
             var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(child)));
@@ -457,7 +458,7 @@ namespace WorkflowsCore.Tests
             _state.AllowActions("Action 1");
             child.DisallowActions("Action 1");
 
-            var allowed = instance.IsActionAllowed("Action 1");
+            var allowed = SetWorkflowTemporarily(Workflow, () => instance.IsActionAllowed("Action 1"));
 
             Assert.False(allowed);
 
@@ -465,7 +466,6 @@ namespace WorkflowsCore.Tests
 
             await instance.Task;
 
-            await Workflow.StartedTask;
             await CancelWorkflowAsync();
         }
 
@@ -482,6 +482,11 @@ namespace WorkflowsCore.Tests
             public new void CreateOperation() => base.CreateOperation();
 
             public new IDisposable TryStartOperation() => base.TryStartOperation();
+
+            protected override void OnActionsInit()
+            {
+                ConfigureAction("Action", synonym: "Action 1");
+            }
 
             protected override Task RunAsync() => Task.Delay(Timeout.Infinite, Utilities.CurrentCancellationToken);
         }
