@@ -27,8 +27,9 @@ namespace WorkflowsCore.StateMachines
             Path = GetPath();
         }
 
+        // NOTE: We do not copy IsRestoringState - transition that interrupted restoring state is a transition to new state, but not restoring
         public StateTransition(State<TState, THiddenState> state, StateTransition<TState, THiddenState> transition)
-            : this(state, transition._workflowOperation, transition.IsRestoringState, transition.OnStateChangedHandler)
+            : this(state, transition._workflowOperation, onStateChangedHandler: transition.OnStateChangedHandler)
         {
         }
 
@@ -42,7 +43,11 @@ namespace WorkflowsCore.StateMachines
 
         public void CompleteTransition()
         {
-            OnStateChangedHandler?.Invoke(State);
+            if (!IsRestoringState)
+            {
+                OnStateChangedHandler?.Invoke(State);
+            }
+
             _workflowOperation.Dispose();
         }
 
