@@ -46,7 +46,7 @@ namespace WorkflowsCore.Tests
             StartWorkflow();
 
             State<States, string> curState = null;
-            var t =
+            var instance =
                 await Workflow.DoWorkflowTaskAsync(w => _stateMachine.Run(w, States.State1, false, s => curState = s));
 
             await Workflow.ReadyTask;
@@ -56,7 +56,7 @@ namespace WorkflowsCore.Tests
             await CancelWorkflowAsync();
 
             // ReSharper disable once PossibleNullReferenceException
-            var ex = await Record.ExceptionAsync(() => t);
+            var ex = await Record.ExceptionAsync(() => instance.Task);
 
             Assert.IsType<TaskCanceledException>(ex);
         }
@@ -74,7 +74,7 @@ namespace WorkflowsCore.Tests
             StartWorkflow();
 
             State<States, string> curState = null;
-            var t =
+            var instance =
                 await Workflow.DoWorkflowTaskAsync(w => _stateMachine.Run(w, States.State1, false, s => curState = s));
 
             await Workflow.ReadyTask;
@@ -89,18 +89,16 @@ namespace WorkflowsCore.Tests
             await CancelWorkflowAsync();
 
             // ReSharper disable once PossibleNullReferenceException
-            var ex = await Record.ExceptionAsync(() => t);
+            var ex = await Record.ExceptionAsync(() => instance.Task);
 
             Assert.IsType<TaskCanceledException>(ex);
         }
 
         [Fact]
-        public async Task RunShouldShouldThrowAoreIfInitialStateWasNotConfigured()
+        public void RunShouldShouldThrowAoreIfInitialStateWasNotConfigured()
         {
-            var t = _stateMachine.Run(new TestWorkflow(), States.State1, true);
-
             // ReSharper disable once PossibleNullReferenceException
-            var ex = await Record.ExceptionAsync(() => t);
+            var ex = Record.Exception(() => _stateMachine.Run(new TestWorkflow(), States.State1, true));
 
             Assert.IsType<ArgumentOutOfRangeException>(ex);
         }

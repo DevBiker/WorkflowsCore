@@ -122,6 +122,7 @@ namespace WorkflowsCore.StateMachines
         public class StateInstance
         {
             private readonly Action<State<TState, THiddenState>> _onStateChangedHandler;
+            private TaskCompletionSource<StateTransition<TState, THiddenState>> _stateTransitionTaskCompletionSource;
 
             internal StateInstance(State<TState, THiddenState> state, StateTransition<TState, THiddenState> transition)
             {
@@ -151,9 +152,6 @@ namespace WorkflowsCore.StateMachines
 
             public StateInstance Child { get; private set; }
 
-            private TaskCompletionSource<StateTransition<TState, THiddenState>> 
-                StateTransitionTaskCompletionSource { get; set; }
-
             public void InitiateTransitionTo(State<TState, THiddenState> state)
             {
                 if (Child != null)
@@ -164,7 +162,7 @@ namespace WorkflowsCore.StateMachines
                 {
                     Workflow.CreateOperation();
                     var operation = Workflow.TryStartOperation();
-                    StateTransitionTaskCompletionSource.SetResult(
+                    _stateTransitionTaskCompletionSource.SetResult(
                         new StateTransition<TState, THiddenState>(
                             state,
                             operation,
@@ -229,21 +227,21 @@ namespace WorkflowsCore.StateMachines
                     }
                     else
                     {
-                        StateTransitionTaskCompletionSource =
+                        _stateTransitionTaskCompletionSource =
                             new TaskCompletionSource<StateTransition<TState, THiddenState>>();
 
                         transition.CompleteTransition();
                         var task = await System.Threading.Tasks.Task.WhenAny(
                             Workflow.WaitForDate(DateTime.MaxValue),
-                            StateTransitionTaskCompletionSource.Task);
+                            _stateTransitionTaskCompletionSource.Task);
 
-                        if (task == StateTransitionTaskCompletionSource.Task)
+                        if (task == _stateTransitionTaskCompletionSource.Task)
                         {
-                            transition = StateTransitionTaskCompletionSource.Task.Result;
+                            transition = _stateTransitionTaskCompletionSource.Task.Result;
                         }
                         else
                         {
-                            StateTransitionTaskCompletionSource.SetCanceled();
+                            _stateTransitionTaskCompletionSource.SetCanceled();
                             await task; // Exit via TaskCanceledException
                         }
                     }

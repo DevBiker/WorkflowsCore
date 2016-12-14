@@ -39,31 +39,14 @@ namespace WorkflowsCore.StateMachines
             return stateObj;
         }
 
-        // ReSharper disable once FunctionNeverReturns
-        public async Task Run(
+        public StateMachineInstance Run(
             WorkflowBase workflow,
             StateId<TState, THiddenState> initialState,
             bool isRestoringState,
             Action<State<TState, THiddenState>> onStateChangedHandler = null)
         {
             var state = GetState(initialState);
-            var operation = await workflow.WaitForReadyAndStartOperation();
-            var stateInstance = StateExtensions.SetWorkflowTemporarily(
-                workflow,
-                () => state.Run(
-                    new StateTransition<TState, THiddenState>(
-                        state,
-                        operation,
-                        isRestoringState,
-                        onStateChangedHandler)));
-
-            while (true)
-            {
-                var transition = await stateInstance.Task;
-                stateInstance = StateExtensions.SetWorkflowTemporarily(
-                    workflow,
-                    () => transition.Path.First().Run(transition));
-            }
+            return new StateMachineInstance(workflow, state, isRestoringState, onStateChangedHandler);
         }
 
         private State<TState, THiddenState> GetState(StateId<TState, THiddenState> stateId)
@@ -85,6 +68,54 @@ namespace WorkflowsCore.StateMachines
             }
 
             return res;
+        }
+
+        public class StateMachineInstance
+        {
+            private readonly Action<State<TState, THiddenState>> _onStateChangedHandler;
+            private State<TState, THiddenState>.StateInstance _stateInstance;
+
+            internal StateMachineInstance(
+                WorkflowBase workflow,
+                State<TState, THiddenState> state,
+                bool isRestoringState,
+                Action<State<TState, THiddenState>> onStateChangedHandler)
+            {
+                _onStateChangedHandler = onStateChangedHandler;
+                Workflow = workflow;
+                Task = Run(state, isRestoringState);
+            }
+
+            public WorkflowBase Workflow { get; set; }
+
+            public Task Task { get; }
+
+            public bool IsActionAllowed(string action)
+            {
+                throw new NotImplementedException();
+            }
+
+            // ReSharper disable once FunctionNeverReturns
+            private async Task Run(State<TState, THiddenState> initialState, bool isRestoringState)
+            {
+                var operation = await Workflow.WaitForReadyAndStartOperation();
+                _stateInstance = StateExtensions.SetWorkflowTemporarily(
+                    Workflow,
+                    () => initialState.Run(
+                        new StateTransition<TState, THiddenState>(
+                            initialState,
+                            operation,
+                            isRestoringState,
+                            _onStateChangedHandler)));
+
+                while (true)
+                {
+                    var transition = await _stateInstance.Task;
+                    _stateInstance = StateExtensions.SetWorkflowTemporarily(
+                        Workflow,
+                        () => transition.Path.First().Run(transition));
+                }
+            }
         }
     }
 
