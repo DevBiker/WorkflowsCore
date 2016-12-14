@@ -95,12 +95,27 @@ namespace WorkflowsCore.Tests
         }
 
         [Fact]
-        public void RunShouldShouldThrowAoreIfInitialStateWasNotConfigured()
+        public async Task RunShouldShouldThrowAoreIfInitialStateWasNotConfigured()
+        {
+            Workflow = new TestWorkflow();
+            StartWorkflow();
+
+            // ReSharper disable once PossibleNullReferenceException
+            var ex = await Record.ExceptionAsync(
+                () => Workflow.DoWorkflowTaskAsync(w => _stateMachine.Run(w, States.State1, true)));
+
+            Assert.IsType<ArgumentOutOfRangeException>(ex);
+
+            await CancelWorkflowAsync();
+        }
+
+        [Fact]
+        public void RunShouldShouldThrowIoeIfIsInvokedOutsideOfWorkflowTaskScheduler()
         {
             // ReSharper disable once PossibleNullReferenceException
             var ex = Record.Exception(() => _stateMachine.Run(new TestWorkflow(), States.State1, true));
 
-            Assert.IsType<ArgumentOutOfRangeException>(ex);
+            Assert.IsType<InvalidOperationException>(ex);
         }
 
         public class TestWorkflow : WorkflowBase

@@ -30,7 +30,9 @@ namespace WorkflowsCore.Tests
             Workflow = new TestWorkflow();
             StartWorkflow();
 
-            var t = Workflow.WaitForAny(() => tcs.Task, () => _stateMachine.Run(Workflow, state.StateId, false).Task);
+            var t = Workflow.WaitForAny(
+                () => tcs.Task,
+                () => Workflow.DoWorkflowTaskAsync(w => _stateMachine.Run(w, state.StateId, false).Task));
 
             TestingTimeProvider.Current.SetCurrentTime(date);
 
@@ -50,7 +52,9 @@ namespace WorkflowsCore.Tests
             Workflow = new TestWorkflow();
             StartWorkflow();
 
-            var t = Workflow.WaitForAny(() => tcs.Task, () => _stateMachine.Run(Workflow, state.StateId, false).Task);
+            var t = Workflow.WaitForAny(
+                () => tcs.Task,
+                () => Workflow.DoWorkflowTaskAsync(w => _stateMachine.Run(w, state.StateId, false).Task));
 
             await Workflow.ReadyTask;
 

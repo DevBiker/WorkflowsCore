@@ -45,6 +45,7 @@ namespace WorkflowsCore.StateMachines
             bool isRestoringState,
             Action<State<TState, THiddenState>> onStateChangedHandler = null)
         {
+            workflow.EnsureWorkflowTaskScheduler();
             var state = GetState(initialState);
             return new StateMachineInstance(workflow, state, isRestoringState, onStateChangedHandler);
         }
