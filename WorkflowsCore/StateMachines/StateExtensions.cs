@@ -74,7 +74,9 @@ namespace WorkflowsCore.StateMachines
             string action,
             string description = null)
         {
-            return state.OnAsync(() => Workflow.WaitForAction(action), description);
+            return state.AllowActions(action)
+                .OnAsync(() => Workflow.WaitForAction(action), description)
+                .If(() => Workflow.IsActionAllowed(action));
         }
 
         public static AsyncOperation<TState, THiddenState> OnActionWithWasExecutedCheck<TState, THiddenState>(

@@ -164,13 +164,19 @@ namespace WorkflowsCore.StateMachines
             Func<TData, Task<bool>> taskFactory,
             string description = null)
         {
-            throw new NotImplementedException();
+            var handler = new IfHandlerWithData(Parent, taskFactory, description);
+            Handler = handler;
+            return handler.Child;
         }
 
-        public AsyncOperation<TState, THiddenState, TData> If(Func<Task<bool>> taskFactory, string description = null)
-        {
-            throw new NotImplementedException();
-        }
+        public AsyncOperation<TState, THiddenState, TData> If(Func<TData, bool> predicate, string description = null) =>
+            If(d => Task.FromResult(predicate(d)), description);
+
+        public AsyncOperation<TState, THiddenState, TData> If(Func<Task<bool>> taskFactory, string description = null) => 
+            If(_ => taskFactory(), description);
+
+        public AsyncOperation<TState, THiddenState, TData> If(Func<bool> predicate, string description = null) => 
+            If(() => Task.FromResult(predicate()), description);
 
         public AsyncOperation<TState, THiddenState, TData> IfThenGoTo(
             Func<TData, Task<bool>> taskFactory,
@@ -240,6 +246,38 @@ namespace WorkflowsCore.StateMachines
             {
                 await _taskFactory(data);
                 return null;
+            }
+        }
+
+        private class IfHandlerWithData : AsyncOperationHandler
+        {
+            private readonly Func<TData, Task<bool>> _taskFactory;
+
+            public IfHandlerWithData(
+                State<TState, THiddenState> parent,
+                Func<TData, Task<bool>> taskFactory,
+                string description)
+            {
+                _taskFactory = taskFactory;
+                Child = new AsyncOperation<TState, THiddenState, TData>(parent, description);
+            }
+
+            public AsyncOperation<TState, THiddenState, TData> Child { get; }
+
+            public override Task<State<TState, THiddenState>> ExecuteAsync()
+            {
+                throw new NotImplementedException();
+            }
+
+            public override async Task<State<TState, THiddenState>> ExecuteAsync(TData data)
+            {
+                var res = await _taskFactory(data);
+                if (!res)
+                {
+                    return null;
+                }
+
+                return await Child.ExecuteAsync(data);
             }
         }
     }

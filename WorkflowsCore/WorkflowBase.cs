@@ -410,6 +410,8 @@ namespace WorkflowsCore
 
         protected internal bool WasExecuted(string action) => TimesExecuted(action) > 0;
 
+        protected internal virtual bool IsActionAllowed(string action) => true;
+
         protected internal IList<string> GetActionSynonyms(string action) => GetActionDefinition(action).Synonyms;
 
         protected NamedValues GetActionMetadata(string action) => GetActionDefinition(action).Metadata;
@@ -443,8 +445,6 @@ namespace WorkflowsCore
         protected virtual void OnFaulted(Exception exception)
         {
         }
-
-        protected virtual bool IsActionAllowed(string action) => true;
 
         protected int TimesExecuted(string action)
         {

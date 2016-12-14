@@ -93,6 +93,32 @@ namespace WorkflowsCore.Tests
                 Assert.Null(res);
                 Assert.True(wasCalled);
             }
+
+            [Fact]
+            public async Task IfShouldInterruptChainIfPredicateIsFalse()
+            {
+                var wasCalled = false;
+                var state = _asyncOperation.If(i => i != 3).Do(() => wasCalled = true);
+
+                var res = await _asyncOperation.ExecuteAsync(3);
+
+                Assert.Same(_parent, state);
+                Assert.Null(res);
+                Assert.False(wasCalled);
+            }
+
+            [Fact]
+            public async Task IfShouldNotInterruptChainIfPredicateIsFalse()
+            {
+                var wasCalled = false;
+                var state = _asyncOperation.If(i => i != 3).Do(() => wasCalled = true);
+
+                var res = await _asyncOperation.ExecuteAsync(1);
+
+                Assert.Same(_parent, state);
+                Assert.Null(res);
+                Assert.True(wasCalled);
+            }
         }
     }
 }

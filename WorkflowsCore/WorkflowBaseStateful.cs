@@ -58,6 +58,9 @@ namespace WorkflowsCore
         protected internal bool WasIn(TState state, bool ignoreSuppression = false) =>
             TimesIn(state, ignoreSuppression) > 0;
 
+        protected internal override bool IsActionAllowed(string action) =>
+            _stateDefinitions[State].AllowedActions.Intersect(GetActionSynonyms(action)).Any();
+
         protected override void OnInit()
         {
             base.OnInit();
@@ -81,9 +84,6 @@ namespace WorkflowsCore
         }
 
         protected abstract void OnStatesInit();
-
-        protected override bool IsActionAllowed(string action) =>
-            _stateDefinitions[State].AllowedActions.Intersect(GetActionSynonyms(action)).Any();
 
         protected void ConfigureStateCategory(string categoryName = null, IEnumerable<string> availableActions = null)
         {
