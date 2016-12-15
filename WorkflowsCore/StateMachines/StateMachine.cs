@@ -43,7 +43,7 @@ namespace WorkflowsCore.StateMachines
             WorkflowBase workflow,
             StateId<TState, THiddenState> initialState,
             bool isRestoringState,
-            Action<State<TState, THiddenState>> onStateChangedHandler = null)
+            Action<StateTransition<TState, THiddenState>> onStateChangedHandler = null)
         {
             workflow.EnsureWorkflowTaskScheduler();
             var state = GetState(initialState);
@@ -73,14 +73,14 @@ namespace WorkflowsCore.StateMachines
 
         public class StateMachineInstance
         {
-            private readonly Action<State<TState, THiddenState>> _onStateChangedHandler;
+            private readonly Action<StateTransition<TState, THiddenState>> _onStateChangedHandler;
             private State<TState, THiddenState>.StateInstance _stateInstance;
 
             internal StateMachineInstance(
                 WorkflowBase workflow,
                 State<TState, THiddenState> state,
                 bool isRestoringState,
-                Action<State<TState, THiddenState>> onStateChangedHandler)
+                Action<StateTransition<TState, THiddenState>> onStateChangedHandler)
             {
                 _onStateChangedHandler = onStateChangedHandler;
                 Workflow = workflow;

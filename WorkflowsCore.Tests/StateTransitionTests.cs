@@ -80,29 +80,11 @@ namespace WorkflowsCore.Tests
             var transition = new StateTransition<States, string>(
                 state,
                 workflowOperation,
-                onStateChangedHandler: s => newState = s);
+                onStateChangedHandler: t => newState = t.State);
             transition.CompleteTransition();
 
             Assert.True(workflowOperation.DisposeCalled);
             Assert.Same(state, newState);
-        }
-
-        [Fact]
-        public void CompleteTransitionShouldNotInvokeCallbackOnStateRestoring()
-        {
-            var state = CreateState(States.State1);
-
-            var workflowOperation = new Disposable(true);
-            State<States, string> newState = null;
-            var transition = new StateTransition<States, string>(
-                state,
-                workflowOperation,
-                isRestoringState: true,
-                onStateChangedHandler: s => newState = s);
-            transition.CompleteTransition();
-
-            Assert.True(workflowOperation.DisposeCalled);
-            Assert.Null(newState);
         }
 
         private sealed class Disposable : IDisposable

@@ -46,8 +46,8 @@ namespace WorkflowsCore.Tests
             StartWorkflow();
 
             State<States, string> curState = null;
-            var instance =
-                await Workflow.DoWorkflowTaskAsync(w => _stateMachine.Run(w, States.State1, false, s => curState = s));
+            var instance = await Workflow.DoWorkflowTaskAsync(
+                w => _stateMachine.Run(w, States.State1, false, t => curState = t.State));
 
             await Workflow.ReadyTask;
 
@@ -74,8 +74,8 @@ namespace WorkflowsCore.Tests
             StartWorkflow();
 
             State<States, string> curState = null;
-            var instance =
-                await Workflow.DoWorkflowTaskAsync(w => _stateMachine.Run(w, States.State1, false, s => curState = s));
+            var instance = await Workflow.DoWorkflowTaskAsync(
+                w => _stateMachine.Run(w, States.State1, false, t => curState = t.State));
 
             await Workflow.ReadyTask;
 

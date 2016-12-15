@@ -13,7 +13,7 @@ namespace WorkflowsCore.StateMachines
             State<TState, THiddenState> state,
             IDisposable workflowOperation,
             bool isRestoringState = false,
-            Action<State<TState, THiddenState>> onStateChangedHandler = null)
+            Action<StateTransition<TState, THiddenState>> onStateChangedHandler = null)
         {
             if (workflowOperation == null)
             {
@@ -39,15 +39,11 @@ namespace WorkflowsCore.StateMachines
 
         public bool IsRestoringState { get; }
 
-        public Action<State<TState, THiddenState>> OnStateChangedHandler { get; }
+        public Action<StateTransition<TState, THiddenState>> OnStateChangedHandler { get; }
 
         public void CompleteTransition()
         {
-            if (!IsRestoringState)
-            {
-                OnStateChangedHandler?.Invoke(State);
-            }
-
+            OnStateChangedHandler?.Invoke(this);
             _workflowOperation.Dispose();
         }
 

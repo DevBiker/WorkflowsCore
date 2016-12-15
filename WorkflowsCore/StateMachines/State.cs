@@ -118,8 +118,10 @@ namespace WorkflowsCore.StateMachines
 
         private StateInstance Run(
             StateTransition<TState, THiddenState> transition,
-            IList<State<TState, THiddenState>> initialChildrenStates) =>
-                new StateInstance(this, transition, initialChildrenStates);
+            IList<State<TState, THiddenState>> initialChildrenStates)
+        {
+            return new StateInstance(this, transition, initialChildrenStates);
+        }
 
         private void AddChild(State<TState, THiddenState> state)
         {
@@ -129,7 +131,7 @@ namespace WorkflowsCore.StateMachines
 
         public class StateInstance
         {
-            private readonly Action<State<TState, THiddenState>> _onStateChangedHandler;
+            private readonly Action<StateTransition<TState, THiddenState>> _onStateChangedHandler;
             private TaskCompletionSource<StateTransition<TState, THiddenState>> _stateTransitionTaskCompletionSource;
 
             internal StateInstance(State<TState, THiddenState> state, StateTransition<TState, THiddenState> transition)
