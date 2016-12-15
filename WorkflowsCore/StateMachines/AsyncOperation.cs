@@ -40,10 +40,8 @@ namespace WorkflowsCore.StateMachines
             throw new NotImplementedException();
         }
 
-        public State<TState, THiddenState> GoTo(StateId<TState, THiddenState> state)
-        {
-            throw new NotImplementedException();
-        }
+        public State<TState, THiddenState> GoTo(StateId<TState, THiddenState> state) => 
+            GoTo(Parent.StateMachine.ConfigureState(state));
 
         public State<TState, THiddenState> GoTo(State<TState, THiddenState> state)
         {

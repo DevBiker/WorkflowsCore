@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Threading.Tasks;
 using Xunit;
 
@@ -26,11 +27,13 @@ namespace WorkflowsCore.Tests
             }
         }
 
-        public void StartWorkflow(Action beforeWorkflowStarted = null)
+        public void StartWorkflow(
+            IReadOnlyDictionary<string, object> loadedWorkflowData = null,
+            Action beforeWorkflowStarted = null)
         {
             Assert.NotNull(Workflow);
             _wasStarted = true;
-            Workflow.StartWorkflow(beforeWorkflowStarted: beforeWorkflowStarted);
+            Workflow.StartWorkflow(loadedWorkflowData: loadedWorkflowData, beforeWorkflowStarted: beforeWorkflowStarted);
         }
 
         public async Task CancelWorkflowAsync()

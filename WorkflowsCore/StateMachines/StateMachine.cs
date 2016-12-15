@@ -39,6 +39,9 @@ namespace WorkflowsCore.StateMachines
             return stateObj;
         }
 
+        public State<TState, THiddenState> ConfigureState(StateId<TState, THiddenState> state) => 
+            !state.IsHiddenState ? ConfigureState(state.Id) : ConfigureHiddenState(state.HiddenId);
+
         public StateMachineInstance Run(
             WorkflowBase workflow,
             StateId<TState, THiddenState> initialState,
@@ -91,7 +94,8 @@ namespace WorkflowsCore.StateMachines
 
             public Task Task { get; }
 
-            public bool IsActionAllowed(string action) => _stateInstance.IsActionAllowed(action) ?? false;
+            public bool IsActionAllowed(string action) => 
+                StateExtensions.SetWorkflowTemporarily(Workflow, () => _stateInstance.IsActionAllowed(action)) ?? false;
 
             // ReSharper disable once FunctionNeverReturns
             private async Task Run(State<TState, THiddenState> initialState, bool isRestoringState)
