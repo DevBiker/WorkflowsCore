@@ -93,13 +93,13 @@ namespace WorkflowsCore.StateMachines
 
         public State<TState, THiddenState> AllowActions(params string[] actions)
         {
-            _allowedActions.AddRange(actions.Except(_allowedActions));
+            _allowedActions.AddRange(actions.Except(_allowedActions)); // TODO: Check action configured
             return this;
         }
 
         public State<TState, THiddenState> DisallowActions(params string[] actions)
         {
-            _disallowedActions.AddRange(actions.Except(_disallowedActions));
+            _disallowedActions.AddRange(actions.Except(_disallowedActions)); // TODO: Check action configured
             return this;
         }
 
