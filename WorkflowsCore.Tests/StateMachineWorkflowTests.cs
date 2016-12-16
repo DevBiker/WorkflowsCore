@@ -60,6 +60,22 @@ namespace WorkflowsCore.Tests
             await CancelWorkflowAsync();
         }
 
+        [Fact]
+        public async Task CompleteWorkflowShouldCompleteIt()
+        {
+            StartWorkflow();
+
+            await Workflow.StartedTask;
+
+            await WaitForReady();
+
+            Assert.Equal(States.State1, Workflow.State);
+
+            Workflow.CompleteWorkflow();
+
+            await WaitUntilWorkflowCompleted();
+        }
+
         private async Task WaitForReady()
         { // TODO:
             await Workflow.DoWorkflowTaskAsync(async () => await Task.Delay(1)).Unwrap();
@@ -71,6 +87,8 @@ namespace WorkflowsCore.Tests
             public const string Action1 = nameof(Action1);
 
             public new States State => base.State;
+
+            public new void CompleteWorkflow() => base.CompleteWorkflow();
 
             protected override void OnActionsInit()
             {

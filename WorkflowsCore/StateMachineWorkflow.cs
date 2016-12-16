@@ -7,6 +7,7 @@ namespace WorkflowsCore
     public abstract class StateMachineWorkflow<TState, THiddenState> : WorkflowBase<TState>
     {
         private readonly StateMachine<TState, THiddenState> _stateMachine = new StateMachine<TState, THiddenState>();
+        private readonly TaskCompletionSource<bool> _completeWorkflowTcs = new TaskCompletionSource<bool>();
         private StateId<TState, THiddenState> _initialState;
         private StateMachine<TState, THiddenState>.StateMachineInstance _instance;
 
@@ -43,6 +44,13 @@ namespace WorkflowsCore
                 SetInitialState(TransientStatesHistory[TransientStatesHistory.Count - 1]);
             }
 
+            return this.WaitForAny(() => _completeWorkflowTcs.Task, RunStateMachine);
+        }
+
+        protected void CompleteWorkflow() => _completeWorkflowTcs.SetResult(true);
+
+        private Task RunStateMachine()
+        {
             _instance = _stateMachine.Run(this, _initialState, IsRestoringState, OnStateChangedHandler);
             return _instance.Task;
         }
