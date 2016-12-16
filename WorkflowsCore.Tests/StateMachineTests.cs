@@ -14,6 +14,7 @@ namespace WorkflowsCore.Tests
         private enum States
         {
             State1,
+            State1Child1,
             State2
         }
 
@@ -40,14 +41,15 @@ namespace WorkflowsCore.Tests
         [Fact]
         public async Task RunShouldStartInitialState()
         {
-            var state = _stateMachine.ConfigureState(States.State1);
+            _stateMachine.ConfigureState(States.State1);
+            var state = _stateMachine.ConfigureState(States.State1Child1).SubstateOf(States.State1);
 
             Workflow = new TestWorkflow();
             StartWorkflow();
 
             State<States, string> curState = null;
             var instance = await Workflow.DoWorkflowTaskAsync(
-                w => _stateMachine.Run(w, States.State1, false, t => curState = t.State));
+                w => _stateMachine.Run(w, States.State1Child1, false, t => curState = t.State));
 
             await Workflow.ReadyTask;
 

@@ -101,21 +101,21 @@ namespace WorkflowsCore.StateMachines
             private async Task Run(State<TState, THiddenState> initialState, bool isRestoringState)
             {
                 var operation = await Workflow.WaitForReadyAndStartOperation();
+                var intialTransition = new StateTransition<TState, THiddenState>(
+                    initialState,
+                    operation,
+                    isRestoringState,
+                    _onStateChangedHandler);
                 _stateInstance = StateExtensions.SetWorkflowTemporarily(
                     Workflow,
-                    () => initialState.Run(
-                        new StateTransition<TState, THiddenState>(
-                            initialState,
-                            operation,
-                            isRestoringState,
-                            _onStateChangedHandler)));
+                    () => intialTransition.PerformTransition());
 
                 while (true)
                 {
                     var transition = await _stateInstance.Task;
                     _stateInstance = StateExtensions.SetWorkflowTemporarily(
                         Workflow,
-                        () => transition.Path.First().Run(transition));
+                        () => transition.PerformTransition());
                 }
             }
         }

@@ -53,6 +53,8 @@ namespace WorkflowsCore.StateMachines
             return res.Any() ? res : null;
         }
 
+        public State<TState, THiddenState>.StateInstance PerformTransition() => Path.First().Run(this);
+
         private IReadOnlyCollection<State<TState, THiddenState>> GetPath()
         {
             var path = new List<State<TState, THiddenState>>();
