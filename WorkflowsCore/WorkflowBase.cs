@@ -816,13 +816,28 @@ namespace WorkflowsCore
 
             public void Dispose()
             {
-                if (Interlocked.Decrement(ref _counter) <= 0)
+                lock (_tcs)
                 {
-                    _tcs.TrySetResult(true);
+                    if (--_counter <= 0)
+                    {
+                        _tcs.TrySetResult(true);
+                    }
                 }
             }
 
-            public Operation TryCreateInnerOperation() => Interlocked.Increment(ref _counter) <= 1 ? null : this;
+            public Operation TryCreateInnerOperation()
+            {
+                lock (_tcs)
+                {
+                    if (_counter <= 0)
+                    {
+                        return null;
+                    }
+
+                    ++_counter;
+                    return this;
+                }
+            }
 
             public Operation StartOperation() => _workflow.OperationInProgress = this;
 
