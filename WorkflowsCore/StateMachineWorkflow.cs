@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Threading.Tasks;
 using WorkflowsCore.StateMachines;
+using WorkflowsCore.Time;
 
 namespace WorkflowsCore
 {
@@ -44,7 +45,9 @@ namespace WorkflowsCore
                 SetInitialState(TransientStatesHistory[TransientStatesHistory.Count - 1]);
             }
 
-            return this.WaitForAny(() => _completeWorkflowTcs.Task, RunStateMachine);
+            return this.WaitForAny(
+                () => Task.WhenAny(_completeWorkflowTcs.Task, this.WaitForDate(DateTime.MaxValue)),
+                RunStateMachine);
         }
 
         protected void CompleteWorkflow() => _completeWorkflowTcs.SetResult(true);
