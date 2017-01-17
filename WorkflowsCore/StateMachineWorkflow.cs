@@ -50,7 +50,7 @@ namespace WorkflowsCore
                 RunStateMachine);
         }
 
-        protected void CompleteWorkflow() => _completeWorkflowTcs.SetResult(true);
+        protected void CompleteWorkflow() => _completeWorkflowTcs.TrySetResult(true);
 
         private Task RunStateMachine()
         {
