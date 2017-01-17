@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Linq;
 using System.Threading.Tasks;
 
 namespace WorkflowsCore.StateMachines
@@ -101,6 +100,7 @@ namespace WorkflowsCore.StateMachines
             private async Task Run(State<TState, THiddenState> initialState, bool isRestoringState)
             {
                 var operation = await Workflow.WaitForReadyAndStartOperation();
+                Workflow.ResetOperation();
                 var intialTransition = new StateTransition<TState, THiddenState>(
                     initialState,
                     operation,

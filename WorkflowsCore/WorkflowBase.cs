@@ -408,6 +408,8 @@ namespace WorkflowsCore
             return CurrentOperation.Value.TryStartInnerOperation();
         }
 
+        protected internal void ResetOperation() => CurrentOperation.Value = null;
+
         protected internal bool WasExecuted(string action) => TimesExecuted(action) > 0;
 
         protected internal virtual bool IsActionAllowed(string action) => true;

@@ -129,6 +129,28 @@ namespace WorkflowsCore.Tests
             }
 
             [Fact]
+            public async Task ResetOperationShouldClearCurrentOperation()
+            {
+                Workflow = new TestWorkflow();
+                StartWorkflow();
+
+                Workflow.CreateOperation();
+                await Workflow.DoWorkflowTaskAsync(
+                    () =>
+                    {
+                        using (Workflow.TryStartOperation())
+                        {
+                            Workflow.ResetOperation();
+                            var ex = Record.Exception(() => Workflow.TryStartOperation());
+
+                            Assert.IsType<InvalidOperationException>(ex);
+                        }
+                    });
+
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
             public async Task StartingInnerOperationShoulSucceed()
             {
                 Workflow = new TestWorkflow();
@@ -885,6 +907,8 @@ namespace WorkflowsCore.Tests
             public new void CreateOperation() => base.CreateOperation();
 
             public new IDisposable TryStartOperation() => base.TryStartOperation();
+
+            public new void ResetOperation() => base.ResetOperation();
 
             public void CompleteLongWork() => _badCancellationTcs.SetResult(true);
 
