@@ -158,7 +158,9 @@ namespace WorkflowsCore.StateMachines
 
         public AsyncOperation<TState, THiddenState> If(Func<Task<bool>> taskFactory, string description = null)
         {
-            throw new NotImplementedException();
+            var handler = new IfHandler(Parent, taskFactory, description);
+            Handler = handler;
+            return handler.Child;
         }
 
         public AsyncOperation<TState, THiddenState> If(Func<bool> predicate, string description = null) =>
@@ -197,6 +199,33 @@ namespace WorkflowsCore.StateMachines
             public override async Task<State<TState, THiddenState>> ExecuteAsync()
             {
                 await _taskFactory();
+
+                return await Child.ExecuteAsync();
+            }
+        }
+
+        private class IfHandler : AsyncOperationHandler
+        {
+            private readonly Func<Task<bool>> _taskFactory;
+
+            public IfHandler(
+                State<TState, THiddenState> parent,
+                Func<Task<bool>> taskFactory,
+                string description)
+            {
+                _taskFactory = taskFactory;
+                Child = new AsyncOperation<TState, THiddenState>(parent, description);
+            }
+
+            public AsyncOperation<TState, THiddenState> Child { get; }
+
+            public override async Task<State<TState, THiddenState>> ExecuteAsync()
+            {
+                var res = await _taskFactory();
+                if (!res)
+                {
+                    return null;
+                }
 
                 return await Child.ExecuteAsync();
             }
