@@ -171,7 +171,13 @@ namespace WorkflowsCore.StateMachines
             StateId<TState, THiddenState> state,
             string description = null)
         {
-            throw new NotImplementedException();
+            var handler = new IfThenGoToHandler(
+                Parent,
+                taskFactory,
+                Parent.StateMachine.ConfigureState(state),
+                description);
+            Handler = handler;
+            return handler.Child;
         }
 
         public AsyncOperation<TState, THiddenState> IfThenGoTo(
@@ -225,6 +231,36 @@ namespace WorkflowsCore.StateMachines
                 if (!res)
                 {
                     return null;
+                }
+
+                return await Child.ExecuteAsync();
+            }
+        }
+
+        private class IfThenGoToHandler : AsyncOperationHandler
+        {
+            private readonly Func<Task<bool>> _taskFactory;
+            private readonly State<TState, THiddenState> _state;
+
+            public IfThenGoToHandler(
+                State<TState, THiddenState> parent,
+                Func<Task<bool>> taskFactory,
+                State<TState, THiddenState> state,
+                string description)
+            {
+                _taskFactory = taskFactory;
+                _state = state;
+                Child = new AsyncOperation<TState, THiddenState>(parent, description);
+            }
+
+            public AsyncOperation<TState, THiddenState> Child { get; }
+
+            public override async Task<State<TState, THiddenState>> ExecuteAsync()
+            {
+                var res = await _taskFactory();
+                if (res)
+                {
+                    return _state;
                 }
 
                 return await Child.ExecuteAsync();
