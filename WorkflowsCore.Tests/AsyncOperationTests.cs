@@ -185,6 +185,32 @@ namespace WorkflowsCore.Tests
                 await _asyncOperation.ExecuteAsync(3);
                 Assert.Equal(3, res);
             }
+
+            [Fact]
+            public async Task IfThenGoToShouldReturnNewStateIfPredicateIsTrue()
+            {
+                var wasCalled = false;
+                var state = _asyncOperation.IfThenGoTo(i => i == 3, States.State1).Do(() => wasCalled = true);
+
+                var res = await _asyncOperation.ExecuteAsync(3);
+
+                Assert.Same(_parent, state);
+                Assert.Equal(States.State1, res.StateId);
+                Assert.False(wasCalled);
+            }
+
+            [Fact]
+            public async Task IfThenGoToShouldContinueChainIfPredicateIsFalse()
+            {
+                var wasCalled = false;
+                var state = _asyncOperation.IfThenGoTo(i => i == 3, States.State1).Do(() => wasCalled = true);
+
+                var res = await _asyncOperation.ExecuteAsync(1);
+
+                Assert.Same(_parent, state);
+                Assert.Null(res);
+                Assert.True(wasCalled);
+            }
         }
     }
 }

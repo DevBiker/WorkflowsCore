@@ -310,7 +310,13 @@ namespace WorkflowsCore.StateMachines
             StateId<TState, THiddenState> state,
             string description = null)
         {
-            throw new NotImplementedException();
+            var handler = new IfThenGoToHandlerWithData(
+                Parent,
+                taskFactory,
+                Parent.StateMachine.ConfigureState(state),
+                description);
+            Handler = handler;
+            return handler.Child;
         }
 
         public AsyncOperation<TState, THiddenState, TData> IfThenGoTo(
@@ -453,6 +459,41 @@ namespace WorkflowsCore.StateMachines
             public override async Task<State<TState, THiddenState>> ExecuteAsync(TData data)
             {
                 await _taskFactory(data);
+
+                return await Child.ExecuteAsync(data);
+            }
+        }
+
+        private class IfThenGoToHandlerWithData : AsyncOperationHandler
+        {
+            private readonly Func<TData, Task<bool>> _taskFactory;
+            private readonly State<TState, THiddenState> _state;
+
+            public IfThenGoToHandlerWithData(
+                State<TState, THiddenState> parent,
+                Func<TData, Task<bool>> taskFactory,
+                State<TState, THiddenState> state,
+                string description)
+            {
+                _taskFactory = taskFactory;
+                _state = state;
+                Child = new AsyncOperation<TState, THiddenState, TData>(parent, description);
+            }
+
+            public AsyncOperation<TState, THiddenState, TData> Child { get; }
+
+            public override Task<State<TState, THiddenState>> ExecuteAsync()
+            {
+                throw new NotImplementedException();
+            }
+
+            public override async Task<State<TState, THiddenState>> ExecuteAsync(TData data)
+            {
+                var res = await _taskFactory(data);
+                if (res)
+                {
+                    return _state;
+                }
 
                 return await Child.ExecuteAsync(data);
             }
