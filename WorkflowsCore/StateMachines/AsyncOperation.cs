@@ -35,14 +35,6 @@ namespace WorkflowsCore.StateMachines
             }
         }
 
-        public AsyncOperation<TState, THiddenState, TR> Invoke<TR>(Func<Task<TR>> taskFactory)
-        {
-            throw new NotImplementedException();
-        }
-
-        public AsyncOperation<TState, THiddenState, TR> Invoke<TR>(Func<TR> func) => 
-            Invoke(() => Task.FromResult(func()));
-
         public State<TState, THiddenState> GoTo(StateId<TState, THiddenState> state)
         {
             Handler = new GoToHandler(Parent.StateMachine.ConfigureState(state));
@@ -64,6 +56,16 @@ namespace WorkflowsCore.StateMachines
             Handler = new DoHandler(taskFactory);
             return Parent;
         }
+
+        protected AsyncOperation<TState, THiddenState, TR> Invoke<TR>(Func<Task<TR>> taskFactory)
+        {
+            var handler = new InvokeHandler<TR>(Parent, taskFactory);
+            Handler = handler;
+            return handler.Child;
+        }
+
+        protected AsyncOperation<TState, THiddenState, TR> Invoke<TR>(Func<TR> func) =>
+            Invoke(() => Task.FromResult(func()));
 
         protected abstract class AsyncOperationHandler
         {
@@ -99,6 +101,26 @@ namespace WorkflowsCore.StateMachines
 
             public override Task<State<TState, THiddenState>> ExecuteAsync() => Task.FromResult(_newState);
         }
+
+        private class InvokeHandler<TR> : AsyncOperationHandler
+        {
+            private readonly Func<Task<TR>> _taskFactory;
+
+            public InvokeHandler(State<TState, THiddenState> parent, Func<Task<TR>> taskFactory)
+            {
+                _taskFactory = taskFactory;
+                Child = new AsyncOperation<TState, THiddenState, TR>(parent);
+            }
+
+            public AsyncOperation<TState, THiddenState, TR> Child { get; }
+
+            public override async Task<State<TState, THiddenState>> ExecuteAsync()
+            {
+                var res = await _taskFactory();
+
+                return await Child.ExecuteAsync(res);
+            }
+        }
     }
 
     public sealed class AsyncOperationVoidData
@@ -107,19 +129,26 @@ namespace WorkflowsCore.StateMachines
 
     public class AsyncOperation<TState, THiddenState> : BaseAsyncOperation<TState, THiddenState, AsyncOperationVoidData>
     {
-        public AsyncOperation(State<TState, THiddenState> parent, string description)
+        public AsyncOperation(State<TState, THiddenState> parent, string description = null)
             : base(parent, description)
         {
         }
 
         public AsyncOperation<TState, THiddenState> Invoke(Func<Task> taskFactory)
         {
-            throw new NotImplementedException();
+            var handler = new InvokeHandler(Parent, taskFactory);
+            Handler = handler;
+            return handler.Child;
         }
 
         public AsyncOperation<TState, THiddenState> Invoke(Action action)
         {
-            throw new NotImplementedException();
+            return Invoke(
+                () =>
+                {
+                    action();
+                    return Task.CompletedTask;
+                });
         }
 
         public new AsyncOperation<TState, THiddenState, TR> Invoke<TR>(Func<Task<TR>> taskFactory) =>
@@ -132,10 +161,8 @@ namespace WorkflowsCore.StateMachines
             throw new NotImplementedException();
         }
 
-        public AsyncOperation<TState, THiddenState> If(Func<bool> predicate, string description = null)
-        {
-            throw new NotImplementedException();
-        }
+        public AsyncOperation<TState, THiddenState> If(Func<bool> predicate, string description = null) =>
+            If(() => Task.FromResult(predicate()), description);
 
         public AsyncOperation<TState, THiddenState> IfThenGoTo(
             Func<Task<bool>> taskFactory,
@@ -150,40 +177,79 @@ namespace WorkflowsCore.StateMachines
             StateId<TState, THiddenState> state,
             string description = null)
         {
-            throw new NotImplementedException();
+            return IfThenGoTo(() => Task.FromResult(predicate()), state, description);
         }
 
         public Task<State<TState, THiddenState>> ExecuteAsync() => Handler.ExecuteAsync();
+
+        private class InvokeHandler : AsyncOperationHandler
+        {
+            private readonly Func<Task> _taskFactory;
+
+            public InvokeHandler(State<TState, THiddenState> parent, Func<Task> taskFactory)
+            {
+                _taskFactory = taskFactory;
+                Child = new AsyncOperation<TState, THiddenState>(parent);
+            }
+
+            public AsyncOperation<TState, THiddenState> Child { get; }
+
+            public override async Task<State<TState, THiddenState>> ExecuteAsync()
+            {
+                await _taskFactory();
+
+                return await Child.ExecuteAsync();
+            }
+        }
     }
 
     public class AsyncOperation<TState, THiddenState, TData> : BaseAsyncOperation<TState, THiddenState, TData>
     {
-        public AsyncOperation(State<TState, THiddenState> parent, string description)
+        public AsyncOperation(State<TState, THiddenState> parent, string description = null)
             : base(parent, description)
         {
         }
 
         public AsyncOperation<TState, THiddenState, TR> Invoke<TR>(Func<TData, Task<TR>> taskFactory)
         {
-            throw new NotImplementedException();
+            var handler = new InvokeHandlerWithData<TR>(Parent, taskFactory);
+            Handler = handler;
+            return handler.Child;
         }
 
-        public AsyncOperation<TState, THiddenState, TR> Invoke<TR>(Func<TData, TR> func)
+        public AsyncOperation<TState, THiddenState, TR> Invoke<TR>(Func<TData, TR> func) =>
+            Invoke(d => Task.FromResult(func(d)));
+
+        public AsyncOperation<TState, THiddenState, TData> Invoke(Func<TData, Task> taskFactory)
         {
-            throw new NotImplementedException();
+            var handler = new InvokeHandler(Parent, taskFactory);
+            Handler = handler;
+            return handler.Child;
         }
 
-        public AsyncOperation<TState, THiddenState, TData> Invoke(Func<Task> taskFactory)
-        {
-            throw new NotImplementedException();
-        }
+        public AsyncOperation<TState, THiddenState, TData> Invoke(Func<Task> taskFactory) => Invoke(_ => taskFactory());
 
         public AsyncOperation<TState, THiddenState, TData> Invoke(Action action)
         {
-            throw new NotImplementedException();
+            return Invoke(
+                () =>
+                {
+                    action();
+                    return Task.CompletedTask;
+                });
         }
 
-        public new AsyncOperation<TState, THiddenState, TR> Invoke<TR>(Func<Task<TR>> taskFactory) => 
+        public AsyncOperation<TState, THiddenState, TData> Invoke(Action<TData> action)
+        {
+            return Invoke(
+                d =>
+                {
+                    action(d);
+                    return Task.CompletedTask;
+                });
+        }
+
+        public new AsyncOperation<TState, THiddenState, TR> Invoke<TR>(Func<Task<TR>> taskFactory) =>
             base.Invoke(taskFactory);
 
         public new AsyncOperation<TState, THiddenState, TR> Invoke<TR>(Func<TR> func) => base.Invoke(func);
@@ -200,10 +266,14 @@ namespace WorkflowsCore.StateMachines
         public AsyncOperation<TState, THiddenState, TData> If(Func<TData, bool> predicate, string description = null) =>
             If(d => Task.FromResult(predicate(d)), description);
 
-        public AsyncOperation<TState, THiddenState, TData> If(Func<Task<bool>> taskFactory, string description = null) => 
-            If(_ => taskFactory(), description);
+        public AsyncOperation<TState, THiddenState, TData> If(
+            Func<Task<bool>> taskFactory,
+            string description = null)
+        {
+            return If(_ => taskFactory(), description);
+        }
 
-        public AsyncOperation<TState, THiddenState, TData> If(Func<bool> predicate, string description = null) => 
+        public AsyncOperation<TState, THiddenState, TData> If(Func<bool> predicate, string description = null) =>
             If(() => Task.FromResult(predicate()), description);
 
         public AsyncOperation<TState, THiddenState, TData> IfThenGoTo(
@@ -219,7 +289,7 @@ namespace WorkflowsCore.StateMachines
             StateId<TState, THiddenState> state,
             string description = null)
         {
-            throw new NotImplementedException();
+            return IfThenGoTo(d => Task.FromResult(predicate(d)), state, description);
         }
 
         public AsyncOperation<TState, THiddenState, TData> IfThenGoTo(
@@ -227,7 +297,7 @@ namespace WorkflowsCore.StateMachines
             StateId<TState, THiddenState> state,
             string description = null)
         {
-            throw new NotImplementedException();
+            return IfThenGoTo(_ => Task.FromResult(predicate()), state, description);
         }
 
         public AsyncOperation<TState, THiddenState, TData> IfThenGoTo(
@@ -235,7 +305,7 @@ namespace WorkflowsCore.StateMachines
             StateId<TState, THiddenState> state,
             string description = null)
         {
-            throw new NotImplementedException();
+            return IfThenGoTo(_ => taskFactory(), state, description);
         }
 
         public State<TState, THiddenState> Do(Action<TData> action)
@@ -304,6 +374,56 @@ namespace WorkflowsCore.StateMachines
                 {
                     return null;
                 }
+
+                return await Child.ExecuteAsync(data);
+            }
+        }
+
+        private class InvokeHandlerWithData<TR> : AsyncOperationHandler
+        {
+            private readonly Func<TData, Task<TR>> _taskFactory;
+
+            public InvokeHandlerWithData(State<TState, THiddenState> parent, Func<TData, Task<TR>> taskFactory)
+            {
+                _taskFactory = taskFactory;
+                Child = new AsyncOperation<TState, THiddenState, TR>(parent);
+            }
+
+            public AsyncOperation<TState, THiddenState, TR> Child { get; }
+
+            public override Task<State<TState, THiddenState>> ExecuteAsync()
+            {
+                throw new NotImplementedException();
+            }
+
+            public override async Task<State<TState, THiddenState>> ExecuteAsync(TData data)
+            {
+                var res = await _taskFactory(data);
+
+                return await Child.ExecuteAsync(res);
+            }
+        }
+
+        private class InvokeHandler : AsyncOperationHandler
+        {
+            private readonly Func<TData, Task> _taskFactory;
+
+            public InvokeHandler(State<TState, THiddenState> parent, Func<TData, Task> taskFactory)
+            {
+                _taskFactory = taskFactory;
+                Child = new AsyncOperation<TState, THiddenState, TData>(parent);
+            }
+
+            public AsyncOperation<TState, THiddenState, TData> Child { get; }
+
+            public override Task<State<TState, THiddenState>> ExecuteAsync()
+            {
+                throw new NotImplementedException();
+            }
+
+            public override async Task<State<TState, THiddenState>> ExecuteAsync(TData data)
+            {
+                await _taskFactory(data);
 
                 return await Child.ExecuteAsync(data);
             }

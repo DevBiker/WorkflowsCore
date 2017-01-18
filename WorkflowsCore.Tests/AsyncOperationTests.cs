@@ -62,6 +62,26 @@ namespace WorkflowsCore.Tests
                 Assert.Same(_parent, state);
                 Assert.Same(newState, res);
             }
+
+            [Fact]
+            public async Task InvokeShouldCallFuncAndPropagateReturnedData()
+            {
+                var res = 0;
+                _asyncOperation.Invoke(() => 3).Do(i => res = i);
+
+                await _asyncOperation.ExecuteAsync();
+                Assert.Equal(3, res);
+            }
+
+            [Fact]
+            public async Task InvokeShouldCallAction()
+            {
+                var wasCalled = false;
+                _asyncOperation.Invoke(new Action(() => wasCalled = true)).Do(() => { });
+
+                await _asyncOperation.ExecuteAsync();
+                Assert.True(wasCalled);
+            }
         }
 
         public class AsyncOperationWithDataTests : BaseStateTest<States>
@@ -118,6 +138,26 @@ namespace WorkflowsCore.Tests
                 Assert.Same(_parent, state);
                 Assert.Null(res);
                 Assert.True(wasCalled);
+            }
+
+            [Fact]
+            public async Task InvokeShouldCallFuncAndPropagateReturnedData()
+            {
+                var res = 0;
+                _asyncOperation.Invoke(i => i + 1).Do(i => res = i);
+
+                await _asyncOperation.ExecuteAsync(1);
+                Assert.Equal(2, res);
+            }
+
+            [Fact]
+            public async Task InvokeShouldCallAction()
+            {
+                var res = 0;
+                _asyncOperation.Invoke(new Action<int>(i => res = 3)).Do(() => { });
+
+                await _asyncOperation.ExecuteAsync(3);
+                Assert.Equal(3, res);
             }
         }
     }
