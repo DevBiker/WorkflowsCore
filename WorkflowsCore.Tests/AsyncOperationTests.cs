@@ -55,7 +55,7 @@ namespace WorkflowsCore.Tests
             public async Task GoToShouldReturnNewStateWhenAsyncOperationIsExecuted()
             {
                 var newState = CreateState(States.State1);
-                var state = _asyncOperation.GoTo(newState);
+                var state = _asyncOperation.GoTo(States.State1);
 
                 var res = await _asyncOperation.ExecuteAsync();
 
@@ -108,7 +108,7 @@ namespace WorkflowsCore.Tests
             }
 
             [Fact]
-            public async Task IfShouldNotInterruptChainIfPredicateIsFalse()
+            public async Task IfShouldNotInterruptChainIfPredicateIsTrue()
             {
                 var wasCalled = false;
                 var state = _asyncOperation.If(i => i != 3).Do(() => wasCalled = true);

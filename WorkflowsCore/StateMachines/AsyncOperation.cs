@@ -35,17 +35,17 @@ namespace WorkflowsCore.StateMachines
             }
         }
 
-        public AsyncOperation<TState, THiddenState, TR> Middleware<TR>(Func<Task<TR>> taskFactory)
+        public AsyncOperation<TState, THiddenState, TR> Invoke<TR>(Func<Task<TR>> taskFactory)
         {
             throw new NotImplementedException();
         }
 
-        public State<TState, THiddenState> GoTo(StateId<TState, THiddenState> state) => 
-            GoTo(Parent.StateMachine.ConfigureState(state));
+        public AsyncOperation<TState, THiddenState, TR> Invoke<TR>(Func<TR> func) => 
+            Invoke(() => Task.FromResult(func()));
 
-        public State<TState, THiddenState> GoTo(State<TState, THiddenState> state)
+        public State<TState, THiddenState> GoTo(StateId<TState, THiddenState> state)
         {
-            Handler = new GoToHandler(state);
+            Handler = new GoToHandler(Parent.StateMachine.ConfigureState(state));
             return Parent;
         }
 
@@ -112,12 +112,27 @@ namespace WorkflowsCore.StateMachines
         {
         }
 
-        public AsyncOperation<TState, THiddenState> Middleware(Func<Task> taskFactory)
+        public AsyncOperation<TState, THiddenState> Invoke(Func<Task> taskFactory)
         {
             throw new NotImplementedException();
         }
 
+        public AsyncOperation<TState, THiddenState> Invoke(Action action)
+        {
+            throw new NotImplementedException();
+        }
+
+        public new AsyncOperation<TState, THiddenState, TR> Invoke<TR>(Func<Task<TR>> taskFactory) =>
+            base.Invoke(taskFactory);
+
+        public new AsyncOperation<TState, THiddenState, TR> Invoke<TR>(Func<TR> func) => base.Invoke(func);
+
         public AsyncOperation<TState, THiddenState> If(Func<Task<bool>> taskFactory, string description = null)
+        {
+            throw new NotImplementedException();
+        }
+
+        public AsyncOperation<TState, THiddenState> If(Func<bool> predicate, string description = null)
         {
             throw new NotImplementedException();
         }
@@ -131,8 +146,8 @@ namespace WorkflowsCore.StateMachines
         }
 
         public AsyncOperation<TState, THiddenState> IfThenGoTo(
-            Func<Task<bool>> taskFactory,
-            State<TState, THiddenState> state,
+            Func<bool> predicate,
+            StateId<TState, THiddenState> state,
             string description = null)
         {
             throw new NotImplementedException();
@@ -148,15 +163,30 @@ namespace WorkflowsCore.StateMachines
         {
         }
 
-        public AsyncOperation<TState, THiddenState, TR> Middleware<TR>(Func<TData, Task<TR>> taskFactory)
+        public AsyncOperation<TState, THiddenState, TR> Invoke<TR>(Func<TData, Task<TR>> taskFactory)
         {
             throw new NotImplementedException();
         }
 
-        public AsyncOperation<TState, THiddenState, TData> Middleware(Func<Task> taskFactory)
+        public AsyncOperation<TState, THiddenState, TR> Invoke<TR>(Func<TData, TR> func)
         {
             throw new NotImplementedException();
         }
+
+        public AsyncOperation<TState, THiddenState, TData> Invoke(Func<Task> taskFactory)
+        {
+            throw new NotImplementedException();
+        }
+
+        public AsyncOperation<TState, THiddenState, TData> Invoke(Action action)
+        {
+            throw new NotImplementedException();
+        }
+
+        public new AsyncOperation<TState, THiddenState, TR> Invoke<TR>(Func<Task<TR>> taskFactory) => 
+            base.Invoke(taskFactory);
+
+        public new AsyncOperation<TState, THiddenState, TR> Invoke<TR>(Func<TR> func) => base.Invoke(func);
 
         public AsyncOperation<TState, THiddenState, TData> If(
             Func<TData, Task<bool>> taskFactory,
@@ -185,7 +215,7 @@ namespace WorkflowsCore.StateMachines
         }
 
         public AsyncOperation<TState, THiddenState, TData> IfThenGoTo(
-            Func<Task<bool>> taskFactory,
+            Func<TData, bool> predicate,
             StateId<TState, THiddenState> state,
             string description = null)
         {
@@ -193,8 +223,8 @@ namespace WorkflowsCore.StateMachines
         }
 
         public AsyncOperation<TState, THiddenState, TData> IfThenGoTo(
-            Func<TData, Task<bool>> taskFactory,
-            State<TState, THiddenState> state,
+            Func<bool> predicate,
+            StateId<TState, THiddenState> state,
             string description = null)
         {
             throw new NotImplementedException();
@@ -202,7 +232,7 @@ namespace WorkflowsCore.StateMachines
 
         public AsyncOperation<TState, THiddenState, TData> IfThenGoTo(
             Func<Task<bool>> taskFactory,
-            State<TState, THiddenState> state,
+            StateId<TState, THiddenState> state,
             string description = null)
         {
             throw new NotImplementedException();

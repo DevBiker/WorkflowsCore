@@ -69,7 +69,7 @@ namespace WorkflowsCore.Tests
             var date = DateTime.Now.AddDays(3);
             var state2 = _stateMachine.ConfigureState(States.State2);
             _stateMachine.ConfigureState(States.State1)
-                .OnAsync(() => Workflow.WaitForDate(date)).GoTo(state2);
+                .OnAsync(() => Workflow.WaitForDate(date)).GoTo(States.State2);
 
             Utilities.TimeProvider = new TestingTimeProvider();
             Workflow = new TestWorkflow();

@@ -197,7 +197,7 @@ namespace WorkflowsCore.Tests
             StartWorkflow();
 
             var date = DateTime.Now.AddDays(3);
-            _state.OnAsync(() => Workflow.WaitForDate(date)).GoTo(CreateState(States.State2));
+            _state.OnAsync(() => Workflow.WaitForDate(date)).GoTo(States.State2);
 
             Utilities.TimeProvider = new TestingTimeProvider();
 
@@ -276,7 +276,7 @@ namespace WorkflowsCore.Tests
             StartWorkflow();
 
             var childState = CreateState(States.State1Child1).SubstateOf(_state);
-            _state.OnEnter().GoTo(childState);
+            _state.OnEnter().GoTo(States.State1Child1);
 
             var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(_state)));
 
@@ -297,7 +297,7 @@ namespace WorkflowsCore.Tests
         {
             StartWorkflow();
 
-            _state.OnEnter().GoTo(_state);
+            _state.OnEnter().GoTo(States.State1);
 
             var childState = CreateState(States.State1Child1).SubstateOf(_state);
             var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(childState)));
@@ -322,7 +322,7 @@ namespace WorkflowsCore.Tests
             var counter = 0;
             _state.OnExit().Do(() => ++counter);
             var state2 = CreateState(States.State2);
-            _state.OnEnter().GoTo(state2);
+            _state.OnEnter().GoTo(States.State2);
 
             var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(_state)));
 
@@ -341,7 +341,7 @@ namespace WorkflowsCore.Tests
             StartWorkflow();
 
             var childState = CreateState(States.State1Child1).SubstateOf(_state);
-            _state.OnExit().GoTo(childState);
+            _state.OnExit().GoTo(States.State1Child1);
 
             var counter = 0;
             _state.OnExit().Do(() => ++counter);
