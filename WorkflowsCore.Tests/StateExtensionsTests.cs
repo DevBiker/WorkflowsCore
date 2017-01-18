@@ -71,6 +71,31 @@ namespace WorkflowsCore.Tests
             await CancelWorkflowAsync();
         }
 
+        [Fact]
+        public async Task OnActionWithWasExecutedCheckShouldExecuteChainWhenSpecifiedActionExecuted()
+        {
+            var tcs = new TaskCompletionSource<bool>();
+            var state = _stateMachine.ConfigureState(States.State1)
+                .OnActionWithWasExecutedCheck("Action 1").Do(() => tcs.SetResult(true));
+
+            Workflow = new TestWorkflow();
+            StartWorkflow();
+
+            var t = Workflow.WaitForAny(
+                () => tcs.Task,
+                () => Workflow.DoWorkflowTaskAsync(w => _stateMachine.Run(w, state.StateId, false).Task));
+
+            await Workflow.ReadyTask;
+
+            await Workflow.ExecuteActionAsync("Action 1");
+
+            await t;
+
+            Assert.Equal(TaskStatus.RanToCompletion, tcs.Task.Status);
+
+            await CancelWorkflowAsync();
+        }
+
         public class TestWorkflow : WorkflowBase
         {
             protected override void OnActionsInit()

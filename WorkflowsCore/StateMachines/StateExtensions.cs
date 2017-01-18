@@ -76,7 +76,7 @@ namespace WorkflowsCore.StateMachines
         {
             return state.AllowActions(action)
                 .OnAsync(() => Workflow.WaitForAction(action), description)
-                .If(() => Workflow.IsActionAllowed(action));
+                .If(() => Workflow.IsActionAllowed(action)); // TODO:
         }
 
         public static AsyncOperation<TState, THiddenState> OnActionWithWasExecutedCheck<TState, THiddenState>(
@@ -84,7 +84,9 @@ namespace WorkflowsCore.StateMachines
             string action,
             string description = null)
         {
-            throw new NotImplementedException();
+            return state.AllowActions(action)
+                .OnAsync(() => Workflow.WaitForActionWithWasExecutedCheck(action), description)
+                .If(() => Workflow.IsActionAllowed(action)); // TODO:
         }
     }
 }
