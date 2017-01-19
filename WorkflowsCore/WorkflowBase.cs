@@ -348,7 +348,10 @@ namespace WorkflowsCore
                 async () =>
                 {
                     await StateInitializedTask;
-                    return GetAvailableActions();
+                    using (await this.WaitForReadyAndStartOperation())
+                    {
+                        return GetAvailableActions();
+                    }
                 }).Unwrap();
         }
 

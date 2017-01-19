@@ -84,9 +84,9 @@ namespace WorkflowsCore.StateMachines
             string action,
             string description = null)
         {
-            return state.AllowActions(action)
+            return state
                 .OnAsync(() => Workflow.WaitForActionWithWasExecutedCheck(action), description)
-                .If(() => Workflow.IsActionAllowed(action)); // TODO:
+                .If(() => Workflow.WasExecuted(action));
         }
     }
 }

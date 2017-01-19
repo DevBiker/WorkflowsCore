@@ -29,7 +29,7 @@ namespace WorkflowsCore
 
         protected State<TState, THiddenState> ConfigureState(TState state)
         {
-            base.ConfigureState(state);
+            ConfigureState(state, suppressAll: true);
             return _stateMachine.ConfigureState(state);
         }
 
