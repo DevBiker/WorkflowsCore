@@ -256,17 +256,24 @@ namespace WorkflowsCore
             return workflow.RunViaWorkflowTaskScheduler(
                 async w =>
                 {
-                    while (true)
+                    try
                     {
-                        var operation = w.TryStartOperation();
-                        if (operation != null)
+                        while (true)
                         {
-                            return operation;
-                        }
+                            var operation = w.TryStartOperation();
+                            if (operation != null)
+                            {
+                                return operation;
+                            }
 
-                        var t = await Task.WhenAny(workflow.ReadyTask, Task.Delay(Timeout.Infinite, cts.Token));
+                            var t = await Task.WhenAny(workflow.ReadyTask, Task.Delay(Timeout.Infinite, cts.Token));
+                            await t;
+                        }
+                    }
+                    finally
+                    {
                         cts.Cancel();
-                        await t;
+                        cts.Dispose();
                     }
                 }).Unwrap();
         }
@@ -422,6 +429,13 @@ namespace WorkflowsCore
                             TaskContinuationOptions.ExecuteSynchronously);
                         return;
                     }
+
+                    // TODO:
+                    ////if (tasks.Any(t => t.IsCanceled))
+                    ////{
+                    ////    tcs.SetException(new InvalidOperationException($"WaitForAny() canceled child {cts.IsCancellationRequested}, {parentCancellationToken.IsCancellationRequested}"));
+                    ////    return;
+                    ////}
 
                     WaitAnyCore(
                         tasks.Where(t => t.Status != TaskStatus.RanToCompletion).ToList(),
