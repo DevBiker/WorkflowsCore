@@ -349,6 +349,29 @@ namespace WorkflowsCore.Tests
             }
 
             [Fact]
+            public async Task WaitForActionShouldExportOperationIfRequested()
+            {
+                StartWorkflow();
+                await Workflow.DoWorkflowTaskAsync(
+                    async w =>
+                    {
+                        var t = Workflow.WaitForAction("Contacted", exportOperation: true);
+                        await Workflow.ExecuteActionAsync("Contacted");
+                        var parameters = await t;
+
+                        var operation = parameters.GetData<IDisposable>("ActionOperation");
+                        Assert.NotNull(operation);
+                        var readyTask = Workflow.ReadyTask;
+                        Assert.NotEqual(TaskStatus.RanToCompletion, readyTask.Status);
+
+                        operation.Dispose();
+                        Assert.Equal(TaskStatus.RanToCompletion, readyTask.Status);
+                    }).Unwrap();
+
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
             public async Task WaitForActionWithCheckWasExecutedShouldReturnImmediatelyIfActionWasExecutedBefore()
             {
                 StartWorkflow();

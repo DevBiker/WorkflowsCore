@@ -61,17 +61,21 @@ namespace WorkflowsCore.StateMachines
 
         public AsyncOperation<TState, THiddenState, TR> OnAsync<TR>(
             Func<Task<TR>> taskFactory,
-            string description = null)
+            string description = null,
+            Func<IDisposable> getOperationForImport = null)
         {
             var asyncOperation = new AsyncOperation<TState, THiddenState, TR>(this, description);
-            _onAsyncHandlers.Add(new AsyncOperationWrapper<TR>(taskFactory, asyncOperation));
+            _onAsyncHandlers.Add(new AsyncOperationWrapper<TR>(taskFactory, asyncOperation, getOperationForImport));
             return asyncOperation;
         }
 
-        public AsyncOperation<TState, THiddenState> OnAsync(Func<Task> taskFactory, string description = null)
+        public AsyncOperation<TState, THiddenState> OnAsync(
+            Func<Task> taskFactory,
+            string description = null,
+            Func<IDisposable> getOperationForImport = null)
         {
             var asyncOperation = new AsyncOperation<TState, THiddenState>(this, description);
-            _onAsyncHandlers.Add(new AsyncOperationWrapper(taskFactory, asyncOperation));
+            _onAsyncHandlers.Add(new AsyncOperationWrapper(taskFactory, asyncOperation, getOperationForImport));
             return asyncOperation;
         }
 
@@ -295,11 +299,16 @@ namespace WorkflowsCore.StateMachines
         {
             private readonly Func<Task> _taskFactory;
             private readonly AsyncOperation<TState, THiddenState> _operation;
+            private readonly Func<IDisposable> _getOperationForImport;
 
-            public AsyncOperationWrapper(Func<Task> taskFactory, AsyncOperation<TState, THiddenState> operation)
+            public AsyncOperationWrapper(
+                Func<Task> taskFactory,
+                AsyncOperation<TState, THiddenState> operation,
+                Func<IDisposable> getOperationForImport)
             {
                 _taskFactory = taskFactory;
                 _operation = operation;
+                _getOperationForImport = getOperationForImport;
             }
 
             // ReSharper disable once FunctionNeverReturns
@@ -308,6 +317,12 @@ namespace WorkflowsCore.StateMachines
                 while (true)
                 {
                     await _taskFactory();
+                    var operationToImport = _getOperationForImport?.Invoke();
+                    if (operationToImport != null)
+                    {
+                        Workflow.ImportOperation(operationToImport);
+                    }
+
                     using (await Workflow.WaitForReadyAndStartOperation())
                     {
                         var newState = await _operation.ExecuteAsync();
@@ -326,11 +341,16 @@ namespace WorkflowsCore.StateMachines
         {
             private readonly Func<Task<TR>> _taskFactory;
             private readonly AsyncOperation<TState, THiddenState, TR> _operation;
+            private readonly Func<IDisposable> _getOperationForImport;
 
-            public AsyncOperationWrapper(Func<Task<TR>> taskFactory, AsyncOperation<TState, THiddenState, TR> operation)
+            public AsyncOperationWrapper(
+                Func<Task<TR>> taskFactory,
+                AsyncOperation<TState, THiddenState, TR> operation,
+                Func<IDisposable> getOperationForImport)
             {
                 _taskFactory = taskFactory;
                 _operation = operation;
+                _getOperationForImport = getOperationForImport;
             }
 
             // ReSharper disable once FunctionNeverReturns
@@ -339,6 +359,12 @@ namespace WorkflowsCore.StateMachines
                 while (true)
                 {
                     var res = await _taskFactory();
+                    var operationToImport = _getOperationForImport?.Invoke();
+                    if (operationToImport != null)
+                    {
+                        Workflow.ImportOperation(operationToImport);
+                    }
+
                     using (await Workflow.WaitForReadyAndStartOperation())
                     {
                         var newState = await _operation.ExecuteAsync(res);

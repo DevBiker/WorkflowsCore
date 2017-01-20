@@ -66,6 +66,7 @@ namespace WorkflowsCore.Tests
 
             await t;
 
+            tcs.Task.Result.SetData("ActionOperation", (IDisposable)null);
             Assert.Equal(parameters.ToList(), tcs.Task.Result.Data.ToList());
 
             await CancelWorkflowAsync();

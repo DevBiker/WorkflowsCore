@@ -151,6 +151,30 @@ namespace WorkflowsCore.Tests
             }
 
             [Fact]
+            public async Task ImportOperationShouldSetCurrentOperation()
+            {
+                Workflow = new TestWorkflow();
+                StartWorkflow();
+
+                Workflow.CreateOperation();
+                await Workflow.DoWorkflowTaskAsync(
+                    () =>
+                    {
+                        using (var operation = Workflow.TryStartOperation())
+                        {
+                            Workflow.ResetOperation();
+
+                            Workflow.ImportOperation(operation);
+                            using (Workflow.TryStartOperation())
+                            {
+                            }
+                        }
+                    });
+
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
             public async Task StartingInnerOperationShoulSucceed()
             {
                 Workflow = new TestWorkflow();
@@ -909,6 +933,8 @@ namespace WorkflowsCore.Tests
             public new IDisposable TryStartOperation() => base.TryStartOperation();
 
             public new void ResetOperation() => base.ResetOperation();
+
+            public new void ImportOperation(IDisposable operation) => base.ImportOperation(operation);
 
             public void CompleteLongWork() => _badCancellationTcs.SetResult(true);
 

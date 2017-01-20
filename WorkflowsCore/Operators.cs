@@ -89,7 +89,10 @@ namespace WorkflowsCore
             return tcs.Task;
         }
 
-        public static Task<NamedValues> WaitForAction(this WorkflowBase workflow, string action)
+        public static Task<NamedValues> WaitForAction(
+            this WorkflowBase workflow,
+            string action,
+            bool exportOperation = false)
         {
             var tcs = new TaskCompletionSource<NamedValues>();
 
@@ -120,9 +123,27 @@ namespace WorkflowsCore
                 {
                     // ReSharper disable once AccessToModifiedClosure
                     workflow.ActionExecuted -= handler;
+
+                    IDisposable operation = null;
+                    if (exportOperation)
+                    {
+                        workflow.CreateOperation();
+                        operation = workflow.TryStartOperation();
+                        if (operation == null)
+                        {
+                            throw new InvalidOperationException();
+                        }
+
+                        args.Parameters.SetData("ActionOperation", operation);
+                    }
+
                     if (tcs.TrySetResult(args.Parameters))
                     {
                         registration.Dispose();
+                    }
+                    else
+                    {
+                        operation?.Dispose();
                     }
                 }
             };

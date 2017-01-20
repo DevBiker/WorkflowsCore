@@ -74,9 +74,23 @@ namespace WorkflowsCore.StateMachines
             string action,
             string description = null)
         {
+            IDisposable operation = null;
             return state.AllowActions(action)
-                .OnAsync(() => Workflow.WaitForAction(action), description)
-                .If(() => Workflow.IsActionAllowed(action)); // TODO:
+                .OnAsync(
+                    async () =>
+                    {
+                        var parameters = await Workflow.WaitForAction(action, exportOperation: true);
+                        operation = parameters.GetData<IDisposable>("ActionOperation");
+                        if (operation == null)
+                        {
+                            throw new InvalidOperationException();
+                        }
+
+                        return parameters;
+                    },
+                    description,
+                    () => operation)
+                .Invoke(() => operation?.Dispose());
         }
 
         public static AsyncOperation<TState, THiddenState> OnActionWithWasExecutedCheck<TState, THiddenState>(

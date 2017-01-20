@@ -469,12 +469,109 @@ namespace WorkflowsCore.Tests
             await CancelWorkflowAsync();
         }
 
+        [Fact]
+        public async Task OnAsyncShouldImportOperationOnRequest()
+        {
+            StartWorkflow();
+
+            IDisposable operation = null;
+            _state.OnAsync(
+                () => Workflow.DoWorkflowTaskAsync(
+                    async () =>
+                    {
+                        await Workflow.ReadyTask;
+
+                        if (operation != null)
+                        {
+                            await Workflow.WaitForDate(DateTime.MaxValue);
+                            return 1;
+                        }
+
+                        operation = await Workflow.WaitForReadyAndStartOperation();
+
+#pragma warning disable 4014
+                        Task.Delay(1).ContinueWith(_ => operation.Dispose());
+#pragma warning restore 4014
+
+                        return 1;
+                    }).Unwrap(),
+                getOperationForImport: () => operation)
+                .Do(
+                    async () =>
+                    {
+                        using (var operation2 = await Workflow.WaitForReadyAndStartOperation())
+                        {
+                            Assert.Same(operation, operation2);
+                        }
+                    });
+
+            var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(_state)));
+
+            await Workflow.ReadyTask;
+            SetWorkflowTemporarily(Workflow, () => instance.InitiateTransitionTo(CreateState(States.State2)));
+
+            await Workflow.StartedTask;
+            await CancelWorkflowAsync();
+
+            await instance.Task;
+        }
+
+        [Fact]
+        public async Task OnAsync2ShouldImportOperationOnRequest()
+        {
+            StartWorkflow();
+
+            IDisposable operation = null;
+            _state.OnAsync(
+                () => Workflow.DoWorkflowTaskAsync(
+                    async () =>
+                    {
+                        if (operation != null)
+                        {
+                            await Workflow.WaitForDate(DateTime.MaxValue);
+                            return;
+                        }
+
+                        operation = await Workflow.WaitForReadyAndStartOperation();
+
+#pragma warning disable 4014
+                        Task.Delay(1).ContinueWith(_ => operation.Dispose());
+#pragma warning restore 4014
+                    }).Unwrap(),
+                getOperationForImport: () => operation)
+                .Do(
+                    async () =>
+                    {
+                        using (var operation2 = await Workflow.WaitForReadyAndStartOperation())
+                        {
+                            Assert.Same(operation, operation2);
+                        }
+                    });
+
+            var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(_state)));
+
+            await Workflow.ReadyTask;
+            SetWorkflowTemporarily(Workflow, () => instance.InitiateTransitionTo(CreateState(States.State2)));
+
+            await Workflow.StartedTask;
+            await CancelWorkflowAsync();
+
+            await instance.Task;
+        }
+
         private State<States, string> CreateState(States state) => _baseStateTest.CreateState(state);
 
         private StateTransition<States, string> CreateTransition(State<States, string> state, bool isRestoring = false)
         {
-            Workflow.CreateOperation();
-            return new StateTransition<States, string>(state, Workflow.TryStartOperation(), isRestoring);
+            try
+            {
+                Workflow.CreateOperation();
+                return new StateTransition<States, string>(state, Workflow.TryStartOperation(), isRestoring);
+            }
+            finally
+            {
+                Workflow.ResetOperation();
+            }
         }
 
         public class TestWorkflow : WorkflowBase
@@ -482,6 +579,8 @@ namespace WorkflowsCore.Tests
             public new void CreateOperation() => base.CreateOperation();
 
             public new IDisposable TryStartOperation() => base.TryStartOperation();
+
+            public new void ResetOperation() => base.ResetOperation();
 
             protected override void OnActionsInit()
             {

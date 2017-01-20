@@ -413,6 +413,8 @@ namespace WorkflowsCore
 
         protected internal void ResetOperation() => CurrentOperation.Value = null;
 
+        protected internal void ImportOperation(IDisposable operation) => CurrentOperation.Value = (Operation)operation;
+
         protected internal bool WasExecuted(string action) => TimesExecuted(action) > 0;
 
         protected internal virtual bool IsActionAllowed(string action) => true;
