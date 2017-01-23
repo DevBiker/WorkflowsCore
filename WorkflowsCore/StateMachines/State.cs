@@ -86,7 +86,7 @@ namespace WorkflowsCore.StateMachines
             return asyncOperation;
         }
 
-        public State<TState, THiddenState> SubstateOf(StateId<TState, THiddenState> state) => 
+        public State<TState, THiddenState> SubstateOf(StateId<TState, THiddenState> state) =>
             SubstateOf(StateMachine.ConfigureState(state));
 
         public State<TState, THiddenState> SubstateOf(State<TState, THiddenState> state)
@@ -112,7 +112,7 @@ namespace WorkflowsCore.StateMachines
             throw new NotImplementedException();
         }
 
-        public StateInstance Run(StateTransition<TState, THiddenState> transition) => 
+        public StateInstance Run(StateTransition<TState, THiddenState> transition) =>
             new StateInstance(this, transition);
 
         private StateInstance Run(
@@ -131,6 +131,7 @@ namespace WorkflowsCore.StateMachines
         public class StateInstance
         {
             private readonly Action<StateTransition<TState, THiddenState>> _onStateChangedHandler;
+            private readonly Lazy<Task<StateTransition<TState, THiddenState>>> _taskLazy;
             private TaskCompletionSource<StateTransition<TState, THiddenState>> _stateTransitionTaskCompletionSource;
 
             internal StateInstance(State<TState, THiddenState> state, StateTransition<TState, THiddenState> transition)
@@ -142,7 +143,8 @@ namespace WorkflowsCore.StateMachines
 
                 State = state;
                 _onStateChangedHandler = transition.OnStateChangedHandler;
-                Task = Run(transition, transition.Path.Skip(1).ToList());
+                var task = Run(transition, transition.Path.Skip(1).ToList()); // We run in sync way here
+                _taskLazy = new Lazy<Task<StateTransition<TState, THiddenState>>>(() => task, false);
             }
 
             internal StateInstance(
@@ -152,12 +154,16 @@ namespace WorkflowsCore.StateMachines
             {
                 State = state;
                 _onStateChangedHandler = transition.OnStateChangedHandler;
-                Task = Run(transition, initialChildrenStates);
+
+                // We do not start inner state yet to avoid race condition in HandleStateTransitions() when
+                // transition is completed but parent Child is still not set
+                _taskLazy = new Lazy<Task<StateTransition<TState, THiddenState>>>(
+                    () => Run(transition, initialChildrenStates), false);
             }
 
             public State<TState, THiddenState> State { get; }
 
-            public Task<StateTransition<TState, THiddenState>> Task { get; }
+            public Task<StateTransition<TState, THiddenState>> Task => _taskLazy.Value;
 
             public StateInstance Child { get; private set; }
 
