@@ -52,15 +52,15 @@ namespace WorkflowsCore
 
         protected void CompleteWorkflow() => _completeWorkflowTcs.TrySetResult(true);
 
-        private Task RunStateMachine()
-        {
-            _instance = _stateMachine.Run(this, _initialState, IsRestoringState, OnStateChangedHandler);
-            return _instance.Task;
-        }
-
-        private void OnStateChangedHandler(StateTransition<TState, THiddenState> stateTransition)
+        protected virtual void OnStateChanged(StateTransition<TState, THiddenState> stateTransition)
         {
             SetState((TState)stateTransition.State.StateId); // TODO: Support inner hidden states
+        }
+
+        private Task RunStateMachine()
+        {
+            _instance = _stateMachine.Run(this, _initialState, IsRestoringState, OnStateChanged);
+            return _instance.Task;
         }
     }
 
