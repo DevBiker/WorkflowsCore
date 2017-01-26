@@ -31,6 +31,7 @@ namespace WorkflowsCore
         private Exception _exception;
         private bool _wasStared;
         private bool _isCancellationRequested;
+        private Operation _operationInProgress;
 
         protected WorkflowBase()
             : this(null, true)
@@ -111,7 +112,11 @@ namespace WorkflowsCore
 
         private AsyncLocal<Operation> CurrentOperation { get; } = new AsyncLocal<Operation>();
 
-        private Operation OperationInProgress { get; set; }
+        private Operation OperationInProgress
+        {
+            get { return Interlocked.CompareExchange(ref _operationInProgress, null, null); }
+            set { Interlocked.Exchange(ref _operationInProgress, value); }
+        }
 
         [DataField(IsTransient = true)]
         private DateTime? NextActivationDate => _activationDatesManager.NextActivationDate;
