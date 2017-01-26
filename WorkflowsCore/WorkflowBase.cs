@@ -91,7 +91,7 @@ namespace WorkflowsCore
 
         public Task StartedTask => _startedTaskCompletionSource.Task;
 
-        public Task ReadyTask => OperationInProgress?.Task ?? Task.CompletedTask;
+        public Task ReadyTask => OperationInProgress?.Task ?? StartedTask;
 
         public Task StateInitializedTask { get; }
 

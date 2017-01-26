@@ -606,6 +606,8 @@ namespace WorkflowsCore.Tests
             public async Task WaitForReadyShouldStartOperationIfWorkflowIsReady()
             {
                 StartWorkflow();
+                await Workflow.StartedTask;
+
                 Assert.Equal(TaskStatus.RanToCompletion, Workflow.ReadyTask.Status);
                 using (await Workflow.WaitForReadyAndStartOperation())
                 {
@@ -643,6 +645,8 @@ namespace WorkflowsCore.Tests
             public async Task InnerWaitForReadyShouldSucceed()
             {
                 StartWorkflow();
+                await Workflow.StartedTask;
+
                 Assert.Equal(TaskStatus.RanToCompletion, Workflow.ReadyTask.Status);
                 using (await Workflow.WaitForReadyAndStartOperation())
                 {

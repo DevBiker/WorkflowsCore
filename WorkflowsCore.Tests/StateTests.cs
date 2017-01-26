@@ -31,6 +31,9 @@ namespace WorkflowsCore.Tests
         [Fact]
         public async Task WhenStateIsEnteredOnEnterHandlersShouldBeCalledInOrderOfDeclaration()
         {
+            StartWorkflow();
+            await Workflow.ReadyTask;
+
             var counter = 0;
             _state
                 .OnEnter().Do(() => Assert.Equal(0, counter++))
@@ -49,11 +52,16 @@ namespace WorkflowsCore.Tests
 
             Assert.IsType<TaskCanceledException>(ex);
             Assert.Equal(3, counter);
+
+            await CancelWorkflowAsync();
         }
 
         [Fact]
         public async Task WhenCompoundStateIsEnteredOnEnterHandlersShouldBeCalledStartingFromRootToDescendants()
         {
+            StartWorkflow();
+            await Workflow.ReadyTask;
+
             var counter = 0;
             _state.OnEnter().Do(() => Assert.Equal(0, counter++));
 
@@ -81,11 +89,16 @@ namespace WorkflowsCore.Tests
 
             Assert.IsType<TaskCanceledException>(ex);
             Assert.Equal(3, counter);
+
+            await CancelWorkflowAsync();
         }
 
         [Fact]
         public async Task WhenTransitionToNonChildStateInitiatedStateInstanceShouldBeStopped()
         {
+            StartWorkflow();
+            await Workflow.ReadyTask;
+
             var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(_state)));
 
             var state2 = CreateState(States.State2);
@@ -93,11 +106,16 @@ namespace WorkflowsCore.Tests
             SetWorkflowTemporarily(Workflow, () => instance.InitiateTransitionTo(state2));
 
             await instance.Task;
+
+            await CancelWorkflowAsync();
         }
 
         [Fact]
         public async Task WhenStateIsExitedOnExitHandlersShouldBeCalledInOrderOfDeclaration()
         {
+            StartWorkflow();
+            await Workflow.ReadyTask;
+
             var counter = 0;
             _state
                 .OnExit().Do(() => Assert.Equal(0, counter++))
@@ -113,11 +131,16 @@ namespace WorkflowsCore.Tests
             await instance.Task;
 
             Assert.Equal(3, counter);
+
+            await CancelWorkflowAsync();
         }
 
         [Fact]
         public async Task WhenCompoundStateIsExitedOnExitHandlersShouldBeCalledStartingFromLeafToRoot()
         {
+            StartWorkflow();
+            await Workflow.ReadyTask;
+
             var counter = 0;
             _state.OnExit().Do(() => Assert.Equal(2, counter++));
 
@@ -142,12 +165,15 @@ namespace WorkflowsCore.Tests
             await instance.Task;
 
             Assert.Equal(3, counter);
+
+            await CancelWorkflowAsync();
         }
 
         [Fact]
         public async Task WhenOnAsyncTaskCompletesItsDoHandlerShouldBeExecuted()
         {
             StartWorkflow();
+            await Workflow.ReadyTask;
 
             var date = DateTime.Now.AddDays(3);
             var tcs = new TaskCompletionSource<bool>();
@@ -195,6 +221,7 @@ namespace WorkflowsCore.Tests
         public async Task WhenOnAsyncTaskCompletesItsGoToShouldBeExecuted()
         {
             StartWorkflow();
+            await Workflow.StartedTask;
 
             var date = DateTime.Now.AddDays(3);
             _state.OnAsync(() => Workflow.WaitForDate(date)).GoTo(States.State2);
@@ -216,6 +243,7 @@ namespace WorkflowsCore.Tests
         public async Task TransitionToInnerStateShouldNotExecuteExitHandlersForParentState()
         {
             StartWorkflow();
+            await Workflow.StartedTask;
 
             var counter = 0;
             _state.OnExit().Do(() => ++counter);
@@ -237,7 +265,6 @@ namespace WorkflowsCore.Tests
 
             await instance.Task;
 
-            await Workflow.StartedTask;
             await CancelWorkflowAsync();
         }
 
@@ -245,6 +272,7 @@ namespace WorkflowsCore.Tests
         public async Task TransitionFromInnerStateShouldNotExecuteExitHandlersForParentState()
         {
             StartWorkflow();
+            await Workflow.StartedTask;
 
             var counter = 0;
             _state.OnExit().Do(() => ++counter);
@@ -266,7 +294,6 @@ namespace WorkflowsCore.Tests
 
             await instance.Task;
 
-            await Workflow.StartedTask;
             await CancelWorkflowAsync();
         }
 
@@ -274,6 +301,7 @@ namespace WorkflowsCore.Tests
         public async Task TargetStateCouldBeUpdatedToInnerByOnEnterHandlers()
         {
             StartWorkflow();
+            await Workflow.StartedTask;
 
             var childState = CreateState(States.State1Child1).SubstateOf(_state);
             _state.OnEnter().GoTo(States.State1Child1);
@@ -288,7 +316,6 @@ namespace WorkflowsCore.Tests
 
             await instance.Task;
 
-            await Workflow.StartedTask;
             await CancelWorkflowAsync();
         }
 
@@ -296,6 +323,7 @@ namespace WorkflowsCore.Tests
         public async Task TargetStateCouldBeUpdatedToItselfByOnEnterHandlers()
         {
             StartWorkflow();
+            await Workflow.StartedTask;
 
             _state.OnEnter().GoTo(States.State1);
 
@@ -310,7 +338,6 @@ namespace WorkflowsCore.Tests
 
             await instance.Task;
 
-            await Workflow.StartedTask;
             await CancelWorkflowAsync();
         }
 
@@ -318,6 +345,7 @@ namespace WorkflowsCore.Tests
         public async Task TargetStateCouldBeUpdatedToSiblingByOnEnterHandlers()
         {
             StartWorkflow();
+            await Workflow.StartedTask;
 
             var counter = 0;
             _state.OnExit().Do(() => ++counter);
@@ -331,7 +359,6 @@ namespace WorkflowsCore.Tests
             Assert.Same(state2, transition.State);
             Assert.Equal(0, counter);
 
-            await Workflow.StartedTask;
             await CancelWorkflowAsync();
         }
 
@@ -339,6 +366,7 @@ namespace WorkflowsCore.Tests
         public async Task TargetStateCouldBeUpdatedToOtherByOnExitHandlers()
         {
             StartWorkflow();
+            await Workflow.StartedTask;
 
             var childState = CreateState(States.State1Child1).SubstateOf(_state);
             _state.OnExit().GoTo(States.State1Child1);
@@ -355,8 +383,7 @@ namespace WorkflowsCore.Tests
             var transition = await instance.Task;
             Assert.Same(childState, transition.State);
             Assert.Equal(1, counter);
-
-            await Workflow.StartedTask;
+            
             await CancelWorkflowAsync();
         }
 
@@ -364,6 +391,7 @@ namespace WorkflowsCore.Tests
         public async Task OnActivateHandlersShouldBeCalledDuringStateRestoring()
         {
             StartWorkflow();
+            await Workflow.StartedTask;
 
             var enterCounter = 0;
             _state.OnEnter().Do(() => ++enterCounter);
@@ -380,7 +408,6 @@ namespace WorkflowsCore.Tests
             Assert.Equal(0, enterCounter);
             Assert.Equal(1, activateCounter);
 
-            await Workflow.StartedTask;
             await CancelWorkflowAsync();
         }
 
@@ -473,14 +500,13 @@ namespace WorkflowsCore.Tests
         public async Task OnAsyncShouldImportOperationOnRequest()
         {
             StartWorkflow();
+            await Workflow.StartedTask;
 
             IDisposable operation = null;
             _state.OnAsync(
                 () => Workflow.DoWorkflowTaskAsync(
                     async () =>
                     {
-                        await Workflow.ReadyTask;
-
                         if (operation != null)
                         {
                             await Workflow.WaitForDate(DateTime.MaxValue);
@@ -510,7 +536,6 @@ namespace WorkflowsCore.Tests
             await Workflow.ReadyTask;
             SetWorkflowTemporarily(Workflow, () => instance.InitiateTransitionTo(CreateState(States.State2)));
 
-            await Workflow.StartedTask;
             await CancelWorkflowAsync();
 
             await instance.Task;
@@ -520,6 +545,7 @@ namespace WorkflowsCore.Tests
         public async Task OnAsync2ShouldImportOperationOnRequest()
         {
             StartWorkflow();
+            await Workflow.ReadyTask;
 
             IDisposable operation = null;
             _state.OnAsync(
@@ -550,7 +576,6 @@ namespace WorkflowsCore.Tests
 
             var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(_state)));
 
-            await Workflow.ReadyTask;
             SetWorkflowTemporarily(Workflow, () => instance.InitiateTransitionTo(CreateState(States.State2)));
 
             await Workflow.StartedTask;

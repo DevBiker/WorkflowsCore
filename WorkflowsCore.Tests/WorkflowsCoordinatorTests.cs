@@ -79,8 +79,8 @@ namespace WorkflowsCore.Tests
             await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name1, _src.Workflow);
             await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name2, _dst.Workflow);
 
-            await _src.Workflow.ExecuteActionAsync(TestWorkflow.Action1).WaitWithTimeout(100);
-            await _dst.Workflow.WaitForState(WorkflowStates.State2).WaitWithTimeout(100);
+            await _src.Workflow.ExecuteActionAsync(TestWorkflow.Action1);
+            await _dst.Workflow.WaitForState(WorkflowStates.State2).WaitWithTimeout(1000);
 
             await _src.CancelWorkflowAsync();
             await _dst.CancelWorkflowAsync();
