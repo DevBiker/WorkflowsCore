@@ -50,7 +50,7 @@ namespace WorkflowsCore
 
         protected virtual void OnStateChanged(StateTransition<TState, THiddenState> stateTransition)
         {
-            SetState((TState)stateTransition.State.StateId); // TODO: Support inner hidden states
+            SetState((TState)stateTransition.State.StateId, stateTransition.IsRestoringState); // TODO: Support inner hidden states
         }
 
         private Task RunStateMachine()
