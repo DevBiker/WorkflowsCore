@@ -14,6 +14,7 @@ namespace WorkflowsCore.Tests
 
         public enum States
         {
+            None,
             State1,
             State2
         }
@@ -25,12 +26,10 @@ namespace WorkflowsCore.Tests
 
             await Workflow.StartedTask;
 
-            await WaitForReady();
-
             Assert.Equal(States.State1, Workflow.State);
 
             await Workflow.ExecuteActionAsync(TestWorkflow.Action1);
-            await WaitForReady();
+            await Workflow.ReadyTask;
 
             Assert.Equal(States.State2, Workflow.State);
 
@@ -48,12 +47,11 @@ namespace WorkflowsCore.Tests
 
             await Workflow.StartedTask;
 
-            await WaitForReady();
-
             Assert.Equal(States.State2, Workflow.State);
+            Assert.True(Workflow.IsLoaded);
 
             await Workflow.ExecuteActionAsync(TestWorkflow.Action1);
-            await WaitForReady();
+            await Workflow.ReadyTask;
 
             Assert.Equal(States.State1, Workflow.State);
 
@@ -67,8 +65,6 @@ namespace WorkflowsCore.Tests
 
             await Workflow.StartedTask;
 
-            await WaitForReady();
-
             Assert.Equal(States.State1, Workflow.State);
 
             Workflow.CompleteWorkflow();
@@ -76,17 +72,13 @@ namespace WorkflowsCore.Tests
             await WaitUntilWorkflowCompleted();
         }
 
-        private async Task WaitForReady()
-        { // TODO:
-            await Workflow.DoWorkflowTaskAsync(async () => await Task.Delay(1)).Unwrap();
-            await Workflow.ReadyTask;
-        }
-
         public class TestWorkflow : StateMachineWorkflow<States>
         {
             public const string Action1 = nameof(Action1);
 
             public new States State => base.State;
+
+            public new bool IsLoaded => base.IsLoaded;
 
             public new void CompleteWorkflow() => base.CompleteWorkflow();
 
@@ -98,9 +90,11 @@ namespace WorkflowsCore.Tests
             protected override void OnStatesInit()
             {
                 ConfigureState(States.State1)
+                    .OnEnter().Do(() => Task.Delay(1))
                     .OnAction(Action1).GoTo(States.State2);
 
                 ConfigureState(States.State2)
+                    .OnEnter().Do(() => Task.Delay(1))
                     .OnAction(Action1).GoTo(States.State1);
 
                 SetInitialState(States.State1);

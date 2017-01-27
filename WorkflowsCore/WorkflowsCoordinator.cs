@@ -358,9 +358,7 @@ namespace WorkflowsCore
                 }
 
                 var wasIn = await SrcWorkflowDefinition.Workflow.RunViaWorkflowTaskScheduler(
-                    () => ((WorkflowBase<TState>)SrcWorkflowDefinition.Workflow).WasIn(
-                        _srcWorkflowState,
-                        ignoreSuppression: true));
+                    () => ((WorkflowBase<TState>)SrcWorkflowDefinition.Workflow).WasIn(_srcWorkflowState));
 
                 if (!wasIn)
                 {

@@ -104,17 +104,4 @@ namespace WorkflowsCore
 
         public IReadOnlyDictionary<string, object> Data { get; set; }
     }
-
-    public class StateStats
-    {
-        public StateStats(int counter = 0)
-        {
-            EnteredCounter = counter;
-            IgnoreSuppressionEnteredCounter = counter;
-        }
-
-        public int EnteredCounter { get; set; }
-
-        public int IgnoreSuppressionEnteredCounter { get; set; }
-    }
 }

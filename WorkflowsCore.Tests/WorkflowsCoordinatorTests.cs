@@ -376,9 +376,6 @@ namespace WorkflowsCore.Tests
 
             protected override void OnStatesInit()
             {
-                ConfigureState(WorkflowStates.None, availableActions: new[] { Action1, Action2 });
-                ConfigureState(WorkflowStates.State1);
-                ConfigureState(WorkflowStates.State2);
             }
 
             protected override Task RunAsync()

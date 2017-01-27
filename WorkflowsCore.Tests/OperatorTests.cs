@@ -393,40 +393,6 @@ namespace WorkflowsCore.Tests
             private readonly TestWorkflowWithState _workflow = new TestWorkflowWithState();
 
             [Fact]
-            public async Task WaitForActionShouldReturnImmediatelyIfStateIsSpecifiedAndThatStateIsFirstInStatesHistory()
-            {
-                await _workflow.DoWorkflowTaskAsync(
-                    async w =>
-                    {
-                        w.Metadata.SetTransientDataField(w, "TransientStatesHistory", new[] { States.Due });
-                        await _workflow.WaitForAction("Contacted", state: States.Due);
-
-                        Assert.Null(_workflow.Action);
-                        Assert.Null(_workflow.Parameters);
-                    },
-                    forceExecution: true).Unwrap();
-            }
-
-            [Fact]
-            public async Task WaitForActionShouldBeCanceledImmediatelyIfWorkflowIsAlreadyCanceled()
-            {
-                // ReSharper disable once PossibleNullReferenceException
-                var ex = await Record.ExceptionAsync(
-                    () => _workflow.DoWorkflowTaskAsync(
-                        async w =>
-                        {
-                            _workflow.CancelWorkflow();
-                            w.Metadata.SetTransientDataField(w, "TransientStatesHistory", new[] { States.Due });
-                            var t = _workflow.WaitForAction("Contacted", state: States.Due);
-                            Assert.Equal(TaskStatus.Canceled, t.Status);
-                            await t;
-                        },
-                        forceExecution: true).Unwrap());
-
-                Assert.IsType<TaskCanceledException>(ex);
-            }
-
-            [Fact]
             public async Task WaitForStateShouldWaitUntilWorkflowEntersSpecifiedState()
             {
                 await _workflow.DoWorkflowTaskAsync(
@@ -780,7 +746,8 @@ namespace WorkflowsCore.Tests
             public new States State => base.State;
 
             // ReSharper disable once UnusedParameter.Local
-            public new void SetState(States state) => base.SetState(state);
+            public new void SetState(States state, bool isStateRestored = false) => 
+                base.SetState(state, isStateRestored);
 
             protected override void OnInit()
             {
@@ -799,7 +766,9 @@ namespace WorkflowsCore.Tests
                 throw new NotImplementedException();
             }
 
-            protected override void OnStatesInit() => ConfigureState(States.Due);
+            protected override void OnStatesInit()
+            {
+            }
         }
     }
 }

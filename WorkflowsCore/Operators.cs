@@ -169,32 +169,6 @@ namespace WorkflowsCore
             await workflow.WaitForAction(action);
         }
 
-        public static Task WaitForAction<TState>(
-            this WorkflowBase<TState> workflow,
-            string action,
-            TState state)
-            where TState : struct
-        {
-            workflow.EnsureWorkflowTaskScheduler();
-
-            var tcs = new TaskCompletionSource<bool>();
-
-            if (Utilities.CurrentCancellationToken.IsCancellationRequested)
-            {
-                tcs.SetCanceled();
-                return tcs.Task;
-            }
-
-            var statesHistory = workflow.TransientStatesHistory;
-            if (EqualityComparer<TState?>.Default.Equals(statesHistory?.FirstOrDefault(), state))
-            {
-                tcs.SetResult(true);
-                return tcs.Task;
-            }
-
-            return workflow.WaitForAction(action);
-        }
-
         public static Task WaitForState<TState>(
             this WorkflowBase<TState> workflow,
             TState state = default(TState),
@@ -221,7 +195,7 @@ namespace WorkflowsCore
                 false);
             handler = (o, args) =>
             {
-                if (currentCancellationToken.IsCancellationRequested || workflow.IsRestoringState)
+                if (currentCancellationToken.IsCancellationRequested)
                 {
                     return;
                 }

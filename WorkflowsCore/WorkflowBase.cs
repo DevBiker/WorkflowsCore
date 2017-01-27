@@ -33,18 +33,11 @@ namespace WorkflowsCore
         private Operation _operationInProgress;
 
         protected WorkflowBase()
-            : this(null, true)
+            : this(null)
         {
         }
 
         protected WorkflowBase(Func<IWorkflowStateRepository> workflowRepoFactory)
-            : this(workflowRepoFactory, true)
-        {
-        }
-
-        protected WorkflowBase(
-            Func<IWorkflowStateRepository> workflowRepoFactory,
-            bool isStateInitializedImmediatelyAfterStart)
         {
             _metadata = new Lazy<IWorkflowMetadata>(
                 () => Utilities.WorkflowMetadataCache.GetWorkflowMetadata(GetType()),
@@ -56,16 +49,6 @@ namespace WorkflowsCore
 
             _initializationOperation = new Operation(this);
             _initializationOperation.StartOperation();
-            if (isStateInitializedImmediatelyAfterStart)
-            {
-                StateInitializedTask = StartedTask;
-            }
-            else
-            {
-                StateInitializedTaskCompletionSource =
-                    new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-                StateInitializedTask = StateInitializedTaskCompletionSource.Task;
-            }
 
             CancellationTokenSource = new CancellationTokenSource();
             _activationDatesManager.NextActivationDateChanged += (sender, args) => SaveWorkflowData();
@@ -96,8 +79,6 @@ namespace WorkflowsCore
 
         public Task ReadyTask => OperationInProgress?.Task ?? Task.CompletedTask;
 
-        public Task StateInitializedTask { get; }
-
         public Task CompletedTask => _completedTaskCompletionSource.Task;
 
         public bool IsWorkflowTaskScheduler => TaskScheduler.Current == WorkflowTaskScheduler;
@@ -109,8 +90,6 @@ namespace WorkflowsCore
         private CancellationTokenSource CancellationTokenSource { get; }
 
         private TaskScheduler WorkflowTaskScheduler => _concurrentExclusiveSchedulerPair.ExclusiveScheduler;
-
-        private TaskCompletionSource<bool> StateInitializedTaskCompletionSource { get; }
 
         private AsyncLocal<Operation> CurrentOperation { get; } = new AsyncLocal<Operation>();
 
@@ -459,19 +438,6 @@ namespace WorkflowsCore
         protected void ClearTimesExecuted(string action) => 
             ActionStats.Remove(GetActionDefinition(action).Synonyms.First());
 
-        protected void SetStateInitialized()
-        {
-            if (StateInitializedTaskCompletionSource == null)
-            {
-                throw new InvalidOperationException();
-            }
-
-            if (StateInitializedTaskCompletionSource.TrySetResult(true))
-            {
-                SaveWorkflowData();
-            }
-        }
-
         protected void ConfigureAction(
             string action,
             Action actionHandler = null,
@@ -672,7 +638,6 @@ namespace WorkflowsCore
                     () =>
                     {
                         _initializationOperation.TryCancel();
-                        StateInitializedTaskCompletionSource?.TrySetCanceled();
                         OperationInProgress?.TryCancel();
                         OperationInProgress = Operation.Canceled;
                         try
@@ -717,11 +682,7 @@ namespace WorkflowsCore
 
             int stats;
             var primaryName = actionDefinition.Synonyms.First();
-            if (!ActionStats.TryGetValue(primaryName, out stats))
-            {
-                ActionStats[primaryName] = 0;
-            }
-
+            ActionStats.TryGetValue(primaryName, out stats);
             ActionStats[primaryName] = ++stats;
             SaveWorkflowData();
 

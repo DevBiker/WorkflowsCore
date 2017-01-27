@@ -27,11 +27,7 @@ namespace WorkflowsCore
         protected internal override bool IsActionAllowed(string action) => 
             _instance?.IsActionAllowed(action) ?? base.IsActionAllowed(action);
 
-        protected State<TState, THiddenState> ConfigureState(TState state)
-        {
-            ConfigureState(state, suppressAll: true);
-            return _stateMachine.ConfigureState(state);
-        }
+        protected State<TState, THiddenState> ConfigureState(TState state) => _stateMachine.ConfigureState(state);
 
         protected State<TState, THiddenState> ConfigureHiddenState(THiddenState state) => 
             _stateMachine.ConfigureState(state);
@@ -40,9 +36,9 @@ namespace WorkflowsCore
 
         protected override Task RunAsync()
         {
-            if (IsRestoringState)
+            if (IsLoaded)
             {
-                SetInitialState(TransientStatesHistory[TransientStatesHistory.Count - 1]);
+                SetInitialState(State);
             }
 
             return this.WaitForAny(
@@ -59,7 +55,7 @@ namespace WorkflowsCore
 
         private Task RunStateMachine()
         {
-            _instance = _stateMachine.Run(this, _initialState, IsRestoringState, OnStateChanged);
+            _instance = _stateMachine.Run(this, _initialState, IsLoaded, OnStateChanged);
             return _instance.Task;
         }
     }

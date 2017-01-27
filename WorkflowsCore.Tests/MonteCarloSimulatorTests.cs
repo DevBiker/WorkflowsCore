@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using WorkflowsCore.MonteCarlo;
@@ -650,8 +651,16 @@ namespace WorkflowsCore.Tests
             protected override void OnStatesInit()
             {
                 StateChanged += (sender, args) => _stateEventTcs.TrySetResult(true);
-                ConfigureState(States.Due, availableActions: new[] { "Action 1", "Action 3", "Action 4" });
-                ConfigureState(States.Contacted);
+            }
+
+            protected override bool IsActionAllowed(string action)
+            {
+                if (State != States.Due)
+                {
+                    return false;
+                }
+
+                return new[] { "Action 1", "Action 3", "Action 4" }.Contains(action);
             }
 
             protected override async Task RunAsync()

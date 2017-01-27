@@ -25,30 +25,17 @@ namespace WorkflowsCore.Tests
             private readonly TestWorkflow _workflow = new TestWorkflow();
 
             [Fact]
-            public void IfStateIsConfiguredSecondTimeIoeShouldBeThrown()
-            {
-                var ex = Record.Exception(() => _workflow.ConfigureState(States.Outstanding, () => { }));
-
-                Assert.IsType<InvalidOperationException>(ex);
-            }
-
-            [Fact]
-            public void IfStateBeingSetIsNotConfiguredThenAooreShouldBeThrown()
-            {
-                var ex = Record.Exception(() => _workflow.SetState(States.None));
-
-                Assert.IsType<ArgumentOutOfRangeException>(ex);
-            }
-
-            [Fact]
-            public void SetStateShouldUpdateStateAndCallStateHandler()
+            public void SetStateShouldUpdateState()
             {
                 Assert.NotEqual(States.Outstanding, _workflow.State);
                 _workflow.SetState(States.Outstanding);
                 Assert.Equal(States.Outstanding, _workflow.State);
-                Assert.Equal(1, _workflow.OnOutstandingStateCounter);
                 Assert.Equal(States.None, _workflow.OldState);
                 Assert.Equal(States.Outstanding, _workflow.NewState);
+
+                _workflow.SetState(States.Due);
+                Assert.Equal(States.Outstanding, _workflow.PreviousState);
+                Assert.Equal(States.Due, _workflow.State);
             }
 
             [Fact]
@@ -59,29 +46,12 @@ namespace WorkflowsCore.Tests
             }
 
             [Fact]
-            public void SetStateShouldNotUpdateStatesHistoryIfCurrentStateIsReentered()
-            {
-                _workflow.SetState(States.Due);
-                _workflow.SetState(States.Due);
-                Assert.Equal(new[] { States.Due }, _workflow.StatesHistory.ToArray());
-            }
-
-            [Fact]
-            public void SetStateShouldRemoveAllPreviousHistoryForSuppressAllStates()
+            public void SetStateShouldKeepOnlyLastTwoStates()
             {
                 _workflow.SetState(States.Outstanding);
                 _workflow.SetState(States.Due);
                 _workflow.SetState(States.Outstanding);
-                Assert.Equal(new[] { States.Outstanding }, _workflow.StatesHistory.ToArray());
-            }
-
-            [Fact]
-            public void SetStateShouldRemoveAllPreviousStateFromHistoryIfItIsSuppressedByNewState()
-            {
-                _workflow.SetState(States.Outstanding);
-                _workflow.SetState(States.Due);
-                _workflow.SetState(States.Contacted);
-                Assert.Equal(new[] { States.Outstanding, States.Contacted }, _workflow.StatesHistory.ToArray());
+                Assert.Equal(new[] { States.Due, States.Outstanding }, _workflow.StatesHistory.ToArray());
             }
 
             [Fact]
@@ -110,30 +80,6 @@ namespace WorkflowsCore.Tests
             }
 
             [Fact]
-            public void IfIgnoreSuppressionSpecifiedThenStateStatsShouldIgnoreStateSuppression()
-            {
-                _workflow.SetState(States.Due);
-                Assert.Equal(true, _workflow.WasIn(States.Due, ignoreSuppression: true));
-                Assert.Equal(1, _workflow.TimesIn(States.Due, ignoreSuppression: true));
-
-                _workflow.SetState(States.Outstanding);
-                Assert.Equal(false, _workflow.WasIn(States.Due));
-                Assert.Equal(0, _workflow.TimesIn(States.Due));
-                Assert.Equal(true, _workflow.WasIn(States.Due, ignoreSuppression: true));
-                Assert.Equal(1, _workflow.TimesIn(States.Due, ignoreSuppression: true));
-
-                _workflow.SetState(States.Due);
-                Assert.Equal(true, _workflow.WasIn(States.Due));
-                Assert.Equal(1, _workflow.TimesIn(States.Due));
-
-                _workflow.SetState(States.Contacted);
-                Assert.Equal(false, _workflow.WasIn(States.Due));
-                Assert.Equal(0, _workflow.TimesIn(States.Due));
-                Assert.Equal(true, _workflow.WasIn(States.Due, ignoreSuppression: true));
-                Assert.Equal(2, _workflow.TimesIn(States.Due, ignoreSuppression: true));
-            }
-
-            [Fact]
             public void TimesInWasInShouldWorkForStatesThatWereNotEntered()
             {
                 Assert.Equal(false, _workflow.WasIn(States.Outstanding));
@@ -144,96 +90,31 @@ namespace WorkflowsCore.Tests
             public void StateTransitionsDuringStateRestoringShouldNotBeCountedInStateStats()
             {
                 _workflow.SetData("StatesHistory", new List<States> { States.Outstanding, States.Due });
-                var stateStats = new Dictionary<States, StateStats>
+                var stateStats = new Dictionary<States, int>
                 {
-                    [States.Outstanding] = new StateStats(2),
-                    [States.Due] = new StateStats { EnteredCounter = 1, IgnoreSuppressionEnteredCounter = 2 }
+                    [States.Outstanding] = 2,
+                    [States.Due] = 1
                 };
                 _workflow.SetData("StatesStats", stateStats);
                 _workflow.OnLoaded();
 
-                _workflow.SetState(States.Outstanding);
+                _workflow.SetState(States.Outstanding, isStateRestored: true);
 
                 Assert.Equal(2, _workflow.TimesIn(States.Outstanding));
-                Assert.Equal(2, _workflow.TimesIn(States.Outstanding, ignoreSuppression: true));
                 Assert.Equal(1, _workflow.TimesIn(States.Due));
-                Assert.Equal(2, _workflow.TimesIn(States.Due, ignoreSuppression: true));
 
                 _workflow.SetState(States.Outstanding);
                 Assert.Equal(3, _workflow.TimesIn(States.Outstanding));
-                Assert.Equal(3, _workflow.TimesIn(States.Outstanding, ignoreSuppression: true));
 
                 _workflow.SetState(States.Due);
-                Assert.Equal(1, _workflow.TimesIn(States.Due));
-                Assert.Equal(3, _workflow.TimesIn(States.Due, ignoreSuppression: true));
+                Assert.Equal(2, _workflow.TimesIn(States.Due));
             }
 
             [Fact]
-            public void SetStateOnLoadShouldCallHandlersWithIsRestoringAsTrue()
-            {
-                _workflow.SetData("StatesHistory", new List<States> { States.Outstanding, States.Due });
-
-                Assert.False(_workflow.IsRestoringState);
-                _workflow.OnLoaded();
-                Assert.True(_workflow.IsRestoringState);
-                Assert.False(_workflow.StatesHistory.Any());
-
-                _workflow.SetState(States.Outstanding);
-                Assert.False(_workflow.OnDueStateIsRestoringState);
-                _workflow.SetState(States.Due);
-                Assert.Equal(0, _workflow.OnOutstandingStateCounter);
-                Assert.Equal(1, _workflow.OnDueStateCounter);
-                Assert.True(_workflow.OnDueStateIsRestoringState);
-            }
-
-            [Fact]
-            public void RestoredWorkflowsWithoutHistoryInitializedTaskShouldCompleteOnFirstStateTransition()
+            public void ForRestoredWorkflowsWithoutHistoryIsLoadedShouldBeFalse()
             {
                 _workflow.OnLoaded();
-                Assert.False(_workflow.IsRestoringState);
-                Assert.NotEqual(TaskStatus.RanToCompletion, _workflow.StateInitializedTask.Status);
-                _workflow.SetState(States.Outstanding);
-                Assert.Equal(TaskStatus.RanToCompletion, _workflow.StateInitializedTask.Status);
-            }
-
-            [Fact]
-            public void ForNonRestoredWorkflowsInitializedTaskShouldCompleteOnFirstStateTransition()
-            {
-                Assert.NotEqual(TaskStatus.RanToCompletion, _workflow.StateInitializedTask.Status);
-                _workflow.SetState(States.Outstanding);
-                Assert.Equal(TaskStatus.RanToCompletion, _workflow.StateInitializedTask.Status);
-            }
-
-            [Fact]
-            public void IfStateCategoryIsConfiguredSecondTimeIoeShouldBeThrown()
-            {
-                var ex = Record.Exception(() => _workflow.ConfigureStateCategory("Due"));
-
-                Assert.IsType<InvalidOperationException>(ex);
-            }
-
-            [Fact]
-            public void IfForStateUnconfiguredStateCategoryIsSpecifiedThenAoorShouldBeThrown()
-            {
-                var ex = Record.Exception(
-                    () => _workflow.ConfigureState(
-                        States.None,
-                        () => { },
-                        stateCategories: new[] { "Due 2" }));
-
-                Assert.IsType<ArgumentOutOfRangeException>(ex);
-            }
-
-            [Fact]
-            public void IfForStateUnconfiguredActionIsSpecifiedThenAoorShouldBeThrown()
-            {
-                var ex = Record.Exception(
-                    () => _workflow.ConfigureState(
-                        States.None,
-                        () => { },
-                        availableActions: new[] { "Bad action" }));
-
-                Assert.IsType<ArgumentOutOfRangeException>(ex);
+                Assert.False(_workflow.IsLoaded);
             }
         }
 
@@ -284,7 +165,7 @@ namespace WorkflowsCore.Tests
             }
 
             [Fact]
-            public void SetStateShouldSaveWorkflowDataAfterStateHandlerIsInvoked()
+            public void SetStateShouldSaveWorkflowData()
             {
                 _workflow.SetState(States.Outstanding);
                 Assert.Equal(1, _workflowRepo.SaveWorkflowDataCounter);
@@ -295,84 +176,8 @@ namespace WorkflowsCore.Tests
             {
                 _workflow.SetData("StatesHistory", new List<States> { States.Outstanding, States.Due });
                 _workflow.OnLoaded();
-                _workflow.SetState(States.Outstanding);
+                _workflow.SetState(States.Outstanding, isStateRestored: true);
                 Assert.Equal(0, _workflowRepo.SaveWorkflowDataCounter);
-            }
-
-            [Fact]
-            public void SetStateOnLoadShouldSaveWorkflowDataAndStopRestoringIfUnexpectedStateEncountered()
-            {
-                _workflow.SetData("StatesHistory", new List<States> { States.Outstanding, States.Due });
-                _workflow.OnLoaded();
-                Assert.NotEqual(TaskStatus.RanToCompletion, _workflow.StateInitializedTask.Status);
-                _workflow.SetState(States.Outstanding);
-                Assert.True(_workflow.IsRestoringState);
-                _workflow.SetState(States.Contacted);
-                Assert.False(_workflow.IsRestoringState);
-                Assert.Equal(TaskStatus.RanToCompletion, _workflow.StateInitializedTask.Status);
-                Assert.Equal(1, _workflowRepo.SaveWorkflowDataCounter);
-                Assert.Equal(new[] { States.Outstanding, States.Contacted }, _workflow.StatesHistory.ToArray());
-            }
-
-            [Fact]
-            public void SetStateOnLoadShouldStopRestoringWhenAllStatesAreRestored()
-            {
-                _workflow.SetData("StatesHistory", new List<States> { States.Outstanding, States.Due });
-                _workflow.OnLoaded();
-                _workflow.SetState(States.Outstanding);
-                Assert.NotEqual(TaskStatus.RanToCompletion, _workflow.StateInitializedTask.Status);
-                _workflow.SetState(States.Due);
-                Assert.False(_workflow.IsRestoringState);
-                Assert.Equal(TaskStatus.RanToCompletion, _workflow.StateInitializedTask.Status);
-                Assert.Equal(1, _workflowRepo.SaveWorkflowDataCounter);
-                Assert.Equal(new[] { States.Outstanding, States.Due }, _workflow.StatesHistory.ToArray());
-                _workflow.SetState(States.Contacted);
-                Assert.Equal(2, _workflowRepo.SaveWorkflowDataCounter);
-            }
-        }
-
-        public class AvailableActionsTests : BaseWorkflowTest<TestWorkflow>
-        {
-            public AvailableActionsTests()
-            {
-                Workflow = new TestWorkflow(doInit: false);
-                StartWorkflow();
-            }
-
-            [Fact]
-            public async Task GetAvailableActionsShouldReturnOnlyActionsConfiguredForCurrentState()
-            {
-                await Workflow.StartedTask;
-                Workflow.SetState(States.Outstanding);
-
-                var actions = await Workflow.GetAvailableActionsAsync();
-
-                Assert.Equal(new[] { "Outstanding Action 1", "Outstanding Action 2" }, actions.ToArray());
-                await CancelWorkflowAsync();
-            }
-
-            [Fact]
-            public async Task GetAvailableActionsShouldReturnActionsConfiguredForStateCategoriesOfCurrentState()
-            {
-                await Workflow.StartedTask;
-                Workflow.SetState(States.Due);
-
-                var actions = await Workflow.GetAvailableActionsAsync();
-
-                Assert.Equal(new[] { "Outstanding Action 1", "Due Action 1" }, actions.ToArray());
-                await CancelWorkflowAsync();
-            }
-
-            [Fact]
-            public async Task GetAvailableActionsShouldIgnoreActionsDisallowedForCurrentState()
-            {
-                await Workflow.StartedTask;
-                Workflow.SetState(States.Contacted);
-
-                var actions = await Workflow.GetAvailableActionsAsync();
-
-                Assert.Equal(new[] { "Due Action 1" }, actions.ToArray());
-                await CancelWorkflowAsync();
             }
         }
 
@@ -387,6 +192,8 @@ namespace WorkflowsCore.Tests
                 }
             }
 
+            public new States PreviousState => base.PreviousState;
+
             public new States State => base.State;
 
             public IList<States> StatesHistory => 
@@ -395,57 +202,29 @@ namespace WorkflowsCore.Tests
             public IList<Tuple<States, DateTime>> FullStatesHistory =>
                 GetDataFieldAsync<IList<Tuple<States, DateTime>>>(nameof(FullStatesHistory), forceExecution: true).Result;
 
-            public bool IsRestoringState => 
-                GetTransientDataFieldAsync<bool>(nameof(IsRestoringState), forceExecution: true).Result;
-
-            public int OnOutstandingStateCounter { get; private set; }
-
-            public int OnDueStateCounter { get; private set; }
-
-            public bool OnDueStateIsRestoringState { get; private set; }
+            public new bool IsLoaded => base.IsLoaded;
 
             public States NewState { get; set; }
 
             public States OldState { get; set; }
 
             // ReSharper disable once UnusedParameter.Local
-            public new void SetState(States state) => base.SetState(state);
+            public new void SetState(States state, bool isStateRestored = false) => 
+                base.SetState(state, isStateRestored);
 
             public new void OnLoaded() => base.OnLoaded();
 
             // ReSharper disable UnusedParameter.Local
-            public new bool WasIn(States state, bool ignoreSuppression = false) => base.WasIn(state, ignoreSuppression);
+            public new bool WasIn(States state) => base.WasIn(state);
             /* ReSharper restore UnusedParameter.Local */
 
             // ReSharper disable UnusedParameter.Local
-            public new int TimesIn(States state, bool ignoreSuppression = false) => base.TimesIn(state, ignoreSuppression);
+            public new int TimesIn(States state) => base.TimesIn(state);
             /* ReSharper restore UnusedParameter.Local */
 
             [SuppressMessage("ReSharper", "UnusedParameter.Local", Justification = "It is OK")]
             public void SetData<T>(string key, T value) =>
                 DoWorkflowTaskAsync(w => Metadata.SetDataField(w, key, value), forceExecution: true).Wait();
-
-            [SuppressMessage("ReSharper", "UnusedParameter.Local", Justification = "It is OK")]
-            public new void ConfigureStateCategory(
-                string categoryName = null,
-                IEnumerable<string> availableActions = null)
-            {
-                base.ConfigureStateCategory(categoryName, availableActions);
-            }
-
-            [SuppressMessage("ReSharper", "UnusedParameter.Local", Justification = "It is OK")]
-            public void ConfigureState(
-                States state,
-                Action onStateHandler,
-                IEnumerable<string> availableActions = null,
-                IEnumerable<string> stateCategories = null)
-            {
-                base.ConfigureState(
-                    state,
-                    onStateHandler,
-                    availableActions: availableActions,
-                    stateCategories: stateCategories);
-            }
 
             protected override Task RunAsync() => Task.Delay(Timeout.Infinite, Utilities.CurrentCancellationToken);
 
@@ -467,41 +246,12 @@ namespace WorkflowsCore.Tests
 
             protected override void OnStatesInit()
             {
-                ConfigureStateCategory(availableActions: new[] { "Outstanding Action 1" });
-                ConfigureStateCategory("Due", new[] { "Due Action 1" });
-
-                ConfigureState(
-                    States.Outstanding,
-                    OnOutstandingState,
-                    suppressAll: true,
-                    availableActions: new[] { "Outstanding Action 2", "Outstanding Action 1" });
-                ConfigureState(
-                    States.Due,
-                    OnDueState,
-                    suppressStates: new[] { States.Contacted },
-                    stateCategories: new[] { "Due" });
-                ConfigureState(
-                    States.Contacted,
-                    suppressStates: new[] { States.Due },
-                    disallowedActions: new[] { "Outstanding Action 1" },
-                    stateCategories: new[] { "Due" });
             }
 
             private void OnStateChanged(object sender, StateChangedEventArgs args)
             {
                 OldState = args.OldState;
                 NewState = args.NewState;
-            }
-
-            private void OnOutstandingState()
-            {
-                ++OnOutstandingStateCounter;
-            }
-
-            private void OnDueState(bool isRestoringState)
-            {
-                ++OnDueStateCounter;
-                OnDueStateIsRestoringState = isRestoringState;
             }
         }
 
