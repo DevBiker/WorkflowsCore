@@ -27,6 +27,8 @@ namespace WorkflowsCore.Tests
             await Workflow.StartedTask;
 
             Assert.Equal(States.State1, Workflow.State);
+            Assert.False(Workflow.IsLoaded);
+            Assert.True(Workflow.WasIn(States.State1));
 
             await Workflow.ExecuteActionAsync(TestWorkflow.Action1);
             await Workflow.ReadyTask;
@@ -49,6 +51,7 @@ namespace WorkflowsCore.Tests
 
             Assert.Equal(States.State2, Workflow.State);
             Assert.True(Workflow.IsLoaded);
+            Assert.False(Workflow.WasIn(States.State2));
 
             await Workflow.ExecuteActionAsync(TestWorkflow.Action1);
             await Workflow.ReadyTask;
@@ -81,6 +84,8 @@ namespace WorkflowsCore.Tests
             public new bool IsLoaded => base.IsLoaded;
 
             public new void CompleteWorkflow() => base.CompleteWorkflow();
+
+            public new bool WasIn(States state) => base.WasIn(state);
 
             protected override void OnActionsInit()
             {
