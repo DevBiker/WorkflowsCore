@@ -156,10 +156,8 @@ namespace WorkflowsCore
                             w.Metadata.SetTransientData(w, initialWorkflowTransientData);
                         }
 
-                        var wasCreated = false;
                         if (loadedWorkflowData == null)
                         {
-                            wasCreated = true;
                             OnCreated();
                             SaveWorkflowData();
                         }
@@ -175,11 +173,6 @@ namespace WorkflowsCore
                         }
 
                         beforeWorkflowStarted?.Invoke();
-
-                        if (!wasCreated && ReferenceEquals(StateInitializedTask, StartedTask))
-                        {
-                            SaveWorkflowData();
-                        }
 
                         ImportOperation(_initializationOperation);
                         var task = RunAsync();
@@ -327,7 +320,6 @@ namespace WorkflowsCore
             return DoWorkflowTaskAsync(
                 async () =>
                 {
-                    await StateInitializedTask;
                     using (await this.WaitForReadyAndStartOperation())
                     {
                         return ExecuteAction<T>(action, parameters, throwNotAllowed);
@@ -352,7 +344,6 @@ namespace WorkflowsCore
             return DoWorkflowTaskAsync(
                 async () =>
                 {
-                    await StateInitializedTask;
                     using (await this.WaitForReadyAndStartOperation())
                     {
                         return GetAvailableActions();

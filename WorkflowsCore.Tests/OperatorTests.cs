@@ -734,12 +734,11 @@ namespace WorkflowsCore.Tests
         public sealed class TestWorkflow : WorkflowBase
         {
             public TestWorkflow(bool doInit = true)
-                : base(null, !doInit)
+                : base(null)
             {
                 if (doInit)
                 {
                     OnInit();
-                    SetStateInitialized();
                 }
             }
 

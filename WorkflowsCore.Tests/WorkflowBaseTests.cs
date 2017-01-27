@@ -25,7 +25,7 @@ namespace WorkflowsCore.Tests
             [Fact]
             public async Task StartedTaskShouldBeCanceledIfStartingIsFailed()
             {
-                Workflow = new TestWorkflow(null, false, allowOnFaulted: true);
+                Workflow = new TestWorkflow(allowOnFaulted: true);
                 Assert.NotEqual(TaskStatus.RanToCompletion, Workflow.StartedTask.Status);
                 StartWorkflow(beforeWorkflowStarted: () => { throw new InvalidOperationException(); });
                 await Task.WhenAny(Workflow.StartedTask, Task.Delay(100));
@@ -40,7 +40,7 @@ namespace WorkflowsCore.Tests
             [Fact]
             public async Task IfWorkflowIsCanceledThenStartedTaskShouldBeCanceledIfItIsNotCompletedYet()
             {
-                Workflow = new TestWorkflow(null, false);
+                Workflow = new TestWorkflow();
                 Workflow.CancelWorkflow();
 
                 // ReSharper disable once PossibleNullReferenceException
@@ -50,14 +50,14 @@ namespace WorkflowsCore.Tests
             }
 
             [Fact]
-            public async Task IfWorkflowIsCanceledThenInitializedTaskShouldBeCanceledIfItIsNotCompletedYet()
+            public async Task IfWorkflowIsCanceledThenReadyTaskShouldBeCanceledIfItIsNotCompletedYet()
             {
-                Workflow = new TestWorkflow(null, false);
+                Workflow = new TestWorkflow();
                 Workflow.CancelWorkflow();
 
                 // ReSharper disable once PossibleNullReferenceException
                 var ex = await Record.ExceptionAsync(
-                    () => Task.WhenAny(Workflow.StateInitializedTask, Task.Delay(100)).Unwrap());
+                    () => Task.WhenAny(Workflow.ReadyTask, Task.Delay(100)).Unwrap());
 
                 Assert.IsType<TaskCanceledException>(ex);
             }
@@ -541,20 +541,20 @@ namespace WorkflowsCore.Tests
             [Fact]
             public async Task ExecuteActionShouldWaitUntilWorkflowInitializationCompleted()
             {
-                Workflow = new TestWorkflow(null, false);
+                Workflow = new TestWorkflow(delayInitialization: true);
                 Workflow.ConfigureAction(
                     "Action 1",
                     () =>
                     {
-                        Assert.Equal(TaskStatus.RanToCompletion, Workflow.StateInitializedTask.Status);
+                        Assert.Equal(TaskStatus.RanToCompletion, Workflow.StartedTask.Status);
                         return 1;
                     });
                 StartWorkflow();
-                Assert.NotEqual(TaskStatus.RanToCompletion, Workflow.StateInitializedTask.Status);
 
                 var t = Workflow.ExecuteActionAsync<int>("Action 1");
                 await Task.Delay(100);
-                Workflow.SetStateInitialized();
+                Assert.NotEqual(TaskStatus.RanToCompletion, Workflow.StartedTask.Status);
+                Workflow.SetInitializationCompleted();
                 await t;
 
                 await CancelWorkflowAsync();
@@ -616,19 +616,19 @@ namespace WorkflowsCore.Tests
             [Fact]
             public async Task GetAvailableActionsShouldWaitUntilWorkflowInitializationCompleted()
             {
-                Workflow = new TestWorkflow(null, false);
+                Workflow = new TestWorkflow(delayInitialization: true);
                 Workflow.ConfigureAction("Action 1", () => 1);
                 StartWorkflow();
 
-                Assert.NotEqual(TaskStatus.RanToCompletion, Workflow.StateInitializedTask.Status);
+                Assert.NotEqual(TaskStatus.RanToCompletion, Workflow.StartedTask.Status);
 
                 var t = Workflow.GetAvailableActionsAsync();
                 await Task.Delay(100);
-                Assert.NotEqual(TaskStatus.RanToCompletion, Workflow.StateInitializedTask.Status);
-                Workflow.SetStateInitialized();
+                Assert.NotEqual(TaskStatus.RanToCompletion, Workflow.StartedTask.Status);
+                Workflow.SetInitializationCompleted();
                 await t;
 
-                Assert.Equal(TaskStatus.RanToCompletion, Workflow.StateInitializedTask.Status);
+                Assert.Equal(TaskStatus.RanToCompletion, Workflow.StartedTask.Status);
                 await CancelWorkflowAsync();
             }
 
@@ -855,22 +855,25 @@ namespace WorkflowsCore.Tests
             private readonly bool _canceledChild;
             private readonly bool _allowOnCanceled;
             private readonly bool _allowOnFaulted;
+            private readonly bool _delayInitialization;
             private readonly bool _badCancellation;
             private readonly bool _failCancellation;
             private readonly TaskCompletionSource<bool> _badCancellationTcs = new TaskCompletionSource<bool>();
             private readonly int _timeout;
 
+            private IDisposable _initializationOperation;
+
             public TestWorkflow(
                 Func<IWorkflowStateRepository> workflowRepoFactory = null,
-                bool isStateInitializedImmediatelyAfterStart = true,
                 bool doNotComplete = true,
                 bool fail = false,
                 bool canceledChild = false,
                 bool allowOnCanceled = true,
                 bool badCancellation = false,
                 bool failCancellation = false,
-                bool allowOnFaulted = false)
-                : base(workflowRepoFactory, isStateInitializedImmediatelyAfterStart)
+                bool allowOnFaulted = false,
+                bool delayInitialization = false)
+                : base(workflowRepoFactory)
             {
                 _canceledChild = canceledChild;
                 _allowOnCanceled = allowOnCanceled && !allowOnFaulted;
@@ -878,6 +881,7 @@ namespace WorkflowsCore.Tests
                 _failCancellation = failCancellation;
                 _timeout = fail ? -2 : (!doNotComplete ? 1 : Timeout.Infinite);
                 _allowOnFaulted = allowOnFaulted;
+                _delayInitialization = delayInitialization;
             }
 
             public bool ActionsAllowed { get; set; } = true;
@@ -890,7 +894,7 @@ namespace WorkflowsCore.Tests
 
             public bool OnFaultedWasCalled { get; private set; }
 
-            public new void SetStateInitialized() => base.SetStateInitialized();
+            public void SetInitializationCompleted() => _initializationOperation.Dispose();
 
             // ReSharper disable once UnusedParameter.Local
             public new bool WasExecuted(string action) => base.WasExecuted(action);
@@ -942,6 +946,11 @@ namespace WorkflowsCore.Tests
             {
                 Assert.NotEqual(TaskStatus.RanToCompletion, StartedTask.Status);
                 Assert.Equal(StartedTask, ReadyTask);
+
+                if (_delayInitialization)
+                {
+                    _initializationOperation = await this.WaitForReadyAndStartOperation();
+                }
 
                 CurrentCancellationToken = Utilities.CurrentCancellationToken;
 

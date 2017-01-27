@@ -618,7 +618,7 @@ namespace WorkflowsCore.MonteCarlo
                 newWorkflow.StartWorkflow(loadedWorkflowData: data, initialWorkflowTransientData: transientData);
                 try
                 {
-                    await newWorkflow.StateInitializedTask;
+                    await newWorkflow.StartedTask;
                 }
                 catch (TaskCanceledException)
                 {

@@ -362,7 +362,7 @@ namespace WorkflowsCore.Tests
         private class TestWorkflowWithLoad : WorkflowBase
         {
             public TestWorkflowWithLoad(Func<IWorkflowStateRepository> workflowRepoFactory)
-                : base(workflowRepoFactory, false)
+                : base(workflowRepoFactory)
             {
             }
 

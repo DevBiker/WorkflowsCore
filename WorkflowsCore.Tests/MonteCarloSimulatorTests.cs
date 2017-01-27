@@ -573,7 +573,7 @@ namespace WorkflowsCore.Tests
             var workflow = new TestWorkflow();
             workflow.StartWorkflow(
                 initialWorkflowData: new Dictionary<string, object> { ["NoActions"] = true, ["CompleteFast"] = true });
-            await workflow.StateInitializedTask;
+            await workflow.StartedTask;
 
             var state = await workflow.GetTransientDataFieldAsync<States>("State", forceExecution: true);
             Assert.Equal(States.Contacted, state);
@@ -626,6 +626,7 @@ namespace WorkflowsCore.Tests
             [DataField]
             public int TestId { get; set; }
 
+            // ReSharper disable once UnusedAutoPropertyAccessor.Local
             [DataField(IsTransient = true)]
             public int TransientTestId { get; set; }
 
