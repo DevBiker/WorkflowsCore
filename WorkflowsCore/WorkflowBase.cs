@@ -13,8 +13,7 @@ namespace WorkflowsCore
 
         private readonly Lazy<IWorkflowMetadata> _metadata;
 
-        private readonly TaskCompletionSource<bool> _startedTaskCompletionSource =
-            new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly Operation _initializationOperation;
 
         private readonly TaskCompletionSource<bool> _completedTaskCompletionSource =
             new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -54,6 +53,9 @@ namespace WorkflowsCore
                 ? new ConcurrentExclusiveSchedulerPair()
                 : new ConcurrentExclusiveSchedulerPair(Utilities.WorkflowsTaskScheduler);
             _workflowRepoFactory = workflowRepoFactory ?? (() => new DummyWorkflowStateRepository());
+
+            _initializationOperation = new Operation(this);
+            _initializationOperation.StartOperation();
             if (isStateInitializedImmediatelyAfterStart)
             {
                 StateInitializedTask = StartedTask;
@@ -90,9 +92,9 @@ namespace WorkflowsCore
 
         public IWorkflowMetadata Metadata => _metadata.Value;
 
-        public Task StartedTask => _startedTaskCompletionSource.Task;
+        public Task StartedTask => _initializationOperation.Task;
 
-        public Task ReadyTask => OperationInProgress?.Task ?? StartedTask;
+        public Task ReadyTask => OperationInProgress?.Task ?? Task.CompletedTask;
 
         public Task StateInitializedTask { get; }
 
@@ -174,17 +176,15 @@ namespace WorkflowsCore
 
                         beforeWorkflowStarted?.Invoke();
 
-                        if (!_startedTaskCompletionSource.TrySetResult(true))
-                        {
-                            return Task.CompletedTask;
-                        }
-
                         if (!wasCreated && ReferenceEquals(StateInitializedTask, StartedTask))
                         {
                             SaveWorkflowData();
                         }
 
-                        return RunAsync();
+                        ImportOperation(_initializationOperation);
+                        var task = RunAsync();
+                        _initializationOperation.Dispose();
+                        return task;
                     },
                     forceExecution: true).Unwrap().ContinueWith(
                         t =>
@@ -680,7 +680,7 @@ namespace WorkflowsCore
                 RunViaWorkflowTaskScheduler(
                     () =>
                     {
-                        _startedTaskCompletionSource.TrySetCanceled();
+                        _initializationOperation.TryCancel();
                         StateInitializedTaskCompletionSource?.TrySetCanceled();
                         OperationInProgress?.TryCancel();
                         OperationInProgress = Operation.Canceled;

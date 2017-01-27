@@ -940,6 +940,9 @@ namespace WorkflowsCore.Tests
 
             protected override async Task RunAsync()
             {
+                Assert.NotEqual(TaskStatus.RanToCompletion, StartedTask.Status);
+                Assert.Equal(StartedTask, ReadyTask);
+
                 CurrentCancellationToken = Utilities.CurrentCancellationToken;
 
                 if (_badCancellation)
