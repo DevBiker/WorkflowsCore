@@ -329,13 +329,20 @@ namespace WorkflowsCore.StateMachines
                         Workflow.ImportOperation(operationToImport);
                     }
 
-                    using (await Workflow.WaitForReadyAndStartOperation())
+                    try
                     {
-                        var newState = await _operation.ExecuteAsync();
-                        if (newState != null)
+                        using (await Workflow.WaitForReadyAndStartOperation())
                         {
-                            instance.InitiateTransitionTo(newState);
+                            var newState = await _operation.ExecuteAsync();
+                            if (newState != null)
+                            {
+                                instance.InitiateTransitionTo(newState);
+                            }
                         }
+                    }
+                    finally
+                    {
+                        operationToImport?.Dispose();
                     }
 
                     await Workflow.WaitForReady();
@@ -371,13 +378,20 @@ namespace WorkflowsCore.StateMachines
                         Workflow.ImportOperation(operationToImport);
                     }
 
-                    using (await Workflow.WaitForReadyAndStartOperation())
+                    try
                     {
-                        var newState = await _operation.ExecuteAsync(res);
-                        if (newState != null)
+                        using (await Workflow.WaitForReadyAndStartOperation())
                         {
-                            instance.InitiateTransitionTo(newState);
+                            var newState = await _operation.ExecuteAsync(res);
+                            if (newState != null)
+                            {
+                                instance.InitiateTransitionTo(newState);
+                            }
                         }
+                    }
+                    finally
+                    {
+                        operationToImport?.Dispose();
                     }
 
                     await Workflow.WaitForReady();

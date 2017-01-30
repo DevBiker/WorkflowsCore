@@ -89,8 +89,7 @@ namespace WorkflowsCore.StateMachines
                         return parameters;
                     },
                     description,
-                    () => operation)
-                .Invoke(() => operation?.Dispose());
+                    () => operation);
         }
 
         public static AsyncOperation<TState, THiddenState> OnActionWithWasExecutedCheck<TState, THiddenState>(
