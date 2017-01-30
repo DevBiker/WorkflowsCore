@@ -271,7 +271,7 @@ namespace WorkflowsCore
 
             public override async Task InitializeDependentWorkflowAsync()
             {
-                if (SrcWorkflowDefinition.Workflow == null)
+                if (SrcWorkflowDefinition.Workflow == null || DstWorkflowDefinition.Workflow == null)
                 {
                     return;
                 }
@@ -319,12 +319,10 @@ namespace WorkflowsCore
                     () => _observerTask = DoWork(
                         async () =>
                         {
-                            var checkInitialState = true;
                             while (true)
                             {
                                 await ((WorkflowBase<TState>)SrcWorkflowDefinition.Workflow).WaitForState(
-                                    _srcWorkflowState, checkInitialState);
-                                checkInitialState = false;
+                                    _srcWorkflowState, checkInitialState: false);
                                 if (DstWorkflowDefinition.Workflow == null)
                                 {
                                     continue;
@@ -352,7 +350,7 @@ namespace WorkflowsCore
 
             public override async Task InitializeDependentWorkflowAsync()
             {
-                if (SrcWorkflowDefinition.Workflow == null)
+                if (SrcWorkflowDefinition.Workflow == null || DstWorkflowDefinition.Workflow == null)
                 {
                     return;
                 }
@@ -400,6 +398,11 @@ namespace WorkflowsCore
 
                 foreach (var dependency in OutgoingDependencies)
                 {
+                    if (initializeDependencies)
+                    {
+                        await dependency.InitializeDependentWorkflowAsync();
+                    }
+
                     dependency.OnSrcWorkflowSet();
                 }
             }

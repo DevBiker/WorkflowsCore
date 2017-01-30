@@ -315,14 +315,14 @@ namespace WorkflowsCore.Tests
                     return d.ExecuteActionAsync(TestWorkflow.Action2);
                 });
 
-            await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name1, _src.Workflow);
-
-            _src.StartWorkflow();            
-            await _src.Workflow.ExecuteActionAsync(TestWorkflow.Action1).WaitWithTimeout(100);
-            await _src.Workflow.WaitForState(WorkflowStates.State1).WaitWithTimeout(100);
-
             _dst.StartWorkflow();
             await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name2, _dst.Workflow);
+
+            _src.StartWorkflow();            
+            await _src.Workflow.ExecuteActionAsync(TestWorkflow.Action1);
+            await _src.Workflow.WaitForState(WorkflowStates.State1).WaitWithTimeout(100);
+            await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name1, _src.Workflow);
+
             await _dst.Workflow.WaitForState(WorkflowStates.State2).WaitWithTimeout(100);
 
             await _src.CancelWorkflowAsync();
