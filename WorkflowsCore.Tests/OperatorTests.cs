@@ -712,7 +712,7 @@ namespace WorkflowsCore.Tests
 
             public NamedValues Parameters { get; private set; }
 
-            public new void CreateOperation() => base.CreateOperation();
+            public void CreateOperation() => base.CreateOperation();
 
             public new IDisposable TryStartOperation() => base.TryStartOperation();
 

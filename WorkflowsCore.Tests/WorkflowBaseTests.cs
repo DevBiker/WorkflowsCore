@@ -932,7 +932,7 @@ namespace WorkflowsCore.Tests
             // ReSharper disable once UnusedParameter.Local
             public new NamedValues GetActionMetadata(string action) => base.GetActionMetadata(action);
 
-            public new void CreateOperation() => base.CreateOperation();
+            public void CreateOperation() => base.CreateOperation();
 
             public new IDisposable TryStartOperation() => base.TryStartOperation();
 

@@ -601,7 +601,7 @@ namespace WorkflowsCore.Tests
 
         public class TestWorkflow : WorkflowBase
         {
-            public new void CreateOperation() => base.CreateOperation();
+            public void CreateOperation() => base.CreateOperation();
 
             public new IDisposable TryStartOperation() => base.TryStartOperation();
 
