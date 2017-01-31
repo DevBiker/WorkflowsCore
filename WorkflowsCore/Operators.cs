@@ -299,14 +299,16 @@ namespace WorkflowsCore
             int millisecondsTimeout,
             string description = null)
         {
-            var cts = new CancellationTokenSource();
-            if (task != await Task.WhenAny(task, Task.Delay(millisecondsTimeout, cts.Token)))
+            using (var cts = new CancellationTokenSource())
             {
-                throw new TimeoutException(description);
-            }
+                if (task != await Task.WhenAny(task, Task.Delay(millisecondsTimeout, cts.Token)))
+                {
+                    throw new TimeoutException(description);
+                }
 
-            cts.Cancel();
-            await task;
+                cts.Cancel();
+                await task;
+            }
         }
 
         public static async Task<T> WaitWithTimeout<T>(
@@ -314,14 +316,16 @@ namespace WorkflowsCore
             int millisecondsTimeout,
             string description = null)
         {
-            var cts = new CancellationTokenSource();
-            if (task != await Task.WhenAny(task, Task.Delay(millisecondsTimeout, cts.Token)))
+            using (var cts = new CancellationTokenSource())
             {
-                throw new TimeoutException(description);
-            }
+                if (task != await Task.WhenAny(task, Task.Delay(millisecondsTimeout, cts.Token)))
+                {
+                    throw new TimeoutException(description);
+                }
 
-            cts.Cancel();
-            return await task;
+                cts.Cancel();
+                return await task;
+            }
         }
 
         private static void WaitAnyCore(

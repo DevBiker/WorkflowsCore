@@ -503,6 +503,7 @@ namespace WorkflowsCore.Tests
             await Workflow.StartedTask;
 
             IDisposable operation = null;
+            var tcs = new TaskCompletionSource<bool>();
             _state.OnAsync(
                 () => Workflow.DoWorkflowTaskAsync(
                     async () =>
@@ -514,10 +515,7 @@ namespace WorkflowsCore.Tests
                         }
 
                         operation = await Workflow.WaitForReadyAndStartOperation();
-
-#pragma warning disable 4014
-                        Task.Delay(1).ContinueWith(_ => operation.Dispose());
-#pragma warning restore 4014
+                        tcs.SetResult(true);
 
                         return 1;
                     }).Unwrap(),
@@ -527,12 +525,14 @@ namespace WorkflowsCore.Tests
                     {
                         using (var operation2 = await Workflow.WaitForReadyAndStartOperation())
                         {
+                            operation.Dispose();
                             Assert.Same(operation, operation2);
                         }
                     });
 
             var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(_state)));
 
+            await tcs.Task;
             await Workflow.ReadyTask;
             SetWorkflowTemporarily(Workflow, () => instance.InitiateTransitionTo(CreateState(States.State2)));
 
@@ -545,9 +545,10 @@ namespace WorkflowsCore.Tests
         public async Task OnAsync2ShouldImportOperationOnRequest()
         {
             StartWorkflow();
-            await Workflow.ReadyTask;
+            await Workflow.StartedTask;
 
             IDisposable operation = null;
+            var tcs = new TaskCompletionSource<bool>();
             _state.OnAsync(
                 () => Workflow.DoWorkflowTaskAsync(
                     async () =>
@@ -559,10 +560,7 @@ namespace WorkflowsCore.Tests
                         }
 
                         operation = await Workflow.WaitForReadyAndStartOperation();
-
-#pragma warning disable 4014
-                        Task.Delay(1).ContinueWith(_ => operation.Dispose());
-#pragma warning restore 4014
+                        tcs.SetResult(true);
                     }).Unwrap(),
                 getOperationForImport: () => operation)
                 .Do(
@@ -570,15 +568,17 @@ namespace WorkflowsCore.Tests
                     {
                         using (var operation2 = await Workflow.WaitForReadyAndStartOperation())
                         {
+                            operation.Dispose();
                             Assert.Same(operation, operation2);
                         }
                     });
 
             var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(_state)));
 
+            await tcs.Task;
+            await Workflow.ReadyTask;
             SetWorkflowTemporarily(Workflow, () => instance.InitiateTransitionTo(CreateState(States.State2)));
 
-            await Workflow.StartedTask;
             await CancelWorkflowAsync();
 
             await instance.Task;

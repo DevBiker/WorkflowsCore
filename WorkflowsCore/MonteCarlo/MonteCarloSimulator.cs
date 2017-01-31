@@ -352,9 +352,6 @@ namespace WorkflowsCore.MonteCarlo
                 workflow.StartWorkflow(
                     initialWorkflowData: initialWorkflowData,
                     initialWorkflowTransientData: initialWorkflowTransientData);
-                await workflow.StartedTask.WaitWithTimeout(
-                    maxEventProcessingTime,
-                    $"[{Globals.EventId}] Timeout on workflow start");
 
                 Exception exception = null;
                 var partitioner = Partitioner.Create(
@@ -408,6 +405,10 @@ namespace WorkflowsCore.MonteCarlo
             Func<TWorkflowType, TWorkflowType, TWorkflowType> updateWorkflow,
             Func<TWorkflowType, IEventsAvailabilityAwaiter> getEventsAvailabilityAwaiter)
         {
+            await workflow.StartedTask.WaitWithTimeout(
+                maxEventProcessingTime,
+                $"[{Globals.EventId}] Timeout on workflow start");
+
             var isPrimaryPartion = range.Item1 == 0;
             for (var i = range.Item1;
                 i < range.Item2 && !workflow.CompletedTask.IsCompleted && !shouldStopSimulation();
@@ -436,7 +437,8 @@ namespace WorkflowsCore.MonteCarlo
             Func<TWorkflowType, IEventsAvailabilityAwaiter> getEventsAvailabilityAwaiter,
             int maxEventProcessingTime)
         {
-            var eventDef = await GetNextEvent(workflow, isPrimaryPartition, getEventsAvailabilityAwaiter);
+            var eventDef = await GetNextEvent(workflow, isPrimaryPartition, getEventsAvailabilityAwaiter)
+                .WaitWithTimeout(maxEventProcessingTime, $"[{Globals.EventId}] Timeout on retrieving next event");
             Globals.EventId = Interlocked.Increment(ref _currentEventId);
             return await eventDef.DoEvent(workflow)
                 .WaitWithTimeout(maxEventProcessingTime, $"[{Globals.EventId}] Timeout on executing event");
