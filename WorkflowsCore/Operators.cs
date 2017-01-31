@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -223,10 +224,17 @@ namespace WorkflowsCore
             return tcs.Task;
         }
 
-        public static Task<IDisposable> WaitForReadyAndStartOperation(this WorkflowBase workflow)
+        public static Task<IDisposable> WaitForReadyAndStartOperation(
+            this WorkflowBase workflow,
+            [CallerFilePath] string filePath = null,
+            [CallerLineNumber] int callerLineNumber = 0)
         {
             var cts = CancellationTokenSource.CreateLinkedTokenSource(Utilities.CurrentCancellationToken);
-            workflow.CreateOperation();
+
+            /* ReSharper disable ExplicitCallerInfoArgument */
+            workflow.CreateOperation(filePath, callerLineNumber);
+            /* ReSharper restore ExplicitCallerInfoArgument */
+
             return workflow.RunViaWorkflowTaskScheduler(
                 async w =>
                 {
