@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -361,12 +362,12 @@ namespace WorkflowsCore
 
         protected internal void CreateOperation(
             [CallerFilePath] string filePath = null,
-            [CallerLineNumber] int callerLineNumber = 0)
+            [CallerLineNumber] int lineNumber = 0)
         {
             if (CurrentOperation.Value?.TryCreateInnerOperation() == null)
             {
                 /* ReSharper disable ExplicitCallerInfoArgument */
-                CurrentOperation.Value = new Operation(this, filePath, callerLineNumber);
+                CurrentOperation.Value = new Operation(this, filePath, lineNumber);
                 /* ReSharper restore ExplicitCallerInfoArgument */
             }
         }
@@ -766,7 +767,7 @@ namespace WorkflowsCore
 
             private readonly WorkflowBase _workflow;
             private readonly string _filePath;
-            private readonly int _callerLineNumber;
+            private readonly int _lineNumber;
 
             private readonly TaskCompletionSource<bool> _tcs =
                 new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -776,11 +777,11 @@ namespace WorkflowsCore
             public Operation(
                 WorkflowBase workflow,
                 [CallerFilePath] string filePath = null,
-                [CallerLineNumber] int callerLineNumber = 0)
+                [CallerLineNumber] int lineNumber = 0)
             {
                 _workflow = workflow;
                 _filePath = filePath;
-                _callerLineNumber = callerLineNumber;
+                _lineNumber = lineNumber;
             }
 
             private Operation()
@@ -820,6 +821,8 @@ namespace WorkflowsCore
             public Operation TryStartInnerOperation() => _workflow.OperationInProgress != this ? null : this;
 
             public void TryCancel() => _tcs.TrySetCanceled();
+
+            public override string ToString() => $"Operation from {Path.GetFileName(_filePath)}:{_lineNumber}";
         }
 
         private class DummyWorkflowStateRepository : IWorkflowStateRepository

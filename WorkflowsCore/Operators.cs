@@ -227,12 +227,12 @@ namespace WorkflowsCore
         public static Task<IDisposable> WaitForReadyAndStartOperation(
             this WorkflowBase workflow,
             [CallerFilePath] string filePath = null,
-            [CallerLineNumber] int callerLineNumber = 0)
+            [CallerLineNumber] int lineNumber = 0)
         {
             var cts = CancellationTokenSource.CreateLinkedTokenSource(Utilities.CurrentCancellationToken);
 
             /* ReSharper disable ExplicitCallerInfoArgument */
-            workflow.CreateOperation(filePath, callerLineNumber);
+            workflow.CreateOperation(filePath, lineNumber);
             /* ReSharper restore ExplicitCallerInfoArgument */
 
             return workflow.RunViaWorkflowTaskScheduler(
