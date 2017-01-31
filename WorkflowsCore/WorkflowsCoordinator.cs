@@ -98,8 +98,10 @@ namespace WorkflowsCore
         public Task AddWorkflowAsync(
             TWorkflowName workflowName,
             WorkflowBase workflow,
-            bool initializeDependencies = true) =>
-                GetWorkflowDefinition(workflowName).SetWorkflowAsync(workflow, initializeDependencies);
+            bool initializeDependencies = true)
+        {
+            return GetWorkflowDefinition(workflowName).SetWorkflowAsync(workflow, initializeDependencies);
+        }
 
         public Task CancelWorkflowAsync(TWorkflowName workflowName) =>
             GetWorkflowDefinition(workflowName).CancelWorkflowAsync();
@@ -258,6 +260,11 @@ namespace WorkflowsCore
 
             public override async Task OnSrcWorkflowCanceledAsync()
             {
+                if (_cancellationTokenSource == null)
+                {
+                    return; // OnSrcWorkflowSet() was not executed yet, nothing to cancel
+                }
+
                 _cancellationTokenSource.Cancel();
                 await _observerTask;
 
@@ -337,6 +344,11 @@ namespace WorkflowsCore
 
             public override async Task OnSrcWorkflowCanceledAsync()
             {
+                if (_cancellationTokenSource == null)
+                {
+                    return; // OnSrcWorkflowSet() was not executed yet, nothing to cancel
+                }
+
                 _cancellationTokenSource.Cancel();
                 await _observerTask;
 
@@ -401,6 +413,11 @@ namespace WorkflowsCore
                     if (initializeDependencies)
                     {
                         await dependency.InitializeDependentWorkflowAsync();
+                    }
+
+                    if (Workflow == null)
+                    {
+                        return;  // Workflow was canceled
                     }
 
                     dependency.OnSrcWorkflowSet();

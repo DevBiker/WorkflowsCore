@@ -360,6 +360,35 @@ namespace WorkflowsCore.Tests
             await _dst.CancelWorkflowAsync();
         }
 
+        [Fact]
+        public async Task LongInitializationWithCancellationShouldWork()
+        {
+            _workflowsCoordinator.RegisterWorkflowDependency(
+                WorkflowNames.Name1,
+                TestWorkflow.Action1,
+                WorkflowNames.Name2,
+                (s, d) => Task.Delay(1));
+
+            _workflowsCoordinator.RegisterWorkflowDependency(
+                WorkflowNames.Name2,
+                TestWorkflow.Action2,
+                WorkflowNames.Name1,
+                (s, d) => Task.Delay(1));
+
+            _src.StartWorkflow();
+            _dst.StartWorkflow();
+            await _dst.Workflow.ExecuteActionAsync(TestWorkflow.Action2);
+            var t1 = _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name2, _dst.Workflow);
+            var t2 = _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name1, _src.Workflow);            
+            await _workflowsCoordinator.CancelWorkflowAsync(WorkflowNames.Name1);
+
+            await t1;
+            await t2;
+
+            await _src.CancelWorkflowAsync();
+            await _dst.CancelWorkflowAsync();
+        }
+
         private sealed class TestWorkflow : WorkflowBase<WorkflowStates>
         {
             public const string Action1 = nameof(Action1);
