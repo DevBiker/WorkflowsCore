@@ -32,7 +32,7 @@ namespace WorkflowsCore
         private Exception _exception;
         private bool _wasStared;
         private bool _isCancellationRequested;
-        private Operation _operationInProgress;
+        private volatile Operation _operationInProgress;
 
         protected WorkflowBase()
             : this(null)
@@ -97,8 +97,10 @@ namespace WorkflowsCore
 
         private Operation OperationInProgress
         {
-            get { return Interlocked.CompareExchange(ref _operationInProgress, null, null); }
+            get { return _operationInProgress; }
+#pragma warning disable 420
             set { Interlocked.Exchange(ref _operationInProgress, value); }
+#pragma warning restore 420
         }
 
         [DataField(IsTransient = true)]

@@ -10,7 +10,7 @@ namespace WorkflowsCore.Tests
 {
     public class WorkflowBaseTests
     {
-        public class StartedStateInitializedTasksTests : BaseWorkflowTest<TestWorkflow>
+        public class StartedTaskTests : BaseWorkflowTest<TestWorkflow>
         {
             [Fact]
             public async Task StartedTaskShouldBeCompletedWhenWorkflowIsStarted()
