@@ -552,7 +552,7 @@ namespace WorkflowsCore.Tests
                 StartWorkflow();
 
                 var t = Workflow.ExecuteActionAsync<int>("Action 1");
-                await Task.Delay(100);
+                await Workflow.InitializedTask;
                 Assert.NotEqual(TaskStatus.RanToCompletion, Workflow.StartedTask.Status);
                 Workflow.SetInitializationCompleted();
                 await t;
@@ -623,7 +623,7 @@ namespace WorkflowsCore.Tests
                 Assert.NotEqual(TaskStatus.RanToCompletion, Workflow.StartedTask.Status);
 
                 var t = Workflow.GetAvailableActionsAsync();
-                await Task.Delay(100);
+                await Workflow.InitializedTask;
                 Assert.NotEqual(TaskStatus.RanToCompletion, Workflow.StartedTask.Status);
                 Workflow.SetInitializationCompleted();
                 await t;
@@ -859,6 +859,7 @@ namespace WorkflowsCore.Tests
             private readonly bool _badCancellation;
             private readonly bool _failCancellation;
             private readonly TaskCompletionSource<bool> _badCancellationTcs = new TaskCompletionSource<bool>();
+            private readonly TaskCompletionSource<bool> _initializedTcs = new TaskCompletionSource<bool>(); 
             private readonly int _timeout;
 
             private IDisposable _initializationOperation;
@@ -893,6 +894,8 @@ namespace WorkflowsCore.Tests
             public bool OnCanceledWasCalled { get; private set; }
 
             public bool OnFaultedWasCalled { get; private set; }
+
+            public Task InitializedTask => _initializedTcs.Task;
 
             public void SetInitializationCompleted() => _initializationOperation.Dispose();
 
@@ -950,6 +953,7 @@ namespace WorkflowsCore.Tests
                 if (_delayInitialization)
                 {
                     _initializationOperation = await this.WaitForReadyAndStartOperation();
+                    _initializedTcs.SetResult(true);
                 }
 
                 CurrentCancellationToken = Utilities.CurrentCancellationToken;
