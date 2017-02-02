@@ -48,6 +48,7 @@ namespace WorkflowsCore
                         Task.WhenAll(tasks).ContinueWith(
                             t =>
                             {
+                                cts.Dispose();
                                 if (t.IsFaulted)
                                 {
                                     // ReSharper disable once PossibleNullReferenceException
@@ -262,10 +263,12 @@ namespace WorkflowsCore
 
         public static async Task WaitForReady(this WorkflowBase workflow)
         {
-            var cts = CancellationTokenSource.CreateLinkedTokenSource(Utilities.CurrentCancellationToken);
-            var t = await Task.WhenAny(workflow.ReadyTask, Task.Delay(Timeout.Infinite, cts.Token));
-            cts.Cancel();
-            await t;
+            using (var cts = CancellationTokenSource.CreateLinkedTokenSource(Utilities.CurrentCancellationToken))
+            {
+                var t = await Task.WhenAny(workflow.ReadyTask, Task.Delay(Timeout.Infinite, cts.Token));
+                cts.Cancel();
+                await t;
+            }
         }
 
         public static Task Then(this Task task, Action action)
@@ -351,6 +354,7 @@ namespace WorkflowsCore
                         Task.WhenAll(tasks).ContinueWith(
                             t =>
                             {
+                                cts.Dispose();
                                 if (t.IsFaulted)
                                 {
                                     // ReSharper disable once PossibleNullReferenceException
@@ -372,11 +376,14 @@ namespace WorkflowsCore
 
                         // ReSharper disable once MethodSupportsCancellation
                         // ReSharper disable once PossibleNullReferenceException
-                        Task.WhenAll(tasks)
-                            .ContinueWith(
-                                t => tcs.SetException(
-                                    WorkflowBase.GetAggregatedExceptions(exception, t.Exception.GetBaseException())),
-                                TaskContinuationOptions.ExecuteSynchronously);
+                        Task.WhenAll(tasks).ContinueWith(
+                            t =>
+                            {
+                                cts.Dispose();
+                                tcs.SetException(
+                                    WorkflowBase.GetAggregatedExceptions(exception, t.Exception.GetBaseException()));
+                            },
+                            TaskContinuationOptions.ExecuteSynchronously);
                         return;
                     }
 
@@ -390,6 +397,7 @@ namespace WorkflowsCore
                         Task.WhenAll(tasks).ContinueWith(
                             t =>
                             {
+                                cts.Dispose();
                                 if (t.IsFaulted)
                                 {
                                     // ReSharper disable once PossibleNullReferenceException

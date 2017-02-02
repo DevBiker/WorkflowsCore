@@ -9,13 +9,13 @@ namespace WorkflowsCore
     public sealed class SingleThreadTaskScheduler : TaskScheduler, IDisposable
     {
         private readonly Thread _thread;
-        private readonly CancellationTokenSource _cancellationToken;
+        private readonly CancellationTokenSource _cancellationTokenSource;
         private readonly BlockingCollection<Task> _tasks;
         private volatile Exception _exception;
 
         public SingleThreadTaskScheduler()
         {
-            _cancellationToken = new CancellationTokenSource();
+            _cancellationTokenSource = new CancellationTokenSource();
             _tasks = new BlockingCollection<Task>();
 
             _thread = new Thread(ThreadStart) { IsBackground = true };
@@ -31,7 +31,7 @@ namespace WorkflowsCore
                 throw new InvalidOperationException();
             }
 
-            if (_cancellationToken.IsCancellationRequested)
+            if (_cancellationTokenSource.IsCancellationRequested)
             {
                 throw new TaskSchedulerException("Cannot wait after disposal.");
             }
@@ -39,7 +39,8 @@ namespace WorkflowsCore
             _tasks.CompleteAdding();
             _thread.Join();
 
-            _cancellationToken.Cancel();
+            _cancellationTokenSource.Cancel();
+            _cancellationTokenSource.Dispose();
             _tasks.Dispose();
 
             if (_exception != null)
@@ -50,13 +51,14 @@ namespace WorkflowsCore
 
         public void Dispose()
         {
-            if (_cancellationToken.IsCancellationRequested)
+            if (_cancellationTokenSource.IsCancellationRequested)
             {
                 return;
             }
 
             _tasks.CompleteAdding();
-            _cancellationToken.Cancel();
+            _cancellationTokenSource.Cancel();
+            _cancellationTokenSource.Dispose();
             _tasks.Dispose();
         }
 
@@ -64,14 +66,14 @@ namespace WorkflowsCore
         {
             VerifyNotDisposed();
 
-            _tasks.Add(task, _cancellationToken.Token);
+            _tasks.Add(task, _cancellationTokenSource.Token);
         }
 
         protected override bool TryExecuteTaskInline(Task task, bool taskWasPreviouslyQueued)
         {
             VerifyNotDisposed();
 
-            if (_thread != Thread.CurrentThread || _cancellationToken.Token.IsCancellationRequested)
+            if (_thread != Thread.CurrentThread || _cancellationTokenSource.IsCancellationRequested)
             {
                 return false;
             }
@@ -91,7 +93,7 @@ namespace WorkflowsCore
         {
             try
             {
-                var token = _cancellationToken.Token;
+                var token = _cancellationTokenSource.Token;
 
                 foreach (var task in _tasks.GetConsumingEnumerable(token))
                 {
@@ -106,7 +108,7 @@ namespace WorkflowsCore
 
         private void VerifyNotDisposed()
         {
-            if (_cancellationToken.IsCancellationRequested)
+            if (_cancellationTokenSource.IsCancellationRequested)
             {
                 throw new ObjectDisposedException(typeof(SingleThreadTaskScheduler).Name);
             }

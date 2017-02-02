@@ -53,6 +53,7 @@ namespace WorkflowsCore
             _initializationOperation.StartOperation();
 
             CancellationTokenSource = new CancellationTokenSource();
+            CancellationToken = CancellationTokenSource.Token;
             _activationDatesManager.NextActivationDateChanged += (sender, args) => SaveWorkflowData();
         }
 
@@ -90,6 +91,8 @@ namespace WorkflowsCore
         protected static ITimeProvider TimeProvider => Utilities.TimeProvider;
 
         private CancellationTokenSource CancellationTokenSource { get; }
+
+        private CancellationToken CancellationToken { get; }
 
         private TaskScheduler WorkflowTaskScheduler => _concurrentExclusiveSchedulerPair.ExclusiveScheduler;
 
@@ -192,6 +195,8 @@ namespace WorkflowsCore
                                 {
                                     _completedTaskCompletionSource.SetResult(true);
                                 }
+
+                                CancellationTokenSource.Dispose();
                             }
                         },
                         CancellationToken.None,
@@ -244,39 +249,59 @@ namespace WorkflowsCore
         public Task DoWorkflowTaskAsync(Action<WorkflowBase> action, bool forceExecution = false)
         {
             return Utilities.SetCurrentCancellationTokenTemporarily(
-                CancellationTokenSource.Token,
-                () => Task.Factory.StartNew(
-                    async () =>
+                CancellationToken,
+                () =>
+                {
+                    try
                     {
-                        if (!forceExecution)
-                        {
-                            await StartedTask;
-                        }
+                        return Task.Factory.StartNew(
+                            async () =>
+                            {
+                                if (!forceExecution)
+                                {
+                                    await StartedTask;
+                                }
 
-                        action(this);
-                    },
-                    forceExecution ? CancellationToken.None : Utilities.CurrentCancellationToken,
-                    TaskCreationOptions.PreferFairness,
-                    WorkflowTaskScheduler)).Unwrap();
+                                action(this);
+                            },
+                            forceExecution ? CancellationToken.None : Utilities.CurrentCancellationToken,
+                            TaskCreationOptions.PreferFairness,
+                            WorkflowTaskScheduler);
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        throw new TaskCanceledException("CancellationTokenSource has been disposed");
+                    }
+                }).Unwrap();
         }
 
         public Task<T> DoWorkflowTaskAsync<T>(Func<WorkflowBase, T> func, bool forceExecution = false)
         {
             return Utilities.SetCurrentCancellationTokenTemporarily(
-                CancellationTokenSource.Token,
-                () => Task.Factory.StartNew(
-                    async () =>
+                CancellationToken,
+                () =>
+                {
+                    try
                     {
-                        if (!forceExecution)
+                        return Task.Factory.StartNew(
+                        async () =>
                         {
-                            await StartedTask;
-                        }
+                            if (!forceExecution)
+                            {
+                                await StartedTask;
+                            }
 
-                        return func(this);
-                    },
-                    forceExecution ? CancellationToken.None : Utilities.CurrentCancellationToken,
-                    TaskCreationOptions.PreferFairness,
-                    WorkflowTaskScheduler)).Unwrap();
+                            return func(this);
+                        },
+                        forceExecution ? CancellationToken.None : Utilities.CurrentCancellationToken,
+                        TaskCreationOptions.PreferFairness,
+                        WorkflowTaskScheduler);
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        throw new TaskCanceledException("CancellationTokenSource has been disposed");
+                    }
+                }).Unwrap();
         }
 
         public Task<object> GetIdAsync() => DoWorkflowTaskAsync(() => Id);

@@ -267,6 +267,7 @@ namespace WorkflowsCore
 
                 _cancellationTokenSource.Cancel();
                 await _observerTask;
+                _cancellationTokenSource.Dispose();
 
                 if (DstWorkflowDefinition.Workflow == null)
                 {
@@ -320,7 +321,8 @@ namespace WorkflowsCore
 
             public override void OnSrcWorkflowSet()
             {
-                _cancellationTokenSource = new CancellationTokenSource();
+                _cancellationTokenSource =
+                    CancellationTokenSource.CreateLinkedTokenSource(Utilities.CurrentCancellationToken);
                 Utilities.SetCurrentCancellationTokenTemporarily(
                     _cancellationTokenSource.Token,
                     () => _observerTask = DoWork(
@@ -351,6 +353,7 @@ namespace WorkflowsCore
 
                 _cancellationTokenSource.Cancel();
                 await _observerTask;
+                _cancellationTokenSource.Dispose();
 
                 if (DstWorkflowDefinition.Workflow == null)
                 {
