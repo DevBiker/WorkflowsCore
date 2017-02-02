@@ -297,6 +297,27 @@ namespace WorkflowsCore.Tests
 
                 Assert.IsType<TaskCanceledException>(ex);
             }
+
+            [Fact]
+            public async Task AnyShouldFailIfAnyChildTaskCanceled()
+            {
+                // ReSharper disable once PossibleNullReferenceException
+                var ex = await Record.ExceptionAsync(
+                    () => _workflow.WaitForAny(() => Task.Run(() => { throw new TaskCanceledException(); })));
+
+                Assert.IsType<InvalidOperationException>(ex);
+            }
+
+            [Fact]
+            public async Task AnyShouldFailIfAnyOptionalChildTaskCanceled()
+            {
+                // ReSharper disable once PossibleNullReferenceException
+                var ex = await Record.ExceptionAsync(
+                    () => _workflow.WaitForAny(
+                        () => _workflow.Optional(Task.Run(() => { throw new TaskCanceledException(); }))));
+
+                Assert.IsType<InvalidOperationException>(ex);
+            }
         }
 
         public class WaitForActionNoStatesTests : BaseWorkflowTest<TestWorkflow>
@@ -693,8 +714,6 @@ namespace WorkflowsCore.Tests
 
                 await CancelWorkflowAsync();
             }
-
-            // TODO: Cancellation tests
         }
 
         public sealed class TestWorkflow : WorkflowBase

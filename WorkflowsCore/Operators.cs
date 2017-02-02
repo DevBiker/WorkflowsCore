@@ -371,7 +371,6 @@ namespace WorkflowsCore
                     var faultedTask = tasks.FirstOrDefault(t => t.IsFaulted);
                     if (faultedTask != null)
                     {
-                        // ReSharper disable once PossibleNullReferenceException
                         var exception = RequestCancellation(cts);
 
                         // ReSharper disable once MethodSupportsCancellation
@@ -387,7 +386,31 @@ namespace WorkflowsCore
                         return;
                     }
 
-                    // TODO: Handle cancellation initiated by children
+                    var canceledTask = tasks.FirstOrDefault(t => t.IsCanceled);
+                    if (canceledTask != null)
+                    {
+                        var message =
+                            $"Child task {((Dictionary<int, int>)tcs.Task.AsyncState)[canceledTask.Id]} has been canceled";
+                        var exception = RequestCancellation(cts, new InvalidOperationException(message));
+
+                        Task.WhenAll(tasks).ContinueWith(
+                            t =>
+                            {
+                                cts.Dispose();
+                                if (t.IsFaulted)
+                                {
+                                    // ReSharper disable once PossibleNullReferenceException
+                                    tcs.SetException(
+                                        WorkflowBase.GetAggregatedExceptions(exception, t.Exception.GetBaseException()));
+                                    return;
+                                }
+
+                                tcs.SetException(exception);
+                            },
+                            TaskContinuationOptions.ExecuteSynchronously);
+                        return;
+                    }
+
                     var completedTask = tasks.FirstOrDefault(IsNonOptionalTaskCompleted);
                     if (completedTask != null)
                     {
@@ -423,13 +446,6 @@ namespace WorkflowsCore
                             TaskContinuationOptions.ExecuteSynchronously);
                         return;
                     }
-
-                    // TODO:
-                    ////if (tasks.Any(t => t.IsCanceled))
-                    ////{
-                    ////    tcs.SetException(new InvalidOperationException($"WaitForAny() canceled child {cts.IsCancellationRequested}, {parentCancellationToken.IsCancellationRequested}"));
-                    ////    return;
-                    ////}
 
                     WaitAnyCore(
                         tasks.Where(t => t.Status != TaskStatus.RanToCompletion).ToList(),
