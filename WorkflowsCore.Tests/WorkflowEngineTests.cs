@@ -134,7 +134,7 @@ namespace WorkflowsCore.Tests
             _workflowRepo.IgnoreWorkflowsIds = Enumerable.Repeat((object)1, 1);
 
             await Task.Delay(5);
-            var t = _workflowRepo.InitGetActiveWorkflowsTask().WaitWithTimeout(1000);
+            var t = _workflowRepo.InitGetActiveWorkflowsTask();
             TestingTimeProvider.Current.SetCurrentTime(newTime);
 
             await t;
@@ -205,7 +205,7 @@ namespace WorkflowsCore.Tests
             workflow.CancelWorkflow();
 
             // ReSharper disable once PossibleNullReferenceException
-            var ex = await Record.ExceptionAsync(() => workflow.CompletedTask.WaitWithTimeout(1000));
+            var ex = await Record.ExceptionAsync(() => workflow.CompletedTask);
 
             Assert.IsType<TaskCanceledException>(ex);
         }

@@ -509,42 +509,36 @@ namespace WorkflowsCore.Tests
         {
             _simulator = new MonteCarloSimulator<TestWorkflow>(
                 () => _lastWorkflow = new TestWorkflow(),
-                maxConcurrentEvents: 10);
+                maxConcurrentEvents: 5);
 
             var action1Counter = 0;
-            var action1Counter2 = 0;
             _simulator.ConfigureCustomEvent(
                 1.0,
                 (w, concurrentEvents) =>
                 {
                     Assert.True(concurrentEvents);
-                    ++action1Counter2;
                     Globals.EventMonitor.LogEvent("Custom event 1");
                     Interlocked.Increment(ref action1Counter);
                     return Task.CompletedTask;
                 });
             var action2Counter = 0;
-            var action2Counter2 = 0;
             _simulator.ConfigureCustomEvent(
                 2.0,
                 w =>
                 {
                     Globals.EventMonitor.LogEvent("Custom event 2");
-                    ++action2Counter;
-                    Interlocked.Increment(ref action2Counter2);
+                    Interlocked.Increment(ref action2Counter);
                     return Task.CompletedTask;
                 },
                 isSequential: true);
 
             var stats = _simulator.RunSimulations(
                 5,
-                10000,
+                5000,
                 randomGeneratorSeed: 171787817,
                 getEventsAvailabilityAwaiter: w => new WorkflowActionsAvailabilityAwaiter<States>(w));
             Assert.NotNull(stats);
             _output.WriteLine(stats.ToString());
-            Assert.Equal(action2Counter, action2Counter);
-            Assert.NotEqual(action1Counter, action1Counter2);
             Assert.True(action1Counter > action2Counter);
         }
 
@@ -560,7 +554,7 @@ namespace WorkflowsCore.Tests
             Assert.False(t.IsCompleted);
             TestingTimeProvider.Current.SetCurrentTime(Globals.TimeProvider.Now.AddHours(17));
 
-            await t.WaitWithTimeout(1000);
+            await t;
 
             var state = await workflow.GetStateAsync();
             Assert.Equal(States.Due, state);

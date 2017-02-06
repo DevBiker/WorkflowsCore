@@ -80,7 +80,7 @@ namespace WorkflowsCore.Tests
             await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name2, _dst.Workflow);
 
             await _src.Workflow.ExecuteActionAsync(TestWorkflow.Action1);
-            await _dst.Workflow.WaitForState(WorkflowStates.State2).WaitWithTimeout(1000);
+            await _dst.Workflow.WaitForState(WorkflowStates.State2);
 
             await _src.CancelWorkflowAsync();
             await _dst.CancelWorkflowAsync();
@@ -114,7 +114,7 @@ namespace WorkflowsCore.Tests
             await _src.Workflow.StartedTask;
             await _dst.Workflow.StartedTask;
             await _workflowsCoordinator.CancelWorkflowAsync(WorkflowNames.Name1);
-            await tcs.Task.WaitWithTimeout(100);
+            await tcs.Task;
 
             await _src.CancelWorkflowAsync();
             await _dst.CancelWorkflowAsync();
@@ -135,8 +135,8 @@ namespace WorkflowsCore.Tests
             await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name1, _src.Workflow);
             await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name2, _dst.Workflow);
 
-            await _src.Workflow.ExecuteActionAsync(TestWorkflow.Action1).WaitWithTimeout(100);
-            await _dst.Workflow.WaitForState(WorkflowStates.State2).WaitWithTimeout(100);
+            await _src.Workflow.ExecuteActionAsync(TestWorkflow.Action1);
+            await _dst.Workflow.WaitForState(WorkflowStates.State2);
 
             var wasExecuted =
                 await _dst.Workflow.DoWorkflowTaskAsync(() => _dst.Workflow.WasExecuted(TestWorkflow.Action2));
@@ -170,12 +170,12 @@ namespace WorkflowsCore.Tests
             await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name1, _src.Workflow);
 
             _src.StartWorkflow();
-            await _src.Workflow.ExecuteActionAsync(TestWorkflow.Action1).WaitWithTimeout(100);
-            await _src.Workflow.WaitForState(WorkflowStates.State1).WaitWithTimeout(100);
+            await _src.Workflow.ExecuteActionAsync(TestWorkflow.Action1);
+            await _src.Workflow.WaitForState(WorkflowStates.State1);
 
             _dst.StartWorkflow();
             await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name2, _dst.Workflow);
-            await _dst.Workflow.WaitForState(WorkflowStates.State2).WaitWithTimeout(100);
+            await _dst.Workflow.WaitForState(WorkflowStates.State2);
 
             await _src.CancelWorkflowAsync();
             await _dst.CancelWorkflowAsync();
@@ -198,7 +198,7 @@ namespace WorkflowsCore.Tests
             await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name1, _src.Workflow);
 
             _src.StartWorkflow();
-            await _src.Workflow.ExecuteActionAsync(TestWorkflow.Action1).WaitWithTimeout(100);
+            await _src.Workflow.ExecuteActionAsync(TestWorkflow.Action1);
 
             _dst.StartWorkflow();
             await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name2, _dst.Workflow, initializeDependencies: false);
@@ -229,8 +229,8 @@ namespace WorkflowsCore.Tests
             await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name1, _src.Workflow);
             await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name2, _dst.Workflow);
             
-            await _src.Workflow.ExecuteActionAsync(TestWorkflow.Action1).WaitWithTimeout(100);
-            await _dst.Workflow.WaitForState(WorkflowStates.State2).WaitWithTimeout(100);
+            await _src.Workflow.ExecuteActionAsync(TestWorkflow.Action1);
+            await _dst.Workflow.WaitForState(WorkflowStates.State2);
 
             await _src.CancelWorkflowAsync();
             await _dst.CancelWorkflowAsync();
@@ -262,7 +262,7 @@ namespace WorkflowsCore.Tests
             await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name2, _dst.Workflow);
 
             await _workflowsCoordinator.CancelWorkflowAsync(WorkflowNames.Name1);
-            await tcs.Task.WaitWithTimeout(100);
+            await tcs.Task;
 
             await _src.CancelWorkflowAsync();
             await _dst.CancelWorkflowAsync();
@@ -283,8 +283,8 @@ namespace WorkflowsCore.Tests
             await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name1, _src.Workflow);
             await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name2, _dst.Workflow);
 
-            await _src.Workflow.ExecuteActionAsync(TestWorkflow.Action1).WaitWithTimeout(100);
-            await _dst.Workflow.WaitForState(WorkflowStates.State2).WaitWithTimeout(100);
+            await _src.Workflow.ExecuteActionAsync(TestWorkflow.Action1);
+            await _dst.Workflow.WaitForState(WorkflowStates.State2);
 
             var wasExecuted =
                 await _dst.Workflow.DoWorkflowTaskAsync(() => _dst.Workflow.WasExecuted(TestWorkflow.Action2));
@@ -321,10 +321,10 @@ namespace WorkflowsCore.Tests
 
             _src.StartWorkflow();            
             await _src.Workflow.ExecuteActionAsync(TestWorkflow.Action1);
-            await _src.Workflow.WaitForState(WorkflowStates.State1).WaitWithTimeout(100);
+            await _src.Workflow.WaitForState(WorkflowStates.State1);
             await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name1, _src.Workflow);
 
-            await _dst.Workflow.WaitForState(WorkflowStates.State2).WaitWithTimeout(100);
+            await _dst.Workflow.WaitForState(WorkflowStates.State2);
 
             await _src.CancelWorkflowAsync();
             await _dst.CancelWorkflowAsync();
@@ -350,7 +350,7 @@ namespace WorkflowsCore.Tests
             await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name2, _dst.Workflow);
 
             Assert.False(tcs.Task.IsFaulted);
-            await _src.Workflow.ExecuteActionAsync(TestWorkflow.Action1).WaitWithTimeout(100);
+            await _src.Workflow.ExecuteActionAsync(TestWorkflow.Action1);
             var ex = await tcs.Task;
 
             Assert.IsType<InvalidOperationException>(ex);

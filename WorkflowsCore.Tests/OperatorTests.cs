@@ -134,7 +134,7 @@ namespace WorkflowsCore.Tests
                     },
                     () =>
                     {
-                        task = Task.Delay(50);
+                        task = Task.Delay(100);
                         return task;
                     });
 
@@ -424,7 +424,7 @@ namespace WorkflowsCore.Tests
                         _workflow.SetState(States.Due);
                         await t;
                     },
-                    forceExecution: true).Unwrap().WaitWithTimeout(1000);
+                    forceExecution: true).Unwrap();
             }
 
             [Fact]

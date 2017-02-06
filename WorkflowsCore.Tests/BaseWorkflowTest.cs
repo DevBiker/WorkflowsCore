@@ -45,7 +45,7 @@ namespace WorkflowsCore.Tests
             _wasCanceled = true;
 
             // ReSharper disable once PossibleNullReferenceException
-            var ex = await Record.ExceptionAsync(() => Workflow.CompletedTask.WaitWithTimeout(1000));
+            var ex = await Record.ExceptionAsync(() => Workflow.CompletedTask);
 
             Assert.IsType<TaskCanceledException>(ex);
             Assert.Equal(TaskStatus.Canceled, Workflow.CompletedTask.Status);

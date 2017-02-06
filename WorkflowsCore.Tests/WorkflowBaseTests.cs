@@ -28,7 +28,6 @@ namespace WorkflowsCore.Tests
                 Workflow = new TestWorkflow(allowOnFaulted: true);
                 Assert.NotEqual(TaskStatus.RanToCompletion, Workflow.StartedTask.Status);
                 StartWorkflow(beforeWorkflowStarted: () => { throw new InvalidOperationException(); });
-                await Task.WhenAny(Workflow.StartedTask, Task.Delay(100));
                 
                 // ReSharper disable once PossibleNullReferenceException
                 var ex = await Record.ExceptionAsync(() => Workflow.CompletedTask);
@@ -44,7 +43,7 @@ namespace WorkflowsCore.Tests
                 Workflow.CancelWorkflow();
 
                 // ReSharper disable once PossibleNullReferenceException
-                var ex = await Record.ExceptionAsync(() => Task.WhenAny(Workflow.StartedTask, Task.Delay(100)).Unwrap());
+                var ex = await Record.ExceptionAsync(() => Workflow.StartedTask);
 
                 Assert.IsType<TaskCanceledException>(ex);
             }
@@ -56,8 +55,7 @@ namespace WorkflowsCore.Tests
                 Workflow.CancelWorkflow();
 
                 // ReSharper disable once PossibleNullReferenceException
-                var ex = await Record.ExceptionAsync(
-                    () => Task.WhenAny(Workflow.ReadyTask, Task.Delay(100)).Unwrap());
+                var ex = await Record.ExceptionAsync(() => Workflow.ReadyTask);
 
                 Assert.IsType<TaskCanceledException>(ex);
             }
@@ -715,7 +713,7 @@ namespace WorkflowsCore.Tests
                 Workflow = new TestWorkflow(() => _workflowRepo, doNotComplete: false, allowOnCanceled: false);
                 StartWorkflow();
 
-                await WaitUntilWorkflowCompleted().WaitWithTimeout(1000);
+                await WaitUntilWorkflowCompleted();
 
                 Assert.Equal(1, _workflowRepo.NumberOfCompletedWorkflows);
                 await AssertWorkflowCancellationTokenCanceled();
@@ -727,7 +725,7 @@ namespace WorkflowsCore.Tests
                 Workflow = new TestWorkflow(() => _workflowRepo, fail: true, allowOnFaulted: true);
                 StartWorkflow();
 
-                await WaitUntilWorkflowFailed<ArgumentOutOfRangeException>().WaitWithTimeout(1000);
+                await WaitUntilWorkflowFailed<ArgumentOutOfRangeException>();
 
                 Assert.Equal(1, _workflowRepo.NumberOfFailedWorkflows);
                 Assert.True(Workflow.OnFaultedWasCalled);
@@ -960,7 +958,7 @@ namespace WorkflowsCore.Tests
 
                 if (_badCancellation)
                 {
-                    await _badCancellationTcs.Task.WaitWithTimeout(1000);
+                    await _badCancellationTcs.Task;
                 }
                 else
                 {
