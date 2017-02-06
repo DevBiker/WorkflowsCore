@@ -507,10 +507,9 @@ namespace WorkflowsCore.Tests
         [Fact]
         public void IfMaxConcurrentEventsIsGreaterThen1ThenEventsShouldBeRunConcurrently()
         {
-            _simulator =
-                new MonteCarloSimulator<TestWorkflow>(
-                    () => _lastWorkflow = new TestWorkflow(),
-                    maxConcurrentEvents: 5);
+            _simulator = new MonteCarloSimulator<TestWorkflow>(
+                () => _lastWorkflow = new TestWorkflow(),
+                maxConcurrentEvents: 10);
 
             var action1Counter = 0;
             var action1Counter2 = 0;
@@ -539,7 +538,7 @@ namespace WorkflowsCore.Tests
 
             var stats = _simulator.RunSimulations(
                 5,
-                5000,
+                10000,
                 randomGeneratorSeed: 171787817,
                 getEventsAvailabilityAwaiter: w => new WorkflowActionsAvailabilityAwaiter<States>(w));
             Assert.NotNull(stats);
