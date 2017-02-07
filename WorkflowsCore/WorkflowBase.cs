@@ -170,33 +170,33 @@ namespace WorkflowsCore
                         {
                             var canceled = false;
                             Exception exception = null;
-                            try
+                            lock (CancellationTokenSource)
                             {
-                                lock (CancellationTokenSource)
+                                try
                                 {
                                     ProcessWorkflowCompletion(t, afterWorkflowFinished, out exception, out canceled);
                                 }
-                            }
-                            catch (Exception ex)
-                            {
-                                exception = GetAggregatedExceptions(exception, ex);
-                            }
-                            finally
-                            {
-                                if (exception != null)
+                                catch (Exception ex)
                                 {
-                                    _completedTaskCompletionSource.SetException(exception);
+                                    exception = GetAggregatedExceptions(exception, ex);
                                 }
-                                else if (canceled)
+                                finally
                                 {
-                                    _completedTaskCompletionSource.SetCanceled();
-                                }
-                                else
-                                {
-                                    _completedTaskCompletionSource.SetResult(true);
-                                }
+                                    if (exception != null)
+                                    {
+                                        _completedTaskCompletionSource.SetException(exception);
+                                    }
+                                    else if (canceled)
+                                    {
+                                        _completedTaskCompletionSource.SetCanceled();
+                                    }
+                                    else
+                                    {
+                                        _completedTaskCompletionSource.SetResult(true);
+                                    }
 
-                                CancellationTokenSource.Dispose();
+                                    CancellationTokenSource.Dispose();
+                                }
                             }
                         },
                         CancellationToken.None,
@@ -667,25 +667,38 @@ namespace WorkflowsCore
             {
                 _isCancellationRequested |= exception == null;
 
-                RunViaWorkflowTaskScheduler(
-                    () =>
-                    {
-                        _initializationOperation.TryCancel();
-                        OperationInProgress?.TryCancel();
-                        OperationInProgress = Operation.Canceled;
-                        try
+                if (!CancellationTokenSource.IsCancellationRequested)
+                {
+                    RunViaWorkflowTaskScheduler(
+                        () =>
                         {
-                            CancellationTokenSource.Cancel();
-                        }
-                        catch (Exception ex)
-                        {
-                            _exception = GetAggregatedExceptions(_exception, ex);
-                        }
-                    },
-                    forceExecution: exception == null);
+                            _initializationOperation.TryCancel();
+                            OperationInProgress?.TryCancel();
+                            OperationInProgress = Operation.Canceled;
+                            try
+                            {
+                                CancellationTokenSource.Cancel();
+                            }
+                            catch (Exception ex)
+                            {
+                                _exception = GetAggregatedExceptions(_exception, ex);
+                            }
+                        },
+                        forceExecution: exception == null); // If workflow is not started it cannot be stopped with exception but it can be canceled
+                }
 
                 if (exception != null)
                 {
+                    try
+                    {
+                        // ReSharper disable once UnusedVariable
+                        var token = CancellationTokenSource.Token;
+                    }
+                    catch (ObjectDisposedException)
+                    {
+                        throw new InvalidOperationException("Workflow has been terminated", exception);
+                    }
+                    
                     _exception = GetAggregatedExceptions(_exception, exception);
                 }
             }

@@ -796,6 +796,18 @@ namespace WorkflowsCore.Tests
             }
 
             [Fact]
+            public async Task StopWorkflowAfterWorkflowTerminatedShouldThrowIoe()
+            {
+                Workflow = new TestWorkflow(() => _workflowRepo, doNotComplete: false);
+                StartWorkflow();
+
+                await WaitUntilWorkflowCompleted();
+                var ex = Record.Exception(() => Workflow.StopWorkflow(new TimeoutException()));
+
+                Assert.IsType<InvalidOperationException>(ex);
+            }
+
+            [Fact]
             public async Task CancelWorkflowShouldTerminateItAndMarkAsCanceledEvenItDoesNotHandleCancellationProperly()
             {
                 Workflow = new TestWorkflow(() => _workflowRepo, badCancellation: true);
