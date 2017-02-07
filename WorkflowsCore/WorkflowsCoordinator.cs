@@ -260,14 +260,16 @@ namespace WorkflowsCore
 
             public override async Task OnSrcWorkflowCanceledAsync()
             {
-                if (_cancellationTokenSource == null)
+                var cts = _cancellationTokenSource;
+                if (cts == null)
                 {
-                    return; // OnSrcWorkflowSet() was not executed yet, nothing to cancel
+                    return; // OnSrcWorkflowSet() was not executed yet, nothing to cancel or cancellation was started already
                 }
 
-                _cancellationTokenSource.Cancel();
+                _cancellationTokenSource = null;
+                cts.Cancel();
                 await _observerTask;
-                _cancellationTokenSource.Dispose();
+                cts.Dispose();
 
                 if (DstWorkflowDefinition.Workflow == null)
                 {
@@ -346,14 +348,16 @@ namespace WorkflowsCore
 
             public override async Task OnSrcWorkflowCanceledAsync()
             {
-                if (_cancellationTokenSource == null)
+                var cts = _cancellationTokenSource;
+                if (cts == null)
                 {
-                    return; // OnSrcWorkflowSet() was not executed yet, nothing to cancel
+                    return; // OnSrcWorkflowSet() was not executed yet, nothing to cancel or cancellation was started already
                 }
 
-                _cancellationTokenSource.Cancel();
+                _cancellationTokenSource = null;
+                cts.Cancel();
                 await _observerTask;
-                _cancellationTokenSource.Dispose();
+                cts.Dispose();
 
                 if (DstWorkflowDefinition.Workflow == null)
                 {
