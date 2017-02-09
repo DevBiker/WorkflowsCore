@@ -230,35 +230,10 @@ namespace WorkflowsCore
             [CallerFilePath] string filePath = null,
             [CallerLineNumber] int lineNumber = 0)
         {
-            var cts = CancellationTokenSource.CreateLinkedTokenSource(Utilities.CurrentCancellationToken);
-
             /* ReSharper disable ExplicitCallerInfoArgument */
             workflow.CreateOperation(filePath, lineNumber);
             /* ReSharper restore ExplicitCallerInfoArgument */
-
-            return workflow.RunViaWorkflowTaskScheduler(
-                async w =>
-                {
-                    try
-                    {
-                        while (true)
-                        {
-                            var operation = w.TryStartOperation();
-                            if (operation != null)
-                            {
-                                return operation;
-                            }
-
-                            var t = await Task.WhenAny(workflow.ReadyTask, Task.Delay(Timeout.Infinite, cts.Token));
-                            await t;
-                        }
-                    }
-                    finally
-                    {
-                        cts.Cancel();
-                        cts.Dispose();
-                    }
-                }).Unwrap();
+            return WaitForReadyAndStartOperationCore(workflow);
         }
 
         public static async Task WaitForReady(this WorkflowBase workflow)
@@ -454,6 +429,37 @@ namespace WorkflowsCore
                         parentCancellationToken);
                 },
                 TaskContinuationOptions.ExecuteSynchronously);
+        }
+
+        private static async Task<IDisposable> WaitForReadyAndStartOperationCore(WorkflowBase workflow)
+        {
+            using (var cts = CancellationTokenSource.CreateLinkedTokenSource(Utilities.CurrentCancellationToken))
+            {
+                return await workflow.RunViaWorkflowTaskScheduler(
+                    async w =>
+                    {
+                        // ReSharper disable AccessToDisposedClosure
+                        var cancellationTask = Task.Delay(Timeout.Infinite, cts.Token);
+                        try
+                        {
+                            while (true)
+                            {
+                                var operation = w.TryStartOperation();
+                                if (operation != null)
+                                {
+                                    return operation;
+                                }
+
+                                var t = await Task.WhenAny(workflow.ReadyTask, cancellationTask);
+                                await t;
+                            }
+                        }
+                        finally
+                        {
+                            cts.Cancel(); // ReSharper restore AccessToDisposedClosure
+                        }
+                    }).Unwrap();
+            }
         }
 
         private static bool IsNonOptionalTaskCompleted(Task t) => 
