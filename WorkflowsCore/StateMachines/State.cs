@@ -320,9 +320,10 @@ namespace WorkflowsCore.StateMachines
             // ReSharper disable once FunctionNeverReturns
             public async Task WaitAndHandle(StateInstance instance)
             {
+                var task = _taskFactory();
                 while (true)
                 {
-                    await _taskFactory();
+                    await task;
                     var operationToImport = _getOperationForImport?.Invoke();
                     if (operationToImport != null)
                     {
@@ -338,14 +339,15 @@ namespace WorkflowsCore.StateMachines
                             {
                                 instance.InitiateTransitionTo(newState);
                             }
+
+                            Workflow.ResetOperation();
+                            task = _taskFactory();
                         }
                     }
                     finally
                     {
                         operationToImport?.Dispose();
                     }
-
-                    await Workflow.WaitForReady();
                 }
             }
         }
@@ -369,9 +371,10 @@ namespace WorkflowsCore.StateMachines
             // ReSharper disable once FunctionNeverReturns
             public async Task WaitAndHandle(StateInstance instance)
             {
+                var task = _taskFactory();
                 while (true)
                 {
-                    var res = await _taskFactory();
+                    var res = await task;
                     var operationToImport = _getOperationForImport?.Invoke();
                     if (operationToImport != null)
                     {
@@ -387,14 +390,15 @@ namespace WorkflowsCore.StateMachines
                             {
                                 instance.InitiateTransitionTo(newState);
                             }
+
+                            Workflow.ResetOperation();
+                            task = _taskFactory();
                         }
                     }
                     finally
                     {
                         operationToImport?.Dispose();
                     }
-
-                    await Workflow.WaitForReady();
                 }
             }
         }
