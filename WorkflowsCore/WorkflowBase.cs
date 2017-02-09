@@ -54,7 +54,7 @@ namespace WorkflowsCore
 
             CancellationTokenSource = new CancellationTokenSource();
             CancellationToken = CancellationTokenSource.Token;
-            _activationDatesManager.NextActivationDateChanged += (sender, args) => SaveWorkflowData();
+            _activationDatesManager.NextActivationDateChanged += OnNextActivationDateChanged;
         }
 
         protected internal event EventHandler<ActionExecutedEventArgs> ActionExecuted;
@@ -284,18 +284,18 @@ namespace WorkflowsCore
                     try
                     {
                         return Task.Factory.StartNew(
-                        async () =>
-                        {
-                            if (!forceExecution)
+                            async () =>
                             {
-                                await StartedTask;
-                            }
+                                if (!forceExecution)
+                                {
+                                    await StartedTask;
+                                }
 
-                            return func(this);
-                        },
-                        forceExecution ? CancellationToken.None : Utilities.CurrentCancellationToken,
-                        TaskCreationOptions.PreferFairness,
-                        WorkflowTaskScheduler);
+                                return func(this);
+                            },
+                            forceExecution ? CancellationToken.None : Utilities.CurrentCancellationToken,
+                            TaskCreationOptions.PreferFairness,
+                            WorkflowTaskScheduler);
                     }
                     catch (ObjectDisposedException)
                     {
@@ -775,6 +775,16 @@ namespace WorkflowsCore
             {
                 _actions.Add(action);
             }
+        }
+
+        private void OnNextActivationDateChanged(object sender, EventArgs args)
+        {
+            if (CancellationTokenSource.IsCancellationRequested)
+            {
+                return;
+            }
+
+            SaveWorkflowData();
         }
 
         protected internal class ActionExecutedEventArgs : EventArgs
