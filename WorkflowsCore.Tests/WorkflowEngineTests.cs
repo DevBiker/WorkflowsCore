@@ -296,11 +296,6 @@ namespace WorkflowsCore.Tests
                 return null;
             }
 
-            public WorkflowStatus GetWorkflowStatusById(object workflowId)
-            {
-                throw new NotImplementedException();
-            }
-
             public override void SaveWorkflowData(WorkflowBase workflow, DateTime? nextActivationDate) => 
                 workflow.Id = ++_workflowsSaved;
 

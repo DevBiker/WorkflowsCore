@@ -85,15 +85,16 @@ namespace WorkflowsCore
     public interface IWorkflowRepository
     {
         /// <summary>
-        /// It should return workflows in progress and faulted. It should not return sleeping workflows.
+        /// It should return workflows in progress and faulted.
         /// </summary>
-        /// <param name="maxActivationDate"></param>
-        /// <param name="ignoreWorkflowsIds"></param>
+        /// <param name="maxActivationDate">Workflows with next activation date greater than <c>maxActivationDate</c> should be ignored.</param>
+        /// <param name="ignoreWorkflowsIds">IDs of workflows to ignore.</param>
         IList<WorkflowInstance> GetActiveWorkflows(DateTime maxActivationDate, IEnumerable<object> ignoreWorkflowsIds);
 
+        /// <summary>
+        /// It should return workflows in progress and faulted.
+        /// </summary>
         WorkflowInstance GetActiveWorkflowById(object workflowId);
-
-        WorkflowStatus GetWorkflowStatusById(object workflowId);
     }
 
     public class WorkflowInstance
