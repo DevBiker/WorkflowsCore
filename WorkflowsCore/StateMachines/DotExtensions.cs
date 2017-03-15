@@ -120,14 +120,7 @@ namespace WorkflowsCore.StateMachines
                 from s in states
                 from h in s.EnterHandlers.Concat(s.ActivationHandlers).Concat(s.OnAsyncHandlers).Concat(s.ExitHandlers)
                 from t in h.GetTargetStates(Enumerable.Empty<string>())
-                let isSrcStateSimple = !s.Children.Any()
-                let srcDotId = (isSrcStateSimple ? s : GetSimpleChild(s)).GetDotId()
-                let srcLTail = isSrcStateSimple ? null : s.GetDotId()
-                let isTargetStateSimple = !t.State.Children.Any()
-                let targetDotId = (isTargetStateSimple ? t.State : t.State.Children.First()).GetDotId()
-                let targetLHead = isTargetStateSimple ? null : t.State.GetDotId()
-                let properties = GetProperties(description: h.Description, lTail: srcLTail, lHead: targetLHead)
-                select $"{indentation}{srcDotId} -> {targetDotId}{properties};";
+                select DefineStateTransition(indentation, s, t, h.Description);
         }
 
         private static State<TState, THiddenState> GetSimpleChild<TState, THiddenState>(
@@ -135,6 +128,22 @@ namespace WorkflowsCore.StateMachines
         {
             var child = state.Children.First();
             return !child.Children.Any() ? child : GetSimpleChild(child);
+        }
+
+        private static string DefineStateTransition<TState, THiddenState>(
+            string indentation,
+            State<TState, THiddenState> srcState,
+            TargetState<TState, THiddenState> targetState,
+            string description)
+        {
+            var isSrcStateSimple = !srcState.Children.Any();
+            var srcDotId = (isSrcStateSimple ? srcState : GetSimpleChild(srcState)).GetDotId();
+            var srcLTail = isSrcStateSimple ? null : srcState.GetDotId();
+            var isTargetStateSimple = !targetState.State.Children.Any();
+            var targetDotId = (isTargetStateSimple ? targetState.State : targetState.State.Children.First()).GetDotId();
+            var targetLHead = isTargetStateSimple ? null : targetState.State.GetDotId();
+            var properties = GetProperties(description: description, lTail: srcLTail, lHead: targetLHead);
+            return $"{indentation}{srcDotId} -> {targetDotId}{properties};";
         }
     }
 }
