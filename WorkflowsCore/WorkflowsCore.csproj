@@ -53,6 +53,7 @@
     <Compile Include="MonteCarlo\SimulationsStats.cs" />
     <Compile Include="SingleThreadTaskScheduler.cs" />
     <Compile Include="StateMachines\AsyncOperation.cs" />
+    <Compile Include="StateMachines\DotExtensions.cs" />
     <Compile Include="StateMachines\State.cs" />
     <Compile Include="StateMachines\StateExtensions.cs" />
     <Compile Include="StateMachines\StateId.cs" />

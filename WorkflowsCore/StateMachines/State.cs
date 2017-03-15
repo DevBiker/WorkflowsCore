@@ -19,7 +19,9 @@ namespace WorkflowsCore.StateMachines
         private readonly IList<AsyncOperation<TState, THiddenState>> _exitHandlers =
             new List<AsyncOperation<TState, THiddenState>>();
 
-        private readonly IList<IAsyncOperationWrapper> _onAsyncHandlers = new List<IAsyncOperationWrapper>();
+        private readonly IList<IAsyncOperation<TState, THiddenState>> _onAsyncHandlers =
+            new List<IAsyncOperation<TState, THiddenState>>();
+
         private readonly IList<State<TState, THiddenState>> _children = new List<State<TState, THiddenState>>();
 
         private readonly List<string> _allowedActions = new List<string>();
@@ -30,9 +32,13 @@ namespace WorkflowsCore.StateMachines
             StateMachine = stateMachine;
             StateId = stateId;
             Children = new ReadOnlyCollection<State<TState, THiddenState>>(_children);
+            EnterHandlers = new ReadOnlyCollection<AsyncOperation<TState, THiddenState>>(_enterHandlers);
+            ActivationHandlers = new ReadOnlyCollection<AsyncOperation<TState, THiddenState>>(_activationHandlers);
+            OnAsyncHandlers = new ReadOnlyCollection<IAsyncOperation<TState, THiddenState>>(_onAsyncHandlers);
+            ExitHandlers = new ReadOnlyCollection<AsyncOperation<TState, THiddenState>>(_exitHandlers);
         }
 
-        private interface IAsyncOperationWrapper
+        private interface IAsyncOperationWrapper : IAsyncOperation<TState, THiddenState>
         {
             Task WaitAndHandle(StateInstance instance);
         }
@@ -44,6 +50,16 @@ namespace WorkflowsCore.StateMachines
         public State<TState, THiddenState> Parent { get; private set; }
 
         public IReadOnlyCollection<State<TState, THiddenState>> Children { get; }
+
+        public IReadOnlyCollection<AsyncOperation<TState, THiddenState>> EnterHandlers { get; }
+
+        public IReadOnlyCollection<AsyncOperation<TState, THiddenState>> ActivationHandlers { get; }
+
+        public IReadOnlyCollection<IAsyncOperation<TState, THiddenState>> OnAsyncHandlers { get; }
+
+        public IReadOnlyCollection<AsyncOperation<TState, THiddenState>> ExitHandlers { get; }
+
+        public string Description { get; private set; }
 
         public AsyncOperation<TState, THiddenState> OnEnter(string description = null)
         {
@@ -107,9 +123,10 @@ namespace WorkflowsCore.StateMachines
             return this;
         }
 
-        public State<TState, THiddenState> Description(string description)
+        public State<TState, THiddenState> HasDescription(string description)
         {
-            throw new NotImplementedException();
+            Description = description;
+            return this;
         }
 
         public StateInstance Run(StateTransition<TState, THiddenState> transition) =>
@@ -296,7 +313,8 @@ namespace WorkflowsCore.StateMachines
 
             private Task ProcessOnAsyncs()
             {
-                var onAsyncs = State._onAsyncHandlers.Select(h => (Func<Task>)(() => h.WaitAndHandle(this))).ToArray();
+                var onAsyncs = State._onAsyncHandlers
+                    .Select(h => (Func<Task>)(() => ((IAsyncOperationWrapper)h).WaitAndHandle(this))).ToArray();
                 return onAsyncs.Any() ? Workflow.WaitForAny(onAsyncs) : System.Threading.Tasks.Task.CompletedTask;
             }
         }
@@ -316,6 +334,8 @@ namespace WorkflowsCore.StateMachines
                 _operation = operation;
                 _getOperationForImport = getOperationForImport;
             }
+
+            public string Description => _operation.Description;
 
             // ReSharper disable once FunctionNeverReturns
             public async Task WaitAndHandle(StateInstance instance)
@@ -350,6 +370,9 @@ namespace WorkflowsCore.StateMachines
                     }
                 }
             }
+
+            public IList<TargetState<TState, THiddenState>> GetTargetStates(IEnumerable<string> conditions) => 
+                _operation.GetTargetStates(conditions);
         }
 
         private class AsyncOperationWrapper<TR> : IAsyncOperationWrapper
@@ -367,6 +390,8 @@ namespace WorkflowsCore.StateMachines
                 _operation = operation;
                 _getOperationForImport = getOperationForImport;
             }
+
+            public string Description => _operation.Description;
 
             // ReSharper disable once FunctionNeverReturns
             public async Task WaitAndHandle(StateInstance instance)
@@ -401,6 +426,9 @@ namespace WorkflowsCore.StateMachines
                     }
                 }
             }
+
+            public IList<TargetState<TState, THiddenState>> GetTargetStates(IEnumerable<string> conditions) =>
+                _operation.GetTargetStates(conditions);
         }
     }
 }

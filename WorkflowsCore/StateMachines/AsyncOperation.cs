@@ -1,9 +1,31 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 
 namespace WorkflowsCore.StateMachines
 {
-    public class BaseAsyncOperation<TState, THiddenState, TData>
+    public interface IAsyncOperation<TState, THiddenState>
+    {
+        string Description { get; }
+
+        IList<TargetState<TState, THiddenState>> GetTargetStates(IEnumerable<string> conditions);
+    }
+
+    public class TargetState<TState, THiddenState>
+    {
+        public TargetState(IEnumerable<string> conditions, State<TState, THiddenState> state)
+        {
+            Conditions = conditions.ToList();
+            State = state;
+        }
+
+        public IEnumerable<string> Conditions { get; }
+
+        public State<TState, THiddenState> State { get; }
+    }
+
+    public class BaseAsyncOperation<TState, THiddenState, TData> : IAsyncOperation<TState, THiddenState>
     {
         private AsyncOperationHandler _handler;
 
@@ -57,6 +79,9 @@ namespace WorkflowsCore.StateMachines
             return Parent;
         }
 
+        public IList<TargetState<TState, THiddenState>> GetTargetStates(IEnumerable<string> conditions) => 
+            Handler.GetTargetStates(conditions);
+
         protected AsyncOperation<TState, THiddenState, TR> Invoke<TR>(Func<Task<TR>> taskFactory)
         {
             var handler = new InvokeHandler<TR>(Parent, taskFactory);
@@ -72,6 +97,8 @@ namespace WorkflowsCore.StateMachines
             public abstract Task<State<TState, THiddenState>> ExecuteAsync();
 
             public virtual Task<State<TState, THiddenState>> ExecuteAsync(TData data) => ExecuteAsync();
+
+            public abstract IList<TargetState<TState, THiddenState>> GetTargetStates(IEnumerable<string> conditions);
         }
 
         private class DoHandler : AsyncOperationHandler
@@ -88,6 +115,9 @@ namespace WorkflowsCore.StateMachines
                 await _taskFactory();
                 return null;
             }
+
+            public override IList<TargetState<TState, THiddenState>> GetTargetStates(IEnumerable<string> conditions) => 
+                new List<TargetState<TState, THiddenState>>();
         }
 
         private class GoToHandler : AsyncOperationHandler
@@ -100,6 +130,9 @@ namespace WorkflowsCore.StateMachines
             }
 
             public override Task<State<TState, THiddenState>> ExecuteAsync() => Task.FromResult(_newState);
+
+            public override IList<TargetState<TState, THiddenState>> GetTargetStates(IEnumerable<string> conditions) =>
+                new[] { new TargetState<TState, THiddenState>(conditions, _newState) };
         }
 
         private class InvokeHandler<TR> : AsyncOperationHandler
@@ -120,6 +153,9 @@ namespace WorkflowsCore.StateMachines
 
                 return await Child.ExecuteAsync(res);
             }
+
+            public override IList<TargetState<TState, THiddenState>> GetTargetStates(IEnumerable<string> conditions) => 
+                Child.GetTargetStates(conditions);
         }
     }
 
@@ -208,6 +244,9 @@ namespace WorkflowsCore.StateMachines
 
                 return await Child.ExecuteAsync();
             }
+
+            public override IList<TargetState<TState, THiddenState>> GetTargetStates(IEnumerable<string> conditions) => 
+                Child.GetTargetStates(conditions);
         }
 
         private class IfHandler : AsyncOperationHandler
@@ -235,6 +274,9 @@ namespace WorkflowsCore.StateMachines
 
                 return await Child.ExecuteAsync();
             }
+
+            public override IList<TargetState<TState, THiddenState>> GetTargetStates(IEnumerable<string> conditions) => 
+                Child.GetTargetStates(conditions.Concat(Enumerable.Repeat(Child.Description, 1)));
         }
 
         private class IfThenGoToHandler : AsyncOperationHandler
@@ -264,6 +306,15 @@ namespace WorkflowsCore.StateMachines
                 }
 
                 return await Child.ExecuteAsync();
+            }
+
+            public override IList<TargetState<TState, THiddenState>> GetTargetStates(IEnumerable<string> conditions)
+            {
+                conditions = conditions.ToList();
+                var targetState = new TargetState<TState, THiddenState>(
+                    conditions.Concat(Enumerable.Repeat(Child.Description, 1)),
+                    _state);
+                return Enumerable.Repeat(targetState, 1).Concat(Child.GetTargetStates(conditions)).ToList();
             }
         }
     }
@@ -416,6 +467,9 @@ namespace WorkflowsCore.StateMachines
                 await _taskFactory(data);
                 return null;
             }
+
+            public override IList<TargetState<TState, THiddenState>> GetTargetStates(IEnumerable<string> conditions) =>
+                new List<TargetState<TState, THiddenState>>();
         }
 
         private class IfHandlerWithData : AsyncOperationHandler
@@ -448,6 +502,9 @@ namespace WorkflowsCore.StateMachines
 
                 return await Child.ExecuteAsync(data);
             }
+
+            public override IList<TargetState<TState, THiddenState>> GetTargetStates(IEnumerable<string> conditions) =>
+                Child.GetTargetStates(conditions.Concat(Enumerable.Repeat(Child.Description, 1)));
         }
 
         private class InvokeHandlerWithData<TR> : AsyncOperationHandler
@@ -473,6 +530,9 @@ namespace WorkflowsCore.StateMachines
 
                 return await Child.ExecuteAsync(res);
             }
+
+            public override IList<TargetState<TState, THiddenState>> GetTargetStates(IEnumerable<string> conditions) => 
+                Child.GetTargetStates(conditions);
         }
 
         private class InvokeHandler : AsyncOperationHandler
@@ -498,6 +558,9 @@ namespace WorkflowsCore.StateMachines
 
                 return await Child.ExecuteAsync(data);
             }
+
+            public override IList<TargetState<TState, THiddenState>> GetTargetStates(IEnumerable<string> conditions) => 
+                Child.GetTargetStates(conditions);
         }
 
         private class IfThenGoToHandlerWithData : AsyncOperationHandler
@@ -532,6 +595,15 @@ namespace WorkflowsCore.StateMachines
                 }
 
                 return await Child.ExecuteAsync(data);
+            }
+
+            public override IList<TargetState<TState, THiddenState>> GetTargetStates(IEnumerable<string> conditions)
+            {
+                conditions = conditions.ToList();
+                var targetState = new TargetState<TState, THiddenState>(
+                    conditions.Concat(Enumerable.Repeat(Child.Description, 1)),
+                    _state);
+                return Enumerable.Repeat(targetState, 1).Concat(Child.GetTargetStates(conditions)).ToList();
             }
         }
     }

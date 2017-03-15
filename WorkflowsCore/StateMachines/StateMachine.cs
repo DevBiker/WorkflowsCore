@@ -12,6 +12,10 @@ namespace WorkflowsCore.StateMachines
         private readonly IDictionary<THiddenState, State<TState, THiddenState>> _hiddenStates =
             new Dictionary<THiddenState, State<TState, THiddenState>>();
 
+        public IEnumerable<State<TState, THiddenState>> States => _states.Values;
+
+        public IEnumerable<State<TState, THiddenState>> HiddenStates => _hiddenStates.Values;
+
         public State<TState, THiddenState> ConfigureState(TState state)
         {
             State<TState, THiddenState> stateObj;

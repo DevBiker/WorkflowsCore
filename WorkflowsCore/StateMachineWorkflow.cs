@@ -7,7 +7,6 @@ namespace WorkflowsCore
 {
     public abstract class StateMachineWorkflow<TState, THiddenState> : WorkflowBase<TState>
     {
-        private readonly StateMachine<TState, THiddenState> _stateMachine = new StateMachine<TState, THiddenState>();
         private readonly TaskCompletionSource<bool> _completeWorkflowTcs = new TaskCompletionSource<bool>();
         private StateId<TState, THiddenState> _initialState;
         private StateMachine<TState, THiddenState>.StateMachineInstance _instance;
@@ -24,13 +23,15 @@ namespace WorkflowsCore
         {
         }
 
+        internal StateMachine<TState, THiddenState> StateMachine { get; } = new StateMachine<TState, THiddenState>();
+
         protected internal override bool IsActionAllowed(string action) => 
             _instance?.IsActionAllowed(action) ?? base.IsActionAllowed(action);
 
-        protected State<TState, THiddenState> ConfigureState(TState state) => _stateMachine.ConfigureState(state);
+        protected State<TState, THiddenState> ConfigureState(TState state) => StateMachine.ConfigureState(state);
 
         protected State<TState, THiddenState> ConfigureHiddenState(THiddenState state) => 
-            _stateMachine.ConfigureState(state);
+            StateMachine.ConfigureState(state);
 
         protected void SetInitialState(TState state) => _initialState = state;
 
@@ -55,7 +56,7 @@ namespace WorkflowsCore
 
         private Task RunStateMachine()
         {
-            _instance = _stateMachine.Run(this, _initialState, IsLoaded, OnStateChanged);
+            _instance = StateMachine.Run(this, _initialState, IsLoaded, OnStateChanged);
             return _instance.Task;
         }
     }

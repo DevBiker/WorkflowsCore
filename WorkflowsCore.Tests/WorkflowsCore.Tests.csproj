@@ -72,6 +72,7 @@
     <Compile Include="AsyncOperationTests.cs" />
     <Compile Include="BaseStateTest.cs" />
     <Compile Include="BaseWorkflowTest.cs" />
+    <Compile Include="DotExtensionsTests.cs" />
     <Compile Include="DummyWorkflowStateRepository.cs" />
     <Compile Include="MonteCarloSimulatorTests.cs" />
     <Compile Include="OperatorTests.cs" />
