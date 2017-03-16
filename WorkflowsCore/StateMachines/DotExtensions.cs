@@ -25,7 +25,7 @@ namespace WorkflowsCore.StateMachines
             var states = stateMachine.States.Concat(stateMachine.HiddenStates).OrderBy(GetDotId).ToList();
             if (states.Any(s => s.Children.Any()))
             {
-                yield return $"{Indentation}compound = true;";
+                yield return $"{Indentation}compound=true;";
             }
 
             var workaroundNodes = new WorkaroundNodes<TState, THiddenState>();
@@ -197,6 +197,9 @@ namespace WorkflowsCore.StateMachines
             var isTargetStateSimple = !targetState.State.Children.Any();
             var targetDotId = (isTargetStateSimple ? targetState.State : targetState.State.Children.First()).GetDotId();
             var targetLHead = isTargetStateSimple ? null : targetState.State.GetDotId();
+            description = !targetState.Conditions.Any()
+                ? description
+                : $"{description} [{string.Join(" AND ", targetState.Conditions)}]";
 
             var compoundStateForSelfTransition = IsSelfTransitionFromCompoundState(srcState, targetState.State);
             if (compoundStateForSelfTransition == null)

@@ -275,8 +275,11 @@ namespace WorkflowsCore.StateMachines
                 return await Child.ExecuteAsync();
             }
 
-            public override IList<TargetState<TState, THiddenState>> GetTargetStates(IEnumerable<string> conditions) => 
-                Child.GetTargetStates(conditions.Concat(Enumerable.Repeat(Child.Description, 1)));
+            public override IList<TargetState<TState, THiddenState>> GetTargetStates(IEnumerable<string> conditions)
+            {
+                return Child.GetTargetStates(
+                    Child.Description == null ? conditions : conditions.Concat(Enumerable.Repeat(Child.Description, 1)));
+            }
         }
 
         private class IfThenGoToHandler : AsyncOperationHandler
@@ -312,7 +315,7 @@ namespace WorkflowsCore.StateMachines
             {
                 conditions = conditions.ToList();
                 var targetState = new TargetState<TState, THiddenState>(
-                    conditions.Concat(Enumerable.Repeat(Child.Description, 1)),
+                    Child.Description == null ? conditions : conditions.Concat(Enumerable.Repeat(Child.Description, 1)),
                     _state);
                 return Enumerable.Repeat(targetState, 1).Concat(Child.GetTargetStates(conditions)).ToList();
             }
@@ -503,8 +506,11 @@ namespace WorkflowsCore.StateMachines
                 return await Child.ExecuteAsync(data);
             }
 
-            public override IList<TargetState<TState, THiddenState>> GetTargetStates(IEnumerable<string> conditions) =>
-                Child.GetTargetStates(conditions.Concat(Enumerable.Repeat(Child.Description, 1)));
+            public override IList<TargetState<TState, THiddenState>> GetTargetStates(IEnumerable<string> conditions)
+            {
+                return Child.GetTargetStates(
+                    Child.Description == null ? conditions : conditions.Concat(Enumerable.Repeat(Child.Description, 1)));
+            }
         }
 
         private class InvokeHandlerWithData<TR> : AsyncOperationHandler
@@ -601,7 +607,7 @@ namespace WorkflowsCore.StateMachines
             {
                 conditions = conditions.ToList();
                 var targetState = new TargetState<TState, THiddenState>(
-                    conditions.Concat(Enumerable.Repeat(Child.Description, 1)),
+                    Child.Description == null ? conditions : conditions.Concat(Enumerable.Repeat(Child.Description, 1)),
                     _state);
                 return Enumerable.Repeat(targetState, 1).Concat(Child.GetTargetStates(conditions)).ToList();
             }

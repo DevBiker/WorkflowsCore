@@ -320,6 +320,18 @@ namespace WorkflowsCore.Tests
             }
 
             [Fact]
+            public void IfHandlerWithNullDescriptionShouldNotAddConditionToTargetStates()
+            {
+                var state = CreateState(States.State1);
+                _asyncOperation.If(() => true).GoTo(state.StateId);
+                var targetStates = _asyncOperation.GetTargetStates(Enumerable.Empty<string>());
+
+                AssertTargetStatesEqual(
+                    new[] { new TargetState<States, string>(Enumerable.Empty<string>(), state) },
+                    targetStates);
+            }
+
+            [Fact]
             public void IfThenGoToHandlerShouldAddConditionOnlyToItsTargetState()
             {
                 var state = CreateState(States.State1);
@@ -336,78 +348,124 @@ namespace WorkflowsCore.Tests
                     targetStates);
             }
 
-            public class TargetStatesTestsWithData : BaseStateTest<States>
+            [Fact]
+            public void IfThenGoToHandlerWithNullDescriptionShouldNotAddConditionToItsTargetState()
             {
-                private readonly AsyncOperation<States, string, bool> _asyncOperation;
+                var state = CreateState(States.State1);
+                var state2 = CreateState(States.None);
+                _asyncOperation.IfThenGoTo(() => true, state2.StateId).GoTo(state.StateId);
+                var targetStates = _asyncOperation.GetTargetStates(Enumerable.Empty<string>());
 
-                public TargetStatesTestsWithData()
-                {
-                    _asyncOperation = new AsyncOperation<States, string, bool>(
-                        CreateState(States.None),
-                        "Test description");
-                }
+                AssertTargetStatesEqual(
+                    new[]
+                    {
+                        new TargetState<States, string>(Enumerable.Empty<string>(), state2),
+                        new TargetState<States, string>(Enumerable.Empty<string>(), state)
+                    },
+                    targetStates);
+            }
+        }
 
-                [Fact]
-                public void DoHandlerShouldReturnEmptyTargetStates()
-                {
-                    _asyncOperation.Do(_ => { });
-                    var targetStates = _asyncOperation.GetTargetStates(Enumerable.Empty<string>());
+        public class TargetStatesTestsWithData : BaseStateTest<States>
+        {
+            private readonly AsyncOperation<States, string, bool> _asyncOperation;
 
-                    Assert.True(!targetStates.Any());
-                }
+            public TargetStatesTestsWithData()
+            {
+                _asyncOperation = new AsyncOperation<States, string, bool>(
+                    CreateState(States.None),
+                    "Test description");
+            }
 
-                [Fact]
-                public void InvokeHandlerShouldNotAffectTargetStates()
-                {
-                    var state = CreateState(States.State1);
-                    _asyncOperation.Invoke(_ => true).GoTo(state.StateId);
-                    var targetStates = _asyncOperation.GetTargetStates(Enumerable.Empty<string>());
+            [Fact]
+            public void DoHandlerShouldReturnEmptyTargetStates()
+            {
+                _asyncOperation.Do(_ => { });
+                var targetStates = _asyncOperation.GetTargetStates(Enumerable.Empty<string>());
 
-                    AssertTargetStatesEqual(
-                        new[] { new TargetState<States, string>(Enumerable.Empty<string>(), state) },
-                        targetStates);
-                }
+                Assert.True(!targetStates.Any());
+            }
 
-                [Fact]
-                public void InvokeHandlerShouldNotAffectTargetStates2()
-                {
-                    var state = CreateState(States.State1);
-                    _asyncOperation.Invoke(_ => { }).GoTo(state.StateId);
-                    var targetStates = _asyncOperation.GetTargetStates(Enumerable.Empty<string>());
+            [Fact]
+            public void InvokeHandlerShouldNotAffectTargetStates()
+            {
+                var state = CreateState(States.State1);
+                _asyncOperation.Invoke(_ => true).GoTo(state.StateId);
+                var targetStates = _asyncOperation.GetTargetStates(Enumerable.Empty<string>());
 
-                    AssertTargetStatesEqual(
-                        new[] { new TargetState<States, string>(Enumerable.Empty<string>(), state) },
-                        targetStates);
-                }
+                AssertTargetStatesEqual(
+                    new[] { new TargetState<States, string>(Enumerable.Empty<string>(), state) },
+                    targetStates);
+            }
 
-                [Fact]
-                public void IfHandlerShouldAddConditionToTargetStates()
-                {
-                    var state = CreateState(States.State1);
-                    _asyncOperation.If(_ => true, "Condition 1").GoTo(state.StateId);
-                    var targetStates = _asyncOperation.GetTargetStates(Enumerable.Empty<string>());
+            [Fact]
+            public void InvokeHandlerShouldNotAffectTargetStates2()
+            {
+                var state = CreateState(States.State1);
+                _asyncOperation.Invoke(_ => { }).GoTo(state.StateId);
+                var targetStates = _asyncOperation.GetTargetStates(Enumerable.Empty<string>());
 
-                    AssertTargetStatesEqual(
-                        new[] { new TargetState<States, string>(new[] { "Condition 1" }, state) },
-                        targetStates);
-                }
+                AssertTargetStatesEqual(
+                    new[] { new TargetState<States, string>(Enumerable.Empty<string>(), state) },
+                    targetStates);
+            }
 
-                [Fact]
-                public void IfThenGoToHandlerShouldAddConditionOnlyToItsTargetState()
-                {
-                    var state = CreateState(States.State1);
-                    var state2 = CreateState(States.None);
-                    _asyncOperation.IfThenGoTo(_ => true, state2.StateId, "Condition 1").GoTo(state.StateId);
-                    var targetStates = _asyncOperation.GetTargetStates(Enumerable.Empty<string>());
+            [Fact]
+            public void IfHandlerShouldAddConditionToTargetStates()
+            {
+                var state = CreateState(States.State1);
+                _asyncOperation.If(_ => true, "Condition 1").GoTo(state.StateId);
+                var targetStates = _asyncOperation.GetTargetStates(Enumerable.Empty<string>());
 
-                    AssertTargetStatesEqual(
-                        new[]
-                        {
-                            new TargetState<States, string>(new[] { "Condition 1" }, state2),
-                            new TargetState<States, string>(Enumerable.Empty<string>(), state)
-                        },
-                        targetStates);
-                }
+                AssertTargetStatesEqual(
+                    new[] { new TargetState<States, string>(new[] { "Condition 1" }, state) },
+                    targetStates);
+            }
+
+            [Fact]
+            public void IfHandlerWithNullDescriptionShouldNotAddConditionToTargetStates()
+            {
+                var state = CreateState(States.State1);
+                _asyncOperation.If(_ => true).GoTo(state.StateId);
+                var targetStates = _asyncOperation.GetTargetStates(Enumerable.Empty<string>());
+
+                AssertTargetStatesEqual(
+                    new[] { new TargetState<States, string>(Enumerable.Empty<string>(), state) },
+                    targetStates);
+            }
+
+            [Fact]
+            public void IfThenGoToHandlerShouldAddConditionOnlyToItsTargetState()
+            {
+                var state = CreateState(States.State1);
+                var state2 = CreateState(States.None);
+                _asyncOperation.IfThenGoTo(_ => true, state2.StateId, "Condition 1").GoTo(state.StateId);
+                var targetStates = _asyncOperation.GetTargetStates(Enumerable.Empty<string>());
+
+                AssertTargetStatesEqual(
+                    new[]
+                    {
+                        new TargetState<States, string>(new[] { "Condition 1" }, state2),
+                        new TargetState<States, string>(Enumerable.Empty<string>(), state)
+                    },
+                    targetStates);
+            }
+
+            [Fact]
+            public void IfThenGoToHandlerWithNullDescriptionShouldNotAddConditionToItsTargetState()
+            {
+                var state = CreateState(States.State1);
+                var state2 = CreateState(States.None);
+                _asyncOperation.IfThenGoTo(_ => true, state2.StateId).GoTo(state.StateId);
+                var targetStates = _asyncOperation.GetTargetStates(Enumerable.Empty<string>());
+
+                AssertTargetStatesEqual(
+                    new[]
+                    {
+                        new TargetState<States, string>(Enumerable.Empty<string>(), state2),
+                        new TargetState<States, string>(Enumerable.Empty<string>(), state)
+                    },
+                    targetStates);
             }
         }
     }

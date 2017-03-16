@@ -103,7 +103,7 @@ namespace WorkflowsCore.Tests
             var expected = string.Join(
                 Environment.NewLine,
                 "digraph {",
-                "  compound = true;",
+                "  compound=true;",
                 "  HiddenState2;",
                 "  subgraph clusterState1 {",
                 "    HiddenState1;",
@@ -133,7 +133,7 @@ namespace WorkflowsCore.Tests
             var expected = string.Join(
                 Environment.NewLine,
                 "digraph {",
-                "  compound = true;",
+                "  compound=true;",
                 "  State2;",
                 "  subgraph clusterState1 {",
                 "    HiddenState1;",
@@ -161,7 +161,7 @@ namespace WorkflowsCore.Tests
             var expected = string.Join(
                 Environment.NewLine,
                 "digraph {",
-                "  compound = true;",
+                "  compound=true;",
                 "  State2;",
                 "  subgraph clusterState1 {",
                 "    HiddenState1;",
@@ -187,7 +187,7 @@ namespace WorkflowsCore.Tests
             var expected = string.Join(
                 Environment.NewLine,
                 "digraph {",
-                "  compound = true;",
+                "  compound=true;",
                 "  h1 [style=invis];",
                 "  subgraph clusterState1 {",
                 "    HiddenState1;",
@@ -214,13 +214,56 @@ namespace WorkflowsCore.Tests
             var expected = string.Join(
                 Environment.NewLine,
                 "digraph {",
-                "  compound = true;",
+                "  compound=true;",
                 "  h1 [style=invis];",
                 "  subgraph clusterState1 {",
                 "    HiddenState1;",
                 "  }",
                 "  HiddenState1 -> h1 [dir=none headclip=false];",
                 "  h1 -> HiddenState1 [lhead=clusterState1 tailclip=false];",
+                "}");
+            Assert.Equal(expected, actual);
+        }
+
+        [Fact]
+        public void SimpleConditionalTransitionsShouldBeSupported()
+        {
+            var sm = new StateMachine<States, HiddenStates>();
+            sm.ConfigureState(States.State1)
+                .OnAsync(() => Task.CompletedTask, "On Event 1").If(() => true, "On Condition 1").GoTo(States.State2);
+            sm.ConfigureState(States.State2);
+
+            var actual = sm.ToDotGraph();
+
+            var expected = string.Join(
+                Environment.NewLine,
+                "digraph {",
+                "  State1;",
+                "  State2;",
+                "  State1 -> State2 [label=\"On Event 1 [On Condition 1]\"];",
+                "}");
+            Assert.Equal(expected, actual);
+        }
+
+        [Fact]
+        public void ComplexConditionalTransitionsShouldBeSupported()
+        {
+            var sm = new StateMachine<States, HiddenStates>();
+            sm.ConfigureState(States.State1)
+                .OnAsync(() => Task.CompletedTask, "On Event 1")
+                .If(() => true, "On Condition 1")
+                .If(() => true, "On Condition 2")
+                .GoTo(States.State2);
+            sm.ConfigureState(States.State2);
+
+            var actual = sm.ToDotGraph();
+
+            var expected = string.Join(
+                Environment.NewLine,
+                "digraph {",
+                "  State1;",
+                "  State2;",
+                "  State1 -> State2 [label=\"On Event 1 [On Condition 1 AND On Condition 2]\"];",
                 "}");
             Assert.Equal(expected, actual);
         }
