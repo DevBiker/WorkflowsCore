@@ -235,11 +235,9 @@ namespace WorkflowsCore.StateMachines
                     if (newState != null)
                     {
                         transition = new StateTransition<TState, THiddenState>(newState, transition);
-                        initialChildrenStates = transition.FindPathFrom(State);
-                        if (newState == State)
-                        {
-                            initialChildrenStates = new State<TState, THiddenState>[0];
-                        }
+                        initialChildrenStates = newState == State
+                            ? new State<TState, THiddenState>[0]
+                            : transition.FindPathFrom(State);
 
                         if (initialChildrenStates == null)
                         {
@@ -300,11 +298,9 @@ namespace WorkflowsCore.StateMachines
                         }
                     }
 
-                    initialChildrenStates = transition.FindPathFrom(State);
-                    if (isFromInner && transition.State == State)
-                    {
-                        initialChildrenStates = new State<TState, THiddenState>[0];
-                    }
+                    initialChildrenStates = isFromInner && transition.State == State
+                        ? new State<TState, THiddenState>[0]
+                        : transition.FindPathFrom(State);
                 }
                 while (initialChildrenStates != null);
 
