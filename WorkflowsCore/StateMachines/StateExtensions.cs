@@ -88,7 +88,7 @@ namespace WorkflowsCore.StateMachines
 
                         return parameters;
                     },
-                    description,
+                    description ?? $"On {action}",
                     () => operation);
         }
 
@@ -98,7 +98,7 @@ namespace WorkflowsCore.StateMachines
             string description = null)
         {
             return state
-                .OnAsync(() => Workflow.WaitForActionWithWasExecutedCheck(action), description)
+                .OnAsync(() => Workflow.WaitForActionWithWasExecutedCheck(action), description ?? $"On {action}")
                 .If(() => Workflow.WasExecuted(action));
         }
     }

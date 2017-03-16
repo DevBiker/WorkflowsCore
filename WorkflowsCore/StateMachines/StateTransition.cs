@@ -13,24 +13,29 @@ namespace WorkflowsCore.StateMachines
             State<TState, THiddenState> state,
             IDisposable workflowOperation,
             bool isRestoringState = false,
-            Action<StateTransition<TState, THiddenState>> onStateChangedHandler = null)
+            Action<StateTransition<TState, THiddenState>> onStateChangedHandler = null) 
+            : this(state)
         {
             if (workflowOperation == null)
             {
                 throw new ArgumentNullException(nameof(workflowOperation));
             }
 
-            State = state;
             _workflowOperation = workflowOperation;
             IsRestoringState = isRestoringState;
             OnStateChangedHandler = onStateChangedHandler;
-            Path = GetPath();
         }
 
         // NOTE: We do not copy IsRestoringState - transition that interrupted restoring state is a transition to new state, but not restoring
         public StateTransition(State<TState, THiddenState> state, StateTransition<TState, THiddenState> transition)
             : this(state, transition._workflowOperation, onStateChangedHandler: transition.OnStateChangedHandler)
         {
+        }
+
+        internal StateTransition(State<TState, THiddenState> state)
+        {
+            State = state;
+            Path = GetPath();
         }
 
         public State<TState, THiddenState> State { get; }

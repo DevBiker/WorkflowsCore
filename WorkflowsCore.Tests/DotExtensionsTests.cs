@@ -170,5 +170,59 @@ namespace WorkflowsCore.Tests
                 "}");
             Assert.Equal(expected, actual);
         }
+
+        [Fact]
+        public void SelfTransitionFromCompoundStateShouldBeSupported()
+        {
+            var sm = new StateMachine<States, HiddenStates>();
+
+            sm.ConfigureState(States.State1)
+                .OnAsync(() => Task.CompletedTask).GoTo(HiddenStates.HiddenState1);
+
+            sm.ConfigureHiddenState(HiddenStates.HiddenState1)
+                .SubstateOf(States.State1);
+
+            var actual = sm.ToDotGraph();
+
+            var expected = string.Join(
+                Environment.NewLine,
+                "digraph {",
+                "  compound = true;",
+                "  h1 [style=invis];",
+                "  subgraph clusterState1 {",
+                "    HiddenState1;",
+                "  }",
+                "  HiddenState1 -> h1 [ltail=clusterState1 dir=none headclip=false];",
+                "  h1 -> HiddenState1 [tailclip=false];",
+                "}");
+            Assert.Equal(expected, actual);
+        }
+
+        [Fact]
+        public void SelfTransitionFromCompoundStateShouldBeSupported2()
+        {
+            var sm = new StateMachine<States, HiddenStates>();
+
+            sm.ConfigureState(States.State1);
+
+            sm.ConfigureHiddenState(HiddenStates.HiddenState1)
+                .SubstateOf(States.State1)
+                .OnAsync(() => Task.CompletedTask).GoTo(States.State1);
+
+            var actual = sm.ToDotGraph();
+
+            var expected = string.Join(
+                Environment.NewLine,
+                "digraph {",
+                "  compound = true;",
+                "  h1 [style=invis];",
+                "  subgraph clusterState1 {",
+                "    HiddenState1;",
+                "  }",
+                "  HiddenState1 -> h1 [dir=none headclip=false];",
+                "  h1 -> HiddenState1 [lhead=clusterState1 tailclip=false];",
+                "}");
+            Assert.Equal(expected, actual);
+        }
     }
 }
