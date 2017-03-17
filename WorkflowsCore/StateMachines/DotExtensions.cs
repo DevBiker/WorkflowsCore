@@ -8,6 +8,14 @@ namespace WorkflowsCore.StateMachines
     {
         private const string Indentation = "  ";
 
+        public static string ToDotGraph<TWorkflow, TState, THiddenState>(IDependencyInjectionContainer diContainer)
+            where TWorkflow : StateMachineWorkflow<TState, THiddenState>
+        {
+            var workflow = (StateMachineWorkflow<TState, THiddenState>)diContainer.Resolve(typeof(TWorkflow));
+            workflow.OnStatesInit();
+            return workflow.StateMachine.ToDotGraph();
+        }
+
         public static string ToDotGraph<TState, THiddenState>(
             this StateMachineWorkflow<TState, THiddenState> stateMachineWorkflow)
         {
@@ -173,8 +181,29 @@ namespace WorkflowsCore.StateMachines
             return
                 from s in states
                 from h in s.EnterHandlers.Concat(s.ActivationHandlers).Concat(s.OnAsyncHandlers).Concat(s.ExitHandlers)
-                from t in h.GetTargetStates(Enumerable.Empty<string>())
-                select DefineStateTransition(indentation, s, t, h.Description, workaroundNodes);
+                let targetStates = h.GetTargetStates(Enumerable.Empty<string>())
+                where targetStates.Any()
+                select DefineStateTransitions(indentation, s, targetStates, h.Description, workaroundNodes);
+        }
+
+        private static string DefineStateTransitions<TState, THiddenState>(
+            string indentation,
+            State<TState, THiddenState> srcState,
+            IList<TargetState<TState, THiddenState>> targetStates,
+            string description,
+            WorkaroundNodes<TState, THiddenState> workaroundNodes)
+        {
+            var enumerate = targetStates.Count > 1;
+            return string.Join(
+                Environment.NewLine,
+                targetStates.Select(
+                    (t, i) => DefineStateTransition(
+                        indentation,
+                        srcState,
+                        t,
+                        description,
+                        enumerate ? i + 1 : (int?)null,
+                        workaroundNodes)));
         }
 
         private static State<TState, THiddenState> GetSimpleChild<TState, THiddenState>(
@@ -189,6 +218,7 @@ namespace WorkflowsCore.StateMachines
             State<TState, THiddenState> srcState,
             TargetState<TState, THiddenState> targetState,
             string description,
+            int? index,
             WorkaroundNodes<TState, THiddenState> workaroundNodes)
         {
             var isSrcStateSimple = !srcState.Children.Any();
@@ -199,7 +229,14 @@ namespace WorkflowsCore.StateMachines
             var targetLHead = isTargetStateSimple ? null : targetState.State.GetDotId();
             description = !targetState.Conditions.Any()
                 ? description
-                : $"{description} [{string.Join(" AND ", targetState.Conditions)}]";
+                : string.Join(
+                    " ",
+                    new[] { description, $"[{string.Join(" AND ", targetState.Conditions)}]" }.Where(s => s != null));
+
+            if (!string.IsNullOrEmpty(description) && index.HasValue)
+            {
+                description = $"{index}: {description}";
+            }
 
             var compoundStateForSelfTransition = IsSelfTransitionFromCompoundState(srcState, targetState.State);
             if (compoundStateForSelfTransition == null)

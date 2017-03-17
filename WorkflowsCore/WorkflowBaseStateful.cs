@@ -50,6 +50,8 @@ namespace WorkflowsCore
 
         protected internal bool WasIn(TState state) => TimesIn(state) > 0;
 
+        protected internal abstract void OnStatesInit();
+
         protected override void OnInit()
         {
             base.OnInit();
@@ -69,8 +71,6 @@ namespace WorkflowsCore
 
             IsLoaded = true;
         }
-
-        protected abstract void OnStatesInit();
 
         protected void SetState(TState state, bool isStateRestored = false)
         {

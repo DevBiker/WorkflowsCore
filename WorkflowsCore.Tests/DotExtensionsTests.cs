@@ -38,10 +38,10 @@ namespace WorkflowsCore.Tests
         public void IfSimpleStateHasNonNullDescriptionItShouldBeUsedAsLabelForIt()
         {
             var sm = new StateMachine<States, HiddenStates>();
+            sm.ConfigureState(States.State2);
+
             sm.ConfigureState(States.State1)
                 .HasDescription("State 1");
-
-            sm.ConfigureState(States.State2);
 
             sm.ConfigureHiddenState(HiddenStates.HiddenState1)
                 .HasDescription(string.Empty);
@@ -85,8 +85,6 @@ namespace WorkflowsCore.Tests
         {
             var sm = new StateMachine<States, HiddenStates>();
 
-            sm.ConfigureState(States.State1);
-
             sm.ConfigureHiddenState(HiddenStates.HiddenState1)
                 .SubstateOf(States.State1);
 
@@ -126,8 +124,6 @@ namespace WorkflowsCore.Tests
             sm.ConfigureHiddenState(HiddenStates.HiddenState1)
                 .SubstateOf(States.State1);
 
-            sm.ConfigureState(States.State2);
-
             var actual = sm.ToDotGraph();
 
             var expected = string.Join(
@@ -147,8 +143,6 @@ namespace WorkflowsCore.Tests
         public void TransitionFromSimpleStateToCompoundStateShouldBeSupported()
         {
             var sm = new StateMachine<States, HiddenStates>();
-
-            sm.ConfigureState(States.State1);
 
             sm.ConfigureHiddenState(HiddenStates.HiddenState1)
                 .SubstateOf(States.State1);
@@ -203,8 +197,6 @@ namespace WorkflowsCore.Tests
         {
             var sm = new StateMachine<States, HiddenStates>();
 
-            sm.ConfigureState(States.State1);
-
             sm.ConfigureHiddenState(HiddenStates.HiddenState1)
                 .SubstateOf(States.State1)
                 .OnAsync(() => Task.CompletedTask).GoTo(States.State1);
@@ -231,7 +223,6 @@ namespace WorkflowsCore.Tests
             var sm = new StateMachine<States, HiddenStates>();
             sm.ConfigureState(States.State1)
                 .OnAsync(() => Task.CompletedTask, "On Event 1").If(() => true, "On Condition 1").GoTo(States.State2);
-            sm.ConfigureState(States.State2);
 
             var actual = sm.ToDotGraph();
 
@@ -254,7 +245,6 @@ namespace WorkflowsCore.Tests
                 .If(() => true, "On Condition 1")
                 .If(() => true, "On Condition 2")
                 .GoTo(States.State2);
-            sm.ConfigureState(States.State2);
 
             var actual = sm.ToDotGraph();
 
@@ -264,6 +254,29 @@ namespace WorkflowsCore.Tests
                 "  State1;",
                 "  State2;",
                 "  State1 -> State2 [label=\"On Event 1 [On Condition 1 AND On Condition 2]\"];",
+                "}");
+            Assert.Equal(expected, actual);
+        }
+
+        [Fact]
+        public void IfThereAreMultipleTargetStatesFromSingleTransitionTheyShouldBeEnumerated()
+        {
+            var sm = new StateMachine<States, HiddenStates>();
+            sm.ConfigureState(States.State1)
+                .OnAsync(() => Task.CompletedTask, "On Event 1")
+                .IfThenGoTo(() => true, States.State3, "On Condition 1")
+                .GoTo(States.State2);
+
+            var actual = sm.ToDotGraph();
+
+            var expected = string.Join(
+                Environment.NewLine,
+                "digraph {",
+                "  State1;",
+                "  State2;",
+                "  State3;",
+                "  State1 -> State3 [label=\"1: On Event 1 [On Condition 1]\"];",
+                "  State1 -> State2 [label=\"2: On Event 1\"];",
                 "}");
             Assert.Equal(expected, actual);
         }
