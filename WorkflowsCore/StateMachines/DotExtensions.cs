@@ -246,8 +246,8 @@ namespace WorkflowsCore.StateMachines
             }
 
             var workaroundNode = workaroundNodes.AddWorkaroundNode(compoundStateForSelfTransition.Parent);
-            var properties1 = GetProperties(description: description, lTail: srcLTail, dir: "none", headClip: false);
-            var properties2 = GetProperties(lHead: targetLHead, tailClip: false);
+            var properties1 = GetProperties(lTail: srcLTail, dir: "none", headClip: false);
+            var properties2 = GetProperties(description: description, lHead: targetLHead, tailClip: false);
             return string.Join(
                 Environment.NewLine,
                 $"{indentation}{srcDotId} -> {workaroundNode}{properties1};",
