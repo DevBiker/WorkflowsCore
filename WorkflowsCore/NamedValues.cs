@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Linq;
 
 namespace WorkflowsCore
@@ -10,14 +11,16 @@ namespace WorkflowsCore
         public NamedValues()
         {
             _data = new Dictionary<string, object>();
+            Data = new ReadOnlyDictionary<string, object>(_data);
         }
 
         public NamedValues(IReadOnlyDictionary<string, object> data)
         {
             _data = data.ToDictionary(p => p.Key, p => p.Value);
+            Data = new ReadOnlyDictionary<string, object>(_data);
         }
 
-        public IReadOnlyDictionary<string, object> Data => _data;
+        public IReadOnlyDictionary<string, object> Data { get; }
 
         public T GetData<T>(string key)
         {

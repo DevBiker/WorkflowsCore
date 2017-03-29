@@ -479,6 +479,18 @@ namespace WorkflowsCore.Tests
             }
 
             [Fact]
+            public async Task OnActionExecutionTransientDataShouldBeUpdatedWithPassedParameters()
+            {
+                Workflow.ConfigureAction("Action 1", _ => { });
+                StartWorkflow();
+
+                await Workflow.ExecuteActionAsync("Action 1", new Dictionary<string, object> { ["Parameter"] = 1 });
+
+                Assert.Equal(1, Workflow.Parameter);
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
             public async Task NonConfiguredActionsShouldThrowAoore()
             {
                 Workflow.ConfigureAction("Action 1", () => 2);
@@ -907,6 +919,10 @@ namespace WorkflowsCore.Tests
             public bool OnFaultedWasCalled { get; private set; }
 
             public Task InitializedTask => _initializedTcs.Task;
+
+            // ReSharper disable once UnusedAutoPropertyAccessor.Local
+            [DataField(IsTransient = true)]
+            public int Parameter { get; private set; }
 
             public void SetInitializationCompleted() => _initializationOperation.Dispose();
 
