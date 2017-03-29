@@ -724,10 +724,11 @@ namespace WorkflowsCore
             }
 
             wasExecuted = true;
+            var primaryName = actionDefinition.Synonyms.First();
+            parameters.SetData("Action", primaryName);
             var result = actionDefinition.Handler(parameters);
 
             int stats;
-            var primaryName = actionDefinition.Synonyms.First();
             ActionStats.TryGetValue(primaryName, out stats);
             ActionStats[primaryName] = ++stats;
             SaveWorkflowData();

@@ -341,6 +341,8 @@ namespace WorkflowsCore.Tests
                         await t;
 
                         Assert.Equal("Contacted", Workflow.Action);
+
+                        parameters["Action"] = "Contacted";
                         Assert.Equal(parameters, Workflow.Parameters.Data);
                     }).Unwrap();
 

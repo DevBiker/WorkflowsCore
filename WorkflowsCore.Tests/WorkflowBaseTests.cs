@@ -473,6 +473,7 @@ namespace WorkflowsCore.Tests
                 var parameters = new Dictionary<string, object> { ["Id"] = 1 };
                 await Workflow.ExecuteActionAsync("Action Synonym", parameters);
 
+                parameters["Action"] = "Action 1";
                 Assert.Equal(parameters, invocationParameters.Data);
                 await CancelWorkflowAsync();
             }
