@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using WorkflowsCore.StateMachines;
 using WorkflowsCore.Time;
@@ -25,6 +27,12 @@ namespace WorkflowsCore
 
         internal StateMachine<TState, THiddenState> StateMachine { get; } = new StateMachine<TState, THiddenState>();
 
+        [DataField]
+        protected IList<THiddenState> HiddenState { get; private set; } = new THiddenState[0];
+
+        [DataField(IsTransient = true)]
+        private State<TState, THiddenState>.StateInstance NonHiddenAncestorStateInstance { get; set; }
+
         protected internal override bool IsActionAllowed(string action) => 
             _instance?.IsActionAllowed(action) ?? base.IsActionAllowed(action);
 
@@ -33,13 +41,20 @@ namespace WorkflowsCore
         protected State<TState, THiddenState> ConfigureHiddenState(THiddenState state) => 
             StateMachine.ConfigureState(state);
 
-        protected void SetInitialState(TState state) => _initialState = state;
+        protected void SetInitialState(StateId<TState, THiddenState> state) => _initialState = state;
 
         protected override Task RunAsync()
         {
             if (IsLoaded)
             {
-                SetInitialState(State);
+                if (HiddenState.Any())
+                {
+                    SetInitialState(HiddenState.Single());
+                }
+                else
+                {
+                    SetInitialState(State);
+                }
             }
 
             return this.WaitForAny(
@@ -51,7 +66,30 @@ namespace WorkflowsCore
 
         protected virtual void OnStateChanged(StateTransition<TState, THiddenState> stateTransition)
         {
-            SetState((TState)stateTransition.State.StateId, stateTransition.IsRestoringState); // TODO: Support inner hidden states
+            if (!stateTransition.State.StateId.IsHiddenState)
+            {
+                NonHiddenAncestorStateInstance = stateTransition.StateInstance;
+                HiddenState = new THiddenState[0];
+                SetState((TState)stateTransition.State.StateId, stateTransition.IsRestoringState);
+            }
+            else
+            {
+                var hiddenState = (THiddenState)stateTransition.State.StateId;
+                HiddenState = new[] { hiddenState };
+                var nonHiddenAncestor = stateTransition.StateInstance.GetNonHiddenAncestor();
+
+                if (nonHiddenAncestor == null)
+                {
+                    throw new InvalidOperationException(
+                        $"Cannot transition to hidden state {hiddenState} without non-hidden parent");
+                }
+
+                if (NonHiddenAncestorStateInstance != nonHiddenAncestor)
+                {
+                    NonHiddenAncestorStateInstance = nonHiddenAncestor;
+                    SetState((TState)nonHiddenAncestor.State.StateId, stateTransition.IsRestoringState);
+                }
+            }
         }
 
         private Task RunStateMachine()

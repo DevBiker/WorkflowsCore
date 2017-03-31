@@ -40,14 +40,17 @@ namespace WorkflowsCore.StateMachines
 
         public State<TState, THiddenState> State { get; }
 
+        public State<TState, THiddenState>.StateInstance StateInstance { get; private set; }
+
         public IReadOnlyCollection<State<TState, THiddenState>> Path { get; }
 
         public bool IsRestoringState { get; }
 
         public Action<StateTransition<TState, THiddenState>> OnStateChangedHandler { get; }
 
-        public void CompleteTransition()
+        public void CompleteTransition(State<TState, THiddenState>.StateInstance stateInstance)
         {
+            StateInstance = stateInstance;
             OnStateChangedHandler?.Invoke(this);
             _workflowOperation.Dispose();
         }

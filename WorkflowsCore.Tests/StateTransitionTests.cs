@@ -81,7 +81,7 @@ namespace WorkflowsCore.Tests
                 state,
                 workflowOperation,
                 onStateChangedHandler: t => newState = t.State);
-            transition.CompleteTransition();
+            transition.CompleteTransition(null);
 
             Assert.True(workflowOperation.DisposeCalled);
             Assert.Same(state, newState);

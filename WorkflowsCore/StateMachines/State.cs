@@ -150,6 +150,7 @@ namespace WorkflowsCore.StateMachines
             private readonly Action<StateTransition<TState, THiddenState>> _onStateChangedHandler;
             private readonly Lazy<Task<StateTransition<TState, THiddenState>>> _taskLazy;
             private TaskCompletionSource<StateTransition<TState, THiddenState>> _stateTransitionTaskCompletionSource;
+            private StateInstance _child;
 
             internal StateInstance(State<TState, THiddenState> state, StateTransition<TState, THiddenState> transition)
             {
@@ -182,7 +183,30 @@ namespace WorkflowsCore.StateMachines
 
             public Task<StateTransition<TState, THiddenState>> Task => _taskLazy.Value;
 
-            public StateInstance Child { get; private set; }
+            public StateInstance Parent { get; private set; }
+
+            public StateInstance Child
+            {
+                get
+                {
+                    return _child;
+                }
+
+                private set
+                {
+                    if (_child != null)
+                    {
+                        _child.Parent = null;
+                    }
+
+                    _child = value;
+
+                    if (_child != null)
+                    {
+                        _child.Parent = this;
+                    }
+                }
+            }
 
             public bool? IsActionAllowed(string action)
             {
@@ -222,6 +246,19 @@ namespace WorkflowsCore.StateMachines
                             operation,
                             onStateChangedHandler: _onStateChangedHandler));
                 }
+            }
+
+            public StateInstance GetNonHiddenAncestor()
+            {
+                for (var parent = Parent; parent != null; parent = parent.Parent)
+                {
+                    if (!parent.State.StateId.IsHiddenState)
+                    {
+                        return parent;
+                    }
+                }
+
+                return null;
             }
 
             private async Task<StateTransition<TState, THiddenState>> Run(
@@ -282,7 +319,7 @@ namespace WorkflowsCore.StateMachines
                         _stateTransitionTaskCompletionSource =
                             new TaskCompletionSource<StateTransition<TState, THiddenState>>();
 
-                        transition.CompleteTransition();
+                        transition.CompleteTransition(this);
                         var task = await System.Threading.Tasks.Task.WhenAny(
                             Workflow.WaitForDate(DateTime.MaxValue),
                             _stateTransitionTaskCompletionSource.Task);
