@@ -89,6 +89,10 @@ namespace WorkflowsCore
                     NonHiddenAncestorStateInstance = nonHiddenAncestor;
                     SetState((TState)nonHiddenAncestor.State.StateId, stateTransition.IsRestoringState);
                 }
+                else if (!stateTransition.IsRestoringState)
+                {
+                    SaveWorkflowData();
+                }
             }
         }
 
