@@ -726,7 +726,7 @@ namespace WorkflowsCore
             wasExecuted = true;
             var primaryName = actionDefinition.Synonyms.First();
             parameters.SetDataField("Action", primaryName);
-            Metadata.SetTransientData(this, parameters.Data);
+            Metadata.SetDataOrTransientData(this, parameters.Data);
             var result = actionDefinition.Handler(parameters);
 
             int stats;

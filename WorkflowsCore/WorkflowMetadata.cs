@@ -50,11 +50,8 @@ namespace WorkflowsCore
             GetDataFieldMetadata(field).PropertyInfo.SetValue(workflow, value);
         }
 
-        public void TrySetDataField<T>(WorkflowBase workflow, string field, T value)
-        {
-            workflow.EnsureWorkflowTaskScheduler();
-            GetDataFieldMetadata(field, nullIfNotFound: true)?.PropertyInfo.SetValue(workflow, value);
-        }
+        public bool TrySetDataField<T>(WorkflowBase workflow, string field, T value) => 
+            TrySetDataFieldCore(workflow, field, value, false);
 
         public void SetData(WorkflowBase workflow, IReadOnlyDictionary<string, object> newData)
         {
@@ -114,6 +111,23 @@ namespace WorkflowsCore
             }
         }
 
+        public void SetDataOrTransientDataField<T>(WorkflowBase workflow, string field, T value)
+        {
+            workflow.EnsureWorkflowTaskScheduler();
+            if (!TrySetDataFieldCore(workflow, field, value, true))
+            {
+                SetTransientDataField(workflow, field, value);
+            }
+        }
+
+        public void SetDataOrTransientData(WorkflowBase workflow, IReadOnlyDictionary<string, object> newData)
+        {
+            foreach (var pair in newData)
+            {
+                SetDataOrTransientDataField(workflow, pair.Key, pair.Value);
+            }
+        }
+
         private IDictionary<string, DataFieldMetadata> GetDataFieldsProperties()
         {
             var properties = GetAllProperties()
@@ -166,7 +180,10 @@ namespace WorkflowsCore
             return properties;
         }
 
-        private DataFieldMetadata GetDataFieldMetadata(string field, bool nullIfNotFound = false)
+        private DataFieldMetadata GetDataFieldMetadata(
+            string field,
+            bool nullIfNotFound = false,
+            bool ignoreTransientField = false)
         {
             DataFieldMetadata metadata;
             if (!_dataFields.TryGetValue(field, out metadata))
@@ -181,6 +198,11 @@ namespace WorkflowsCore
 
             if (metadata.IsTransient)
             {
+                if (ignoreTransientField)
+                {
+                    return null;
+                }
+
                 throw new ArgumentOutOfRangeException(nameof(field));
             }
 
@@ -201,6 +223,17 @@ namespace WorkflowsCore
             }
 
             return _dataFields[field];
+        }
+
+        private bool TrySetDataFieldCore<T>(WorkflowBase workflow, string field, T value, bool ignoreTransientField)
+        {
+            workflow.EnsureWorkflowTaskScheduler();
+            var dataFieldMetadata = GetDataFieldMetadata(
+                field,
+                nullIfNotFound: true,
+                ignoreTransientField: ignoreTransientField);
+            dataFieldMetadata?.PropertyInfo.SetValue(workflow, value);
+            return dataFieldMetadata != null;
         }
 
         private class DataFieldMetadata

@@ -244,6 +244,42 @@ namespace WorkflowsCore.Tests
             await CancelWorkflowAsync();
         }
 
+        [Fact]
+        public async Task SetDataOrTransientDataFieldShouldUpdateThisField()
+        {
+            var fieldName = "TestDataField3";
+
+            /* ReSharper disable AccessToModifiedClosure */
+            await Workflow.DoWorkflowTaskAsync(
+                w =>
+                {
+                    var curValue = _workflowMetadata.GetTransientDataField<int>(w, fieldName);
+                    Assert.Equal(0, curValue);
+
+                    _workflowMetadata.SetDataOrTransientDataField(w, fieldName, 3);
+
+                    curValue = _workflowMetadata.GetTransientDataField<int>(w, fieldName);
+                    Assert.Equal(3, curValue);
+                });
+            /* ReSharper restore AccessToModifiedClosure */
+
+            fieldName = "TestDataField2";
+            await Workflow.DoWorkflowTaskAsync(
+                w =>
+                {
+                    var curValue = _workflowMetadata.GetDataField<object>(w, fieldName);
+
+                    Assert.Null(curValue);
+
+                    var value = new object();
+                    _workflowMetadata.SetDataOrTransientDataField(w, fieldName, value);
+
+                    curValue = _workflowMetadata.GetDataField<object>(w, fieldName);
+                    Assert.Same(value, curValue);
+                });
+            await CancelWorkflowAsync();
+        }
+
         public abstract class BaseWorkflow : WorkflowBase<int>
         {
             protected virtual int VirtualDataField { get; set; }

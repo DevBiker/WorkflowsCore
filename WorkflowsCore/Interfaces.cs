@@ -39,7 +39,7 @@ namespace WorkflowsCore
 
         void SetDataField<T>(WorkflowBase workflow, string field, T value);
 
-        void TrySetDataField<T>(WorkflowBase workflow, string field, T value);
+        bool TrySetDataField<T>(WorkflowBase workflow, string field, T value);
 
         void SetData(WorkflowBase workflow, IReadOnlyDictionary<string, object> newData);
 
@@ -50,6 +50,10 @@ namespace WorkflowsCore
         void SetTransientDataField<T>(WorkflowBase workflow, string field, T value);
 
         void SetTransientData(WorkflowBase workflow, IReadOnlyDictionary<string, object> newData);
+
+        void SetDataOrTransientDataField<T>(WorkflowBase workflow, string field, T value);
+
+        void SetDataOrTransientData(WorkflowBase workflow, IReadOnlyDictionary<string, object> newData);
     }
 
     public interface IWorkflowMetadataCache

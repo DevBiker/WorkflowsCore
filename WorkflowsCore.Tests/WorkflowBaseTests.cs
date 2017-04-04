@@ -479,7 +479,7 @@ namespace WorkflowsCore.Tests
             }
 
             [Fact]
-            public async Task OnActionExecutionTransientDataShouldBeUpdatedWithPassedParameters()
+            public async Task OnActionExecutionDataOrTransientDataShouldBeUpdatedWithPassedParameters()
             {
                 Workflow.ConfigureAction("Action 1", _ => { });
                 StartWorkflow();
