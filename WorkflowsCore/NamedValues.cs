@@ -22,7 +22,7 @@ namespace WorkflowsCore
 
         public IReadOnlyDictionary<string, object> Data { get; }
 
-        public T GetData<T>(string key)
+        public T GetDataField<T>(string key)
         {
             object res;
             if (!_data.TryGetValue(key, out res))
@@ -33,7 +33,7 @@ namespace WorkflowsCore
             return (T)res;
         }
 
-        public void SetData<T>(string key, T value)
+        public void SetDataField<T>(string key, T value)
         {
             if (EqualityComparer<T>.Default.Equals(value, default(T)))
             {
@@ -48,7 +48,7 @@ namespace WorkflowsCore
         {
             foreach (var p in newData)
             {
-                SetData(p.Key, p.Value);
+                SetDataField(p.Key, p.Value);
             }
         }
     }

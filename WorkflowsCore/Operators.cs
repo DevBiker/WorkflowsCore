@@ -136,7 +136,7 @@ namespace WorkflowsCore
                             throw new InvalidOperationException();
                         }
 
-                        args.Parameters.SetData("ActionOperation", operation);
+                        args.Parameters.SetDataField("ActionOperation", operation);
                     }
 
                     if (tcs.TrySetResult(args.Parameters))

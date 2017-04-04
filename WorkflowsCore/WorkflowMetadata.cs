@@ -83,7 +83,7 @@ namespace WorkflowsCore
             workflow.EnsureWorkflowTaskScheduler();
             var metadata = GetTransientDataFieldMetadata(field);
             return metadata == null
-                ? workflow.TransientData.GetData<T>(field)
+                ? workflow.TransientData.GetDataField<T>(field)
                 : (T)metadata.PropertyInfo.GetValue(workflow);
         }
 
@@ -102,7 +102,7 @@ namespace WorkflowsCore
                 return;
             }
 
-            workflow.TransientData.SetData(field, value);
+            workflow.TransientData.SetDataField(field, value);
         }
 
         public void SetTransientData(WorkflowBase workflow, IReadOnlyDictionary<string, object> newData)

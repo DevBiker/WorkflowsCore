@@ -80,7 +80,7 @@ namespace WorkflowsCore.StateMachines
                     async () =>
                     {
                         var parameters = await Workflow.WaitForAction(action, exportOperation: true);
-                        operation = parameters.GetData<IDisposable>("ActionOperation");
+                        operation = parameters.GetDataField<IDisposable>("ActionOperation");
                         if (operation == null)
                         {
                             throw new InvalidOperationException();

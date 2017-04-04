@@ -653,7 +653,7 @@ namespace WorkflowsCore.Tests
 
                 var metadata = Workflow.GetActionMetadata("Action 1");
 
-                Assert.True(metadata.GetData<string>("Metadata1") == "Something");
+                Assert.True(metadata.GetDataField<string>("Metadata1") == "Something");
             }
 
             [Fact]

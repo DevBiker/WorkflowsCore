@@ -382,7 +382,7 @@ namespace WorkflowsCore.Tests
                         await Workflow.ExecuteActionAsync("Contacted");
                         var parameters = await t;
 
-                        var operation = parameters.GetData<IDisposable>("ActionOperation");
+                        var operation = parameters.GetDataField<IDisposable>("ActionOperation");
                         Assert.NotNull(operation);
                         var readyTask = Workflow.ReadyTask;
                         Assert.NotEqual(TaskStatus.RanToCompletion, readyTask.Status);
