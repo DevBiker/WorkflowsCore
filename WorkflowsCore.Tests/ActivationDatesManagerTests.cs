@@ -9,6 +9,13 @@ namespace WorkflowsCore.Tests
         private readonly ActivationDatesManager _manager = new ActivationDatesManager();
 
         [Fact]
+        public void NextActivationDateShouldIgnoreMaxValue()
+        {
+            _manager.AddActivationDate(CancellationToken.None, DateTime.MaxValue);
+            Assert.Null(_manager.NextActivationDate);
+        }
+
+        [Fact]
         public void NextActivationDateShouldBeSmallestForToken()
         {
             _manager.AddActivationDate(CancellationToken.None, new DateTime(2016, 11, 23));

@@ -54,7 +54,9 @@ namespace WorkflowsCore.StateMachines
                 async () =>
                 {
                     var date = await dateTaskFactory();
-                    await Workflow.WaitForDate(date, bypassDatesFunc);
+
+                    // WaitForAny() is used to remove date from next activations dates after date was awaited
+                    await Workflow.WaitForAny(() => Workflow.WaitForDate(date, bypassDatesFunc));
                     return date;
                 },
                 description);

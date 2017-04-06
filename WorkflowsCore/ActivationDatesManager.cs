@@ -30,6 +30,11 @@ namespace WorkflowsCore
 
         public void AddActivationDate(CancellationToken token, DateTime date)
         {
+            if (date == DateTime.MaxValue)
+            {
+                return;
+            }
+
             DateTime cur;
             if (!_activationDates.TryGetValue(token, out cur))
             {
