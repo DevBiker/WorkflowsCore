@@ -571,7 +571,7 @@ namespace WorkflowsCore
         {
             var namedValues = new NamedValues(parameters);
             bool wasExecuted;
-            var result = OnExecuteAction(action, namedValues, throwNotAllowed, out wasExecuted);
+            var result = OnExecuteAction<T>(action, namedValues, throwNotAllowed, out wasExecuted);
             if (wasExecuted)
             {
                 ActionExecuted?.Invoke(
@@ -579,7 +579,7 @@ namespace WorkflowsCore
                     new ActionExecutedEventArgs(GetActionSynonyms(action), namedValues));
             }
 
-            return (T)result;
+            return result;
         }
 
         protected bool IsActionHidden(string action) => _actionsDefinitions[action].IsHidden;
@@ -704,7 +704,7 @@ namespace WorkflowsCore
             }
         }
 
-        private object OnExecuteAction(
+        private T OnExecuteAction<T>(
             string action,
             NamedValues parameters,
             bool throwNotAllowed,
@@ -720,7 +720,7 @@ namespace WorkflowsCore
                 }
 
                 wasExecuted = false;
-                return null;
+                return default(T);
             }
 
             wasExecuted = true;
@@ -734,7 +734,7 @@ namespace WorkflowsCore
             ActionStats[primaryName] = ++stats;
             SaveWorkflowData();
 
-            return result;
+            return (T)result;
         }
 
         private ActionDefinition GetActionDefinition(string action)
