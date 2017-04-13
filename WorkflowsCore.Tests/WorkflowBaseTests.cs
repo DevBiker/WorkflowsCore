@@ -719,6 +719,20 @@ namespace WorkflowsCore.Tests
 
                 await CancelWorkflowAsync();
             }
+
+            [Fact]
+            public async Task ActionReseultMayBeSetViaActionResultProperty()
+            {
+                var workflowRepo = new WorkflowRepository();
+                Workflow = new TestWorkflow(() => workflowRepo);
+                Workflow.ConfigureAction("Action 1", _ => { Workflow.ActionResult = "Test"; });
+                StartWorkflow();
+
+                var res = await Workflow.ExecuteActionAsync<string>("Action 1");
+
+                Assert.Equal("Test", res);
+                await CancelWorkflowAsync();
+            }
         }
 
         public class TerminalStatusesTests : BaseWorkflowTest<TestWorkflow>
@@ -928,6 +942,12 @@ namespace WorkflowsCore.Tests
             // ReSharper disable once UnusedAutoPropertyAccessor.Local
             [DataField(IsTransient = true)]
             public int Parameter { get; private set; }
+
+            public new object ActionResult
+            {
+                get { return base.ActionResult; }
+                set { base.ActionResult = value; }
+            }
 
             public void SetInitializationCompleted() => _initializationOperation.Dispose();
 

@@ -90,6 +90,9 @@ namespace WorkflowsCore
 
         protected static ITimeProvider TimeProvider => Utilities.TimeProvider;
 
+        [DataField(IsTransient = true)]
+        protected object ActionResult { get; set; }
+
         private CancellationTokenSource CancellationTokenSource { get; }
 
         private CancellationToken CancellationToken { get; }
@@ -330,10 +333,11 @@ namespace WorkflowsCore
                 {
                     using (var operation = await this.WaitForReadyAndStartOperation())
                     {
-                        var res = ExecuteAction<T>(action, parameters, throwNotAllowed);
+                        ActionResult = default(T);
+                        var res = ExecuteActionCore(action, parameters, throwNotAllowed);
                         await operation.WaitForAllInnerOperationsCompletion();
                         SaveWorkflowData();
-                        return res;
+                        return res.Any() ? res.Cast<T>().Single() : (T)ActionResult;
                     }
                 }).Unwrap();
         }
@@ -499,12 +503,12 @@ namespace WorkflowsCore
             IEnumerable<string> synonyms = null,
             bool isHidden = false)
         {
-            ConfigureAction<object>(
+            ConfigureActionCore(
                 action,
                 _ =>
                 {
                     actionHandler?.Invoke();
-                    return null;
+                    return new object[0];
                 },
                 metadata,
                 synonym,
@@ -520,12 +524,12 @@ namespace WorkflowsCore
             IEnumerable<string> synonyms = null,
             bool isHidden = false)
         {
-            ConfigureAction<object>(
+            ConfigureActionCore(
                 action,
                 parameters =>
                 {
                     actionHandler(parameters);
-                    return null;
+                    return new object[0];
                 },
                 metadata,
                 synonym,
@@ -552,30 +556,13 @@ namespace WorkflowsCore
             IEnumerable<string> synonyms = null,
             bool isHidden = false)
         {
-            var allSynonyms = new List<string> { action };
-            if (synonym != null)
-            {
-                allSynonyms.Add(synonym);
-            }
-
-            allSynonyms.AddRange(synonyms ?? new List<string>());
             ConfigureActionCore(
                 action,
-                actionHandler,
+                parameters => new object[] { actionHandler(parameters) },
                 metadata,
-                allSynonyms,
-                isHidden: isHidden);
-
-            foreach (var curSynonym in allSynonyms.Skip(1))
-            {
-                ConfigureActionCore(
-                    curSynonym,
-                    actionHandler,
-                    metadata,
-                    allSynonyms,
-                    true,
-                    isHidden);
-            }
+                synonym,
+                synonyms,
+                isHidden);
         }
 
         protected void ExecuteAction(string action, bool throwNotAllowed = true) =>
@@ -589,9 +576,17 @@ namespace WorkflowsCore
             IReadOnlyDictionary<string, object> parameters,
             bool throwNotAllowed = true)
         {
+            return ExecuteActionCore(action, parameters, throwNotAllowed).Cast<T>().SingleOrDefault();
+        }
+
+        protected object[] ExecuteActionCore(
+            string action,
+            IReadOnlyDictionary<string, object> parameters,
+            bool throwNotAllowed)
+        {
             var namedValues = new NamedValues(parameters);
             bool wasExecuted;
-            var result = OnExecuteAction<T>(action, namedValues, throwNotAllowed, out wasExecuted);
+            var result = OnExecuteAction(action, namedValues, throwNotAllowed, out wasExecuted);
             if (wasExecuted)
             {
                 ActionExecuted?.Invoke(
@@ -724,7 +719,7 @@ namespace WorkflowsCore
             }
         }
 
-        private T OnExecuteAction<T>(
+        private object[] OnExecuteAction(
             string action,
             NamedValues parameters,
             bool throwNotAllowed,
@@ -740,7 +735,7 @@ namespace WorkflowsCore
                 }
 
                 wasExecuted = false;
-                return default(T);
+                return new object[0];
             }
 
             wasExecuted = true;
@@ -753,7 +748,7 @@ namespace WorkflowsCore
             ActionStats.TryGetValue(primaryName, out stats);
             ActionStats[primaryName] = ++stats;
 
-            return (T)result;
+            return result;
         }
 
         private ActionDefinition GetActionDefinition(string action)
@@ -770,9 +765,43 @@ namespace WorkflowsCore
         private IList<string> GetAvailableActions() => 
             _actions.Where(a => IsActionAllowed(a) && !IsActionHidden(a)).ToList();
 
-        private void ConfigureActionCore<T>(
+        private void ConfigureActionCore(
             string action,
-            Func<NamedValues, T> actionHandler,
+            Func<NamedValues, object[]> actionHandler,
+            IReadOnlyDictionary<string, object> metadata,
+            string synonym,
+            IEnumerable<string> synonyms,
+            bool isHidden)
+        {
+            var allSynonyms = new List<string> { action };
+            if (synonym != null)
+            {
+                allSynonyms.Add(synonym);
+            }
+
+            allSynonyms.AddRange(synonyms ?? new List<string>());
+            ConfigureActionCoreHelper(
+                action,
+                actionHandler,
+                metadata,
+                allSynonyms,
+                isHidden: isHidden);
+
+            foreach (var curSynonym in allSynonyms.Skip(1))
+            {
+                ConfigureActionCoreHelper(
+                    curSynonym,
+                    actionHandler,
+                    metadata,
+                    allSynonyms,
+                    true,
+                    isHidden);
+            }
+        }
+
+        private void ConfigureActionCoreHelper(
+            string action,
+            Func<NamedValues, object[]> actionHandler,
             IReadOnlyDictionary<string, object> metadata,
             IList<string> synonyms,
             bool isSynonym = false,
@@ -786,7 +815,7 @@ namespace WorkflowsCore
 
             _actionsDefinitions[action] = new ActionDefinition
             {
-                Handler = parameters => actionHandler(parameters),
+                Handler = actionHandler,
                 Metadata = new NamedValues(metadata ?? new Dictionary<string, object>()),
                 Synonyms = synonyms,
                 IsHidden = isHidden
@@ -831,7 +860,7 @@ namespace WorkflowsCore
 
         private class ActionDefinition
         {
-            public Func<NamedValues, object> Handler { get; set; }
+            public Func<NamedValues, object[]> Handler { get; set; }
 
             public NamedValues Metadata { get; set; }
 
