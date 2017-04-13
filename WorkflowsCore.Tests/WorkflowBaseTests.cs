@@ -721,7 +721,7 @@ namespace WorkflowsCore.Tests
             }
 
             [Fact]
-            public async Task ActionReseultMayBeSetViaActionResultProperty()
+            public async Task ActionResultMayBeSetViaActionResultProperty()
             {
                 var workflowRepo = new WorkflowRepository();
                 Workflow = new TestWorkflow(() => workflowRepo);
