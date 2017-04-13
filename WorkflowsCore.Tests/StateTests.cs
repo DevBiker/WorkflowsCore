@@ -525,8 +525,10 @@ namespace WorkflowsCore.Tests
                     {
                         using (var operation2 = await Workflow.WaitForReadyAndStartOperation())
                         {
-                            operation.Dispose();
-                            Assert.Same(operation, operation2);
+                            Assert.NotSame(operation, operation2);
+                            await Task.Delay(1);
+                            var t = operation.WaitForAllInnerOperationsCompletion();
+                            Assert.NotEqual(TaskStatus.RanToCompletion, t.Status);
                         }
                     });
 
@@ -568,8 +570,10 @@ namespace WorkflowsCore.Tests
                     {
                         using (var operation2 = await Workflow.WaitForReadyAndStartOperation())
                         {
-                            operation.Dispose();
-                            Assert.Same(operation, operation2);
+                            Assert.NotSame(operation, operation2);
+                            await Task.Delay(1);
+                            var t = operation.WaitForAllInnerOperationsCompletion();
+                            Assert.NotEqual(TaskStatus.RanToCompletion, t.Status);
                         }
                     });
 

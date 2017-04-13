@@ -187,12 +187,17 @@ namespace WorkflowsCore.Tests
                         {
                             await Task.Delay(1);
 
+                            Task innerTask;
                             Workflow.CreateOperation();
                             using (var innerOp = Workflow.TryStartOperation())
                             {
-                                Assert.Same(outerOp, innerOp);
+                                Assert.NotSame(outerOp, innerOp);
+                                await Task.Delay(1);
+                                innerTask = outerOp.WaitForAllInnerOperationsCompletion();
+                                Assert.NotEqual(TaskStatus.RanToCompletion, innerTask.Status);
                             }
 
+                            Assert.Equal(TaskStatus.RanToCompletion, innerTask.Status);
                             Assert.NotEqual(TaskStatus.RanToCompletion, Workflow.ReadyTask.Status);
                         }
 

@@ -328,9 +328,11 @@ namespace WorkflowsCore
             return DoWorkflowTaskAsync(
                 async () =>
                 {
-                    using (await this.WaitForReadyAndStartOperation())
+                    using (var operation = await this.WaitForReadyAndStartOperation())
                     {
-                        return ExecuteAction<T>(action, parameters, throwNotAllowed);
+                        var res = ExecuteAction<T>(action, parameters, throwNotAllowed);
+                        await operation.WaitForAllInnerOperationsCompletion();
+                        return res;
                     }
                 }).Unwrap();
         }
@@ -387,24 +389,41 @@ namespace WorkflowsCore
         internal void OnCancellationTokenCanceled(CancellationToken token) =>
             _activationDatesManager.OnCancellationTokenCanceled(token);
 
+        internal Task WaitForOperationOrInnerOperationCompletion()
+        {
+            return CurrentOperation.Value.Parent == null
+                ? ReadyTask
+                : CurrentOperation.Value.Parent.WaitForInnerOperationCompletion();
+        }
+
+        internal void CancelOperation()
+        {
+            EnsureOperationExists();
+            CurrentOperation.Value.Parent?.OnInnerOperationCanceled();
+        }
+
+        protected internal static Task WaitForAllInnerOperationsCompletion(IDisposable operation) =>
+            ((Operation)operation).WaitForAllInnerOperationsCompletion();
+
+        /// <summary>
+        /// This function should be thread-safe
+        /// </summary>
         protected internal void CreateOperation(
             [CallerFilePath] string filePath = null,
             [CallerLineNumber] int lineNumber = 0)
         {
-            if (CurrentOperation.Value?.TryCreateInnerOperation() == null)
-            {
-                /* ReSharper disable ExplicitCallerInfoArgument */
-                CurrentOperation.Value = new Operation(this, filePath, lineNumber);
-                /* ReSharper restore ExplicitCallerInfoArgument */
-            }
+            var innerOperation = CurrentOperation.Value?.TryCreateInnerOperation(filePath, lineNumber);
+            /* ReSharper disable ExplicitCallerInfoArgument */
+            CurrentOperation.Value = innerOperation ?? new Operation(this, filePath, lineNumber);
+            /* ReSharper restore ExplicitCallerInfoArgument */
         }
 
+        /// <summary>
+        /// This function is not thread-safe and should be called within workflow task scheduler only
+        /// </summary>
         protected internal IDisposable TryStartOperation()
         {
-            if (CurrentOperation.Value == null)
-            {
-                throw new InvalidOperationException("Operation should be created first");
-            }
+            EnsureOperationExists();
 
             if (ReadyTask.IsCanceled)
             {
@@ -416,7 +435,7 @@ namespace WorkflowsCore
                 return CurrentOperation.Value.StartOperation();
             }
 
-            return CurrentOperation.Value.TryStartInnerOperation();
+            return CurrentOperation.Value.Parent?.TryStartInnerOperation(CurrentOperation.Value);
         }
 
         protected internal void ResetOperation() => CurrentOperation.Value = null;
@@ -789,6 +808,14 @@ namespace WorkflowsCore
             SaveWorkflowData();
         }
 
+        private void EnsureOperationExists()
+        {
+            if (CurrentOperation.Value == null)
+            {
+                throw new InvalidOperationException("Operation should be created first");
+            }
+        }
+
         protected internal class ActionExecutedEventArgs : EventArgs
         {
             public ActionExecutedEventArgs(IEnumerable<string> synonyms, NamedValues parameters)
@@ -824,7 +851,10 @@ namespace WorkflowsCore
             private readonly TaskCompletionSource<bool> _tcs =
                 new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
+            private TaskCompletionSource<bool> _tcsInner;
+
             private int _counter = 1;
+            private Operation _innerOperationInProgress;
 
             public Operation(
                 WorkflowBase workflow,
@@ -841,40 +871,92 @@ namespace WorkflowsCore
                 TryCancel();
             }
 
+            private Operation(
+                Operation parent,
+                string filePath,
+                int lineNumber)
+            {
+                _workflow = parent._workflow;
+                Parent = parent;
+                _filePath = filePath;
+                _lineNumber = lineNumber;
+            }
+
             public Task Task => _tcs.Task;
+
+            public Operation Parent { get; }
 
             public void Dispose()
             {
                 lock (_tcs)
                 {
-                    if (--_counter <= 0)
+                    --_counter;
+                    if (_counter == 1)
+                    {
+                        _tcsInner.TrySetResult(true);
+                    }
+                    else if (_counter <= 0)
                     {
                         _tcs.TrySetResult(true);
+                        Parent?.OnInnerOperationCompletion();
                     }
                 }
             }
 
-            public Operation TryCreateInnerOperation()
+            public Operation TryCreateInnerOperation(string filePath, int lineNumber)
             {
                 lock (_tcs)
                 {
                     if (_counter <= 0)
                     {
-                        return null;
+                        return Parent?.TryCreateInnerOperation(filePath, lineNumber);
                     }
 
                     ++_counter;
-                    return this;
+                    if (_tcsInner?.Task.IsCompleted ?? true)
+                    {
+                        _tcsInner = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                    }
+
+                    return new Operation(this, filePath, lineNumber);
                 }
             }
 
             public Operation StartOperation() => _workflow.OperationInProgress = this;
 
-            public Operation TryStartInnerOperation() => _workflow.OperationInProgress != this ? null : this;
+            public Operation TryStartInnerOperation(Operation innerOperation)
+            {
+                if (_innerOperationInProgress != null)
+                {
+                    return null;
+                }
 
-            public void TryCancel() => _tcs.TrySetCanceled();
+                _innerOperationInProgress = innerOperation;
+                return _innerOperationInProgress;
+            }
 
-            public override string ToString() => $"Operation from {Path.GetFileName(_filePath)}:{_lineNumber}";
+            public void TryCancel()
+            {
+                _tcs.TrySetCanceled();
+                Parent?.TryCancel();
+            }
+
+            public Task WaitForInnerOperationCompletion() => _innerOperationInProgress?.Task ?? Task.CompletedTask;
+
+            public Task WaitForAllInnerOperationsCompletion() => _tcsInner?.Task ?? Task.CompletedTask;
+
+            public void OnInnerOperationCanceled() => Dispose();
+
+            public override string ToString() => $"Operation from {ToStringCore()}";
+
+            private string ToStringCore() =>
+                $"{(Parent == null ? string.Empty : Parent.ToStringCore() + " -> ")}{Path.GetFileName(_filePath)}:{_lineNumber}";
+
+            private void OnInnerOperationCompletion()
+            {
+                Interlocked.Exchange(ref _innerOperationInProgress, null);
+                Dispose();
+            }
         }
 
         private class DummyWorkflowStateRepository : IWorkflowStateRepository

@@ -379,7 +379,7 @@ namespace WorkflowsCore.Tests
                     async w =>
                     {
                         var t = Workflow.WaitForAction("Contacted", exportOperation: true);
-                        await Workflow.ExecuteActionAsync("Contacted");
+                        var actionTask = Workflow.ExecuteActionAsync("Contacted");
                         var parameters = await t;
 
                         var operation = parameters.GetDataField<IDisposable>("ActionOperation");
@@ -388,6 +388,7 @@ namespace WorkflowsCore.Tests
                         Assert.NotEqual(TaskStatus.RanToCompletion, readyTask.Status);
 
                         operation.Dispose();
+                        await actionTask;
                         Assert.Equal(TaskStatus.RanToCompletion, readyTask.Status);
                     }).Unwrap();
 
@@ -713,6 +714,67 @@ namespace WorkflowsCore.Tests
                 // ReSharper disable once PossibleNullReferenceException
                 var ex = await Record.ExceptionAsync(() => task);
                 Assert.IsType<TaskCanceledException>(ex);
+
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
+            public async Task OnlySingleInnerOperationShouldBeActiveAtOnce()
+            {
+                StartWorkflow();
+
+                using (await Workflow.WaitForReadyAndStartOperation())
+                {
+                    IDisposable innerOperation = null;
+
+                    await Workflow.WaitForAny(
+                        async () =>
+                        {
+                            innerOperation = await Workflow.WaitForReadyAndStartOperation();
+                            await Task.Delay(1);
+                        },
+                        async () =>
+                        {
+                            using (await Workflow.WaitForReadyAndStartOperation())
+                            {
+                                throw new InvalidOperationException("This should never be executed");
+                            }
+                        });
+
+                    innerOperation.Dispose();
+                    Assert.NotEqual(TaskStatus.RanToCompletion, Workflow.ReadyTask.Status);
+                }
+
+                Assert.Equal(TaskStatus.RanToCompletion, Workflow.ReadyTask.Status);
+
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
+            public async Task SubsequentInnerOperationsShouldSucceed()
+            {
+                StartWorkflow();
+
+                using (var operation = await Workflow.WaitForReadyAndStartOperation())
+                {
+                    using (await Workflow.WaitForReadyAndStartOperation())
+                    {
+                        await Task.Delay(1);
+                    }
+
+                    await operation.WaitForAllInnerOperationsCompletion();
+                    Assert.NotEqual(TaskStatus.RanToCompletion, Workflow.ReadyTask.Status);
+
+                    using (await Workflow.WaitForReadyAndStartOperation())
+                    {
+                        await Task.Delay(1);
+                    }
+
+                    Assert.NotEqual(TaskStatus.RanToCompletion, Workflow.ReadyTask.Status);
+                    await operation.WaitForAllInnerOperationsCompletion();
+                }
+
+                Assert.Equal(TaskStatus.RanToCompletion, Workflow.ReadyTask.Status);
 
                 await CancelWorkflowAsync();
             }

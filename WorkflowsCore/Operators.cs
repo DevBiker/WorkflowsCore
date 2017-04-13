@@ -236,6 +236,9 @@ namespace WorkflowsCore
             return WaitForReadyAndStartOperationCore(workflow);
         }
 
+        public static Task WaitForAllInnerOperationsCompletion(this IDisposable operation) =>
+            WorkflowBase.WaitForAllInnerOperationsCompletion(operation);
+
         public static async Task WaitForReady(this WorkflowBase workflow)
         {
             using (var cts = CancellationTokenSource.CreateLinkedTokenSource(Utilities.CurrentCancellationToken))
@@ -450,7 +453,15 @@ namespace WorkflowsCore
                                     return operation;
                                 }
 
-                                var t = await Task.WhenAny(workflow.ReadyTask, cancellationTask);
+                                var t = await Task.WhenAny(
+                                    workflow.WaitForOperationOrInnerOperationCompletion(),
+                                    cancellationTask);
+
+                                if (t == cancellationTask)
+                                {
+                                    workflow.CancelOperation();
+                                }
+
                                 await t;
                             }
                         }
