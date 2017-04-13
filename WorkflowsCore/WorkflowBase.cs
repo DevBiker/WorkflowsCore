@@ -332,6 +332,7 @@ namespace WorkflowsCore
                     {
                         var res = ExecuteAction<T>(action, parameters, throwNotAllowed);
                         await operation.WaitForAllInnerOperationsCompletion();
+                        SaveWorkflowData();
                         return res;
                     }
                 }).Unwrap();
@@ -751,7 +752,6 @@ namespace WorkflowsCore
             int stats;
             ActionStats.TryGetValue(primaryName, out stats);
             ActionStats[primaryName] = ++stats;
-            SaveWorkflowData();
 
             return (T)result;
         }
