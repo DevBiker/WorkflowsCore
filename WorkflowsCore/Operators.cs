@@ -121,32 +121,34 @@ namespace WorkflowsCore
                     return;
                 }
 
-                if (args.Synonyms.Any(a => string.Equals(action, a, StringComparison.Ordinal)))
+                if (args.Synonyms.All(a => !string.Equals(action, a, StringComparison.Ordinal)))
                 {
-                    // ReSharper disable once AccessToModifiedClosure
-                    workflow.ActionExecuted -= handler;
+                    return;
+                }
 
-                    IDisposable operation = null;
-                    if (exportOperation)
+                // ReSharper disable once AccessToModifiedClosure
+                workflow.ActionExecuted -= handler;
+
+                IDisposable operation = null;
+                if (exportOperation)
+                {
+                    workflow.CreateOperation();
+                    operation = workflow.TryStartOperation();
+                    if (operation == null)
                     {
-                        workflow.CreateOperation();
-                        operation = workflow.TryStartOperation();
-                        if (operation == null)
-                        {
-                            throw new InvalidOperationException();
-                        }
-
-                        args.Parameters.SetDataField("ActionOperation", operation);
+                        throw new InvalidOperationException();
                     }
 
-                    if (tcs.TrySetResult(args.Parameters))
-                    {
-                        registration.Dispose();
-                    }
-                    else
-                    {
-                        operation?.Dispose();
-                    }
+                    args.Parameters.SetDataField("ActionOperation", operation);
+                }
+
+                if (tcs.TrySetResult(args.Parameters))
+                {
+                    registration.Dispose();
+                }
+                else
+                {
+                    operation?.Dispose();
                 }
             };
 
