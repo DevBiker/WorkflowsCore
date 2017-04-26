@@ -132,76 +132,14 @@ namespace WorkflowsCore
 
                 _wasStared = true;
                 DoWorkflowTaskAsync(
-                    w =>
-                    {
-                        OnInit();
-                        if (initialWorkflowData != null)
-                        {
-                            w.Metadata.SetData(w, initialWorkflowData);
-                        }
-
-                        if (initialWorkflowTransientData != null)
-                        {
-                            w.Metadata.SetTransientData(w, initialWorkflowTransientData);
-                        }
-
-                        if (loadedWorkflowData == null)
-                        {
-                            OnCreated();
-                            SaveWorkflowData();
-                        }
-                        else
-                        {
-                            if (id != null)
-                            {
-                                Id = id;
-                            }
-
-                            w.Metadata.SetData(w, loadedWorkflowData);
-                            OnLoaded();
-                        }
-
-                        beforeWorkflowStarted?.Invoke();
-
-                        ImportOperation(_initializationOperation);
-                        var task = RunAsync();
-                        _initializationOperation.Dispose();
-                        return task;
-                    },
+                    w => Run(
+                        id,
+                        initialWorkflowData,
+                        loadedWorkflowData,
+                        initialWorkflowTransientData,
+                        beforeWorkflowStarted),
                     forceExecution: true).Unwrap().ContinueWith(
-                        t =>
-                        {
-                            var canceled = false;
-                            Exception exception = null;
-                            lock (CancellationTokenSource)
-                            {
-                                try
-                                {
-                                    ProcessWorkflowCompletion(t, afterWorkflowFinished, out exception, out canceled);
-                                }
-                                catch (Exception ex)
-                                {
-                                    exception = GetAggregatedExceptions(exception, ex);
-                                }
-                                finally
-                                {
-                                    if (exception != null)
-                                    {
-                                        _completedTaskCompletionSource.SetException(exception);
-                                    }
-                                    else if (canceled)
-                                    {
-                                        _completedTaskCompletionSource.SetCanceled();
-                                    }
-                                    else
-                                    {
-                                        _completedTaskCompletionSource.SetResult(true);
-                                    }
-
-                                    CancellationTokenSource.Dispose();
-                                }
-                            }
-                        },
+                        t => ProcessWorkflowCompletion(t, afterWorkflowFinished),
                         CancellationToken.None,
                         TaskContinuationOptions.RunContinuationsAsynchronously | TaskContinuationOptions.PreferFairness,
                         WorkflowTaskScheduler);
@@ -579,27 +517,85 @@ namespace WorkflowsCore
             return ExecuteActionCore(action, parameters, throwNotAllowed).Cast<T>().SingleOrDefault();
         }
 
-        protected object[] ExecuteActionCore(
-            string action,
-            IReadOnlyDictionary<string, object> parameters,
-            bool throwNotAllowed)
-        {
-            var namedValues = new NamedValues(parameters);
-            bool wasExecuted;
-            var result = OnExecuteAction(action, namedValues, throwNotAllowed, out wasExecuted);
-            if (wasExecuted)
-            {
-                ActionExecuted?.Invoke(
-                    this,
-                    new ActionExecutedEventArgs(GetActionSynonyms(action), namedValues));
-            }
-
-            return result;
-        }
-
         protected bool IsActionHidden(string action) => _actionsDefinitions[action].IsHidden;
 
-        private void ProcessWorkflowCompletion(
+        private Task Run(
+            object id,
+            IReadOnlyDictionary<string, object> initialWorkflowData,
+            IReadOnlyDictionary<string, object> loadedWorkflowData,
+            IReadOnlyDictionary<string, object> initialWorkflowTransientData,
+            Action beforeWorkflowStarted)
+        {
+            OnInit();
+            if (initialWorkflowData != null)
+            {
+                Metadata.SetData(this, initialWorkflowData);
+            }
+
+            if (initialWorkflowTransientData != null)
+            {
+                Metadata.SetTransientData(this, initialWorkflowTransientData);
+            }
+
+            if (loadedWorkflowData == null)
+            {
+                OnCreated();
+                SaveWorkflowData();
+            }
+            else
+            {
+                if (id != null)
+                {
+                    Id = id;
+                }
+
+                Metadata.SetData(this, loadedWorkflowData);
+                OnLoaded();
+            }
+
+            beforeWorkflowStarted?.Invoke();
+
+            ImportOperation(_initializationOperation);
+            var task = RunAsync();
+            _initializationOperation.Dispose();
+            return task;
+        }
+
+        private void ProcessWorkflowCompletion(Task task, Action afterWorkflowFinished)
+        {
+            lock (CancellationTokenSource)
+            {
+                var canceled = false;
+                Exception exception = null;
+                try
+                {
+                    ProcessWorkflowCompletionCore(task, afterWorkflowFinished, out exception, out canceled);
+                }
+                catch (Exception ex)
+                {
+                    exception = GetAggregatedExceptions(exception, ex);
+                }
+                finally
+                {
+                    if (exception != null)
+                    {
+                        _completedTaskCompletionSource.SetException(exception);
+                    }
+                    else if (canceled)
+                    {
+                        _completedTaskCompletionSource.SetCanceled();
+                    }
+                    else
+                    {
+                        _completedTaskCompletionSource.SetResult(true);
+                    }
+
+                    CancellationTokenSource.Dispose();
+                }
+            }
+        }
+
+        private void ProcessWorkflowCompletionCore(
             Task task,
             Action afterWorkflowFinished,
             out Exception exception,
@@ -717,6 +713,24 @@ namespace WorkflowsCore
                     _exception = GetAggregatedExceptions(_exception, exception);
                 }
             }
+        }
+
+        private object[] ExecuteActionCore(
+            string action,
+            IReadOnlyDictionary<string, object> parameters,
+            bool throwNotAllowed)
+        {
+            var namedValues = new NamedValues(parameters);
+            bool wasExecuted;
+            var result = OnExecuteAction(action, namedValues, throwNotAllowed, out wasExecuted);
+            if (wasExecuted)
+            {
+                ActionExecuted?.Invoke(
+                    this,
+                    new ActionExecutedEventArgs(GetActionSynonyms(action), namedValues));
+            }
+
+            return result;
         }
 
         private object[] OnExecuteAction(
@@ -900,10 +914,7 @@ namespace WorkflowsCore
                 TryCancel();
             }
 
-            private Operation(
-                Operation parent,
-                string filePath,
-                int lineNumber)
+            private Operation(Operation parent, string filePath, int lineNumber)
             {
                 _workflow = parent._workflow;
                 Parent = parent;
