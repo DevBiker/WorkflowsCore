@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using WorkflowsCore.Time;
@@ -91,6 +92,37 @@ namespace WorkflowsCore.StateMachines
                         return parameters;
                     },
                     description ?? $"On {action}",
+                    () => operation);
+        }
+
+        public static AsyncOperation<TState, THiddenState, NamedValues> OnActions<TState, THiddenState>(
+            this State<TState, THiddenState> state,
+            string description,
+            params string[] actions)
+        {
+            IDisposable operation = null;
+            return state.AllowActions(actions)
+                .OnAsync(
+                    async () =>
+                    {
+                        var actionsParameters = new NamedValues[actions.Length];
+                        var actionsTaskFactories =
+                            actions.Select(
+                                (a, i) => (Func<Task>)(async () =>
+                                    actionsParameters[i] = await Workflow.WaitForAction(a, exportOperation: true)))
+                                .ToArray();
+
+                        var index = await Workflow.WaitForAny(actionsTaskFactories);
+                        var parameters = actionsParameters[index];
+                        operation = parameters.GetDataField<IDisposable>("ActionOperation");
+                        if (operation == null)
+                        {
+                            throw new InvalidOperationException();
+                        }
+
+                        return parameters;
+                    },
+                    description,
                     () => operation);
         }
 
