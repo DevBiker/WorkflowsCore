@@ -80,6 +80,7 @@ namespace WorkflowsCore.StateMachines
         public class StateMachineInstance
         {
             private readonly Action<StateTransition<TState, THiddenState>> _onStateChangedHandler;
+            private readonly Lazy<Task> _taskLazy;
             private State<TState, THiddenState>.StateInstance _stateInstance;
 
             internal StateMachineInstance(
@@ -90,12 +91,21 @@ namespace WorkflowsCore.StateMachines
             {
                 _onStateChangedHandler = onStateChangedHandler;
                 Workflow = workflow;
-                Task = Run(state, isRestoringState);
+
+                // We do not start initial state transition here to avoid race conditions when instance of state machine in parent workflow
+                // is not set yet but states started execution and some handler tries to execute actions on workflow
+                _taskLazy = new Lazy<Task>(
+                    () =>
+                    {
+                        workflow.EnsureWorkflowTaskScheduler();
+                        return Run(state, isRestoringState);
+                    },
+                    false);
             }
 
             public WorkflowBase Workflow { get; set; }
 
-            public Task Task { get; }
+            public Task Task => _taskLazy.Value;
 
             public bool IsActionAllowed(string action) => 
                 StateExtensions.SetWorkflowTemporarily(Workflow, () => _stateInstance.IsActionAllowed(action)) ?? false;
@@ -110,16 +120,12 @@ namespace WorkflowsCore.StateMachines
                     operation,
                     isRestoringState,
                     _onStateChangedHandler);
-                _stateInstance = StateExtensions.SetWorkflowTemporarily(
-                    Workflow,
-                    () => intialTransition.PerformTransition());
+                _stateInstance = intialTransition.PerformTransition();
 
                 while (true)
                 {
-                    var transition = await _stateInstance.Task;
-                    _stateInstance = StateExtensions.SetWorkflowTemporarily(
-                        Workflow,
-                        () => transition.PerformTransition());
+                    var transition = await StateExtensions.SetWorkflowTemporarily(Workflow, () => _stateInstance.Task);
+                    _stateInstance = transition.PerformTransition();
                 }
             }
         }

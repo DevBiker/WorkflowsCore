@@ -41,9 +41,7 @@ namespace WorkflowsCore.Tests
                 .OnEnter().Do(() => Assert.Equal(2, counter++));
 
             var cts = new CancellationTokenSource();
-            var instance = Utilities.SetCurrentCancellationTokenTemporarily(
-                cts.Token,
-                () => SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(_state))));
+            var instance = Utilities.SetCurrentCancellationTokenTemporarily(cts.Token, () => RunState(_state));
 
             cts.Cancel();
 
@@ -80,7 +78,7 @@ namespace WorkflowsCore.Tests
             var cts = new CancellationTokenSource();
             var instance = Utilities.SetCurrentCancellationTokenTemporarily(
                 cts.Token,
-                () => SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(stateChild2Child1))));
+                () => RunState(stateChild2Child1));
 
             cts.Cancel();
 
@@ -99,7 +97,7 @@ namespace WorkflowsCore.Tests
             StartWorkflow();
             await Workflow.ReadyTask;
 
-            var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(_state)));
+            var instance = RunState(_state);
 
             var state2 = CreateState(States.State2);
 
@@ -122,7 +120,7 @@ namespace WorkflowsCore.Tests
                 .OnExit().Do(() => Assert.Equal(1, counter++))
                 .OnExit().Do(() => Assert.Equal(2, counter++));
 
-            var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(_state)));
+            var instance = RunState(_state);
 
             var state2 = CreateState(States.State2);
 
@@ -156,7 +154,7 @@ namespace WorkflowsCore.Tests
                 .SubstateOf(stateChild2)
                 .OnExit().Do(() => Assert.Equal(0, counter++));
 
-            var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(stateChild2Child1)));
+            var instance = RunState(stateChild2Child1);
 
             var state2 = CreateState(States.State2);
 
@@ -196,7 +194,7 @@ namespace WorkflowsCore.Tests
 
             Utilities.TimeProvider = new TestingTimeProvider();
 
-            var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(_state)));
+            var instance = RunState(_state);
 
             TestingTimeProvider.Current.SetCurrentTime(date);
 
@@ -228,7 +226,7 @@ namespace WorkflowsCore.Tests
 
             Utilities.TimeProvider = new TestingTimeProvider();
 
-            var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(_state)));
+            var instance = RunState(_state);
 
             await Workflow.ReadyTask;
 
@@ -250,7 +248,7 @@ namespace WorkflowsCore.Tests
 
             var childState = CreateState(States.State1Child1).SubstateOf(_state);
 
-            var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(_state)));
+            var instance = RunState(_state);
 
             await Workflow.ReadyTask;
 
@@ -279,7 +277,7 @@ namespace WorkflowsCore.Tests
 
             var childState = CreateState(States.State1Child1).SubstateOf(_state);
 
-            var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(childState)));
+            var instance = RunState(childState);
 
             await Workflow.ReadyTask;
 
@@ -306,7 +304,7 @@ namespace WorkflowsCore.Tests
             var childState = CreateState(States.State1Child1).SubstateOf(_state);
             _state.OnEnter().GoTo(States.State1Child1);
 
-            var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(_state)));
+            var instance = RunState(_state);
 
             await Workflow.ReadyTask;
 
@@ -328,7 +326,7 @@ namespace WorkflowsCore.Tests
             _state.OnEnter().GoTo(States.State1);
 
             var childState = CreateState(States.State1Child1).SubstateOf(_state);
-            var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(childState)));
+            var instance = RunState(childState);
 
             await Workflow.ReadyTask;
 
@@ -352,7 +350,7 @@ namespace WorkflowsCore.Tests
             var state2 = CreateState(States.State2);
             _state.OnEnter().GoTo(States.State2);
 
-            var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(_state)));
+            var instance = RunState(_state);
 
             var transition = await instance.Task;
 
@@ -374,7 +372,7 @@ namespace WorkflowsCore.Tests
             var counter = 0;
             _state.OnExit().Do(() => ++counter);
 
-            var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(_state)));
+            var instance = RunState(_state);
 
             await Workflow.ReadyTask;
 
@@ -399,7 +397,7 @@ namespace WorkflowsCore.Tests
             var activateCounter = 0;
             _state.OnActivate().Do(() => ++activateCounter);
 
-            var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(_state, true)));
+            var instance = RunState(_state, true);
 
             SetWorkflowTemporarily(Workflow, () => instance.InitiateTransitionTo(CreateState(States.State2)));
 
@@ -417,7 +415,7 @@ namespace WorkflowsCore.Tests
             StartWorkflow();
             await Workflow.StartedTask;
 
-            var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(_state)));
+            var instance = RunState(_state);
 
             _state.AllowActions("Action 1");
 
@@ -438,7 +436,7 @@ namespace WorkflowsCore.Tests
             StartWorkflow();
             await Workflow.StartedTask;
 
-            var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(_state)));
+            var instance = RunState(_state);
 
             _state.AllowActions("Action 1");
             _state.DisallowActions("Action 1");
@@ -460,7 +458,7 @@ namespace WorkflowsCore.Tests
             StartWorkflow();
             await Workflow.StartedTask;
 
-            var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(_state)));
+            var instance = RunState(_state);
 
             var allowed = SetWorkflowTemporarily(Workflow, () => instance.IsActionAllowed("Action 1"));
 
@@ -480,7 +478,7 @@ namespace WorkflowsCore.Tests
             await Workflow.StartedTask;
 
             var child = CreateState(States.State1Child1).SubstateOf(_state);
-            var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(child)));
+            var instance = RunState(child);
 
             _state.AllowActions("Action 1");
             child.DisallowActions("Action 1");
@@ -532,7 +530,7 @@ namespace WorkflowsCore.Tests
                         }
                     });
 
-            var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(_state)));
+            var instance = RunState(_state);
 
             await tcs.Task;
             await Workflow.ReadyTask;
@@ -577,7 +575,7 @@ namespace WorkflowsCore.Tests
                         }
                     });
 
-            var instance = SetWorkflowTemporarily(Workflow, () => _state.Run(CreateTransition(_state)));
+            var instance = RunState(_state);
 
             await tcs.Task;
             await Workflow.ReadyTask;
@@ -590,7 +588,7 @@ namespace WorkflowsCore.Tests
 
         private State<States, string> CreateState(States state) => _baseStateTest.CreateState(state);
 
-        private StateTransition<States, string> CreateTransition(State<States, string> state, bool isRestoring = false)
+        private StateTransition<States, string> CreateTransition(State<States, string> state, bool isRestoring)
         {
             try
             {
@@ -601,6 +599,14 @@ namespace WorkflowsCore.Tests
             {
                 Workflow.ResetOperation();
             }
+        }
+
+        private State<States, string>.StateInstance RunState(State<States, string> targetState, bool isRestoring = false)
+        {
+            var instance = _state.Run(CreateTransition(targetState, isRestoring));
+            var task = SetWorkflowTemporarily(Workflow, () => instance.Task); // This will actually execute state
+            Assert.NotNull(task);
+            return instance;
         }
 
         public class TestWorkflow : WorkflowBase

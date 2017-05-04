@@ -153,16 +153,12 @@ namespace WorkflowsCore.StateMachines
             private StateInstance _child;
 
             internal StateInstance(State<TState, THiddenState> state, StateTransition<TState, THiddenState> transition)
+                : this(state, transition, transition.Path.Skip(1).ToList())
             {
                 if (transition.Path.First() != state)
                 {
                     throw new ArgumentOutOfRangeException(nameof(transition));
                 }
-
-                State = state;
-                _onStateChangedHandler = transition.OnStateChangedHandler;
-                var task = Run(transition, transition.Path.Skip(1).ToList()); // We run in sync way here
-                _taskLazy = new Lazy<Task<StateTransition<TState, THiddenState>>>(() => task, false);
             }
 
             internal StateInstance(
@@ -173,8 +169,8 @@ namespace WorkflowsCore.StateMachines
                 State = state;
                 _onStateChangedHandler = transition.OnStateChangedHandler;
 
-                // We do not start inner state yet to avoid race condition in HandleStateTransitions() when
-                // transition is completed but parent Child is still not set
+                // We do not start state and inner states yet to avoid race condition in HandleStateTransitions() when
+                // this transition is completed but parent Child is still not set
                 _taskLazy = new Lazy<Task<StateTransition<TState, THiddenState>>>(
                     () => Run(transition, initialChildrenStates), false);
             }

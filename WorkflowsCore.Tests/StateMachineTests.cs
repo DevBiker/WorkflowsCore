@@ -47,13 +47,18 @@ namespace WorkflowsCore.Tests
             Workflow = new TestWorkflow();
             StartWorkflow();
 
-            State<States, string> curState = null;
+            var tcsCurState = new TaskCompletionSource<State<States, string>>();
             var instance = await Workflow.DoWorkflowTaskAsync(
-                w => _stateMachine.Run(w, States.State1Child1, false, t => curState = t.State));
+                w =>
+                {
+                    var i = _stateMachine.Run(w, States.State1Child1, false, t => tcsCurState.SetResult(t.State));
+                    Assert.NotNull(i.Task); // This actually will run state machine because its lazy
+                    return i;
+                });
+            
+            await tcsCurState.Task;
 
-            await Workflow.ReadyTask;
-
-            Assert.Same(state, curState);
+            Assert.Same(state, tcsCurState.Task.Result);
 
             await CancelWorkflowAsync();
 
@@ -75,18 +80,33 @@ namespace WorkflowsCore.Tests
             Workflow = new TestWorkflow();
             StartWorkflow();
 
-            State<States, string> curState = null;
+            var tcsCurState = new TaskCompletionSource<State<States, string>>();
+            var counter = 0;
             var instance = await Workflow.DoWorkflowTaskAsync(
-                w => _stateMachine.Run(w, States.State1, false, t => curState = t.State));
+                w =>
+                {
+                    var i = _stateMachine.Run(
+                        w,
+                        States.State1,
+                        false,
+                        t =>
+                        {
+                            if (counter++ > 0)
+                            {
+                                tcsCurState.SetResult(t.State);
+                            }
+                        });
+                    Assert.NotNull(i.Task); // This actually will run state machine because its lazy
+                    return i;
+                });
 
             await Workflow.ReadyTask;
 
             TestingTimeProvider.Current.SetCurrentTime(date);
 
-            await Workflow.DoWorkflowTaskAsync(async () => await Task.Delay(1)).Unwrap();
-            await Workflow.ReadyTask;
+            await tcsCurState.Task;
 
-            Assert.Same(state2, curState);
+            Assert.Same(state2, tcsCurState.Task.Result);
 
             await CancelWorkflowAsync();
 
