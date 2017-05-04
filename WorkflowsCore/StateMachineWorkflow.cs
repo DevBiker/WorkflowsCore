@@ -33,8 +33,7 @@ namespace WorkflowsCore
         [DataField(IsTransient = true)]
         private State<TState, THiddenState>.StateInstance NonHiddenAncestorStateInstance { get; set; }
 
-        protected internal override bool IsActionAllowed(string action) => 
-            _instance?.IsActionAllowed(action) ?? base.IsActionAllowed(action);
+        protected internal override bool IsActionAllowed(string action) => _instance?.IsActionAllowed(action) ?? false;
 
         protected State<TState, THiddenState> ConfigureState(TState state) => StateMachine.ConfigureState(state);
 
