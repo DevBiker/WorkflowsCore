@@ -199,8 +199,15 @@ namespace WorkflowsCore.Tests
             public IList<States> StatesHistory => 
                 GetDataFieldAsync<IList<States>>(nameof(StatesHistory), forceExecution: true).Result;
 
-            public IList<Tuple<States, DateTime>> FullStatesHistory =>
-                GetDataFieldAsync<IList<Tuple<States, DateTime>>>(nameof(FullStatesHistory), forceExecution: true).Result;
+            public IList<Tuple<States, DateTime, bool>> FullStatesHistory
+            {
+                get
+                {
+                    return GetDataFieldAsync<IList<Tuple<States, DateTime, bool>>>(
+                        nameof(FullStatesHistory),
+                        forceExecution: true).Result;
+                }
+            }
 
             public new bool IsLoaded => base.IsLoaded;
 
