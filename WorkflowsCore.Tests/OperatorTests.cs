@@ -564,7 +564,7 @@ namespace WorkflowsCore.Tests
                     () => new Func<Task<int>>(
                         async () =>
                         {
-                            await Task.Delay(100);
+                            await Task.Delay(1000);
                             return 1;
                         })().WaitWithTimeout(1));
 

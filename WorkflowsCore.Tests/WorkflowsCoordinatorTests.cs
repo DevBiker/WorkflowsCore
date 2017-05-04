@@ -199,6 +199,7 @@ namespace WorkflowsCore.Tests
 
             _src.StartWorkflow();
             await _src.Workflow.ExecuteActionAsync(TestWorkflow.Action1);
+            await Task.Delay(1);
 
             _dst.StartWorkflow();
             await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name2, _dst.Workflow, initializeDependencies: false);
@@ -265,6 +266,8 @@ namespace WorkflowsCore.Tests
             await tcs.Task;
 
             await _src.CancelWorkflowAsync();
+
+            await _dst.Workflow.StartedTask;
             await _dst.CancelWorkflowAsync();
         }
 
