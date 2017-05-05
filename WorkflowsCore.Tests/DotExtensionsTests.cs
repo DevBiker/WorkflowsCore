@@ -81,6 +81,27 @@ namespace WorkflowsCore.Tests
         }
 
         [Fact]
+        public void HiddenTransitionsShouldBeIgnored()
+        {
+            var sm = new StateMachine<States, HiddenStates>();
+            sm.ConfigureState(States.State1)
+                .OnAsync(() => Task.CompletedTask, "On Event 1", isHidden: true).GoTo(States.State2);
+            sm.ConfigureState(States.State2)
+                .OnAsync(() => Task.CompletedTask).GoTo(States.State2);
+
+            var actual = sm.ToDotGraph();
+
+            var expected = string.Join(
+                Environment.NewLine,
+                "digraph {",
+                "  State1;",
+                "  State2;",
+                "  State2 -> State2;",
+                "}");
+            Assert.Equal(expected, actual);
+        }
+
+        [Fact]
         public void CompoundStatesShouldBeProperlyDeclared()
         {
             var sm = new StateMachine<States, HiddenStates>();

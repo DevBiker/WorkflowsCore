@@ -49,7 +49,8 @@ namespace WorkflowsCore.StateMachines
             this State<TState, THiddenState> state,
             Func<Task<DateTime>> dateTaskFactory,
             string description = null,
-            Func<WorkflowBase, Task<bool>> bypassDatesFunc = null)
+            Func<WorkflowBase, Task<bool>> bypassDatesFunc = null, 
+            bool isHidden = false)
         {
             return state.OnAsync(
                 async () =>
@@ -60,22 +61,25 @@ namespace WorkflowsCore.StateMachines
                     await Workflow.WaitForAny(() => Workflow.WaitForDate(date, bypassDatesFunc));
                     return date;
                 },
-                description);
+                description,
+                isHidden: isHidden);
         }
 
         public static AsyncOperation<TState, THiddenState, DateTime> OnDate<TState, THiddenState>(
             this State<TState, THiddenState> state,
             Func<DateTime> dateFactory,
             string description = null,
-            Func<WorkflowBase, Task<bool>> bypassDatesFunc = null)
+            Func<WorkflowBase, Task<bool>> bypassDatesFunc = null, 
+            bool isHidden = false)
         {
-            return state.OnDate(() => Task.FromResult(dateFactory()), description, bypassDatesFunc);
+            return state.OnDate(() => Task.FromResult(dateFactory()), description, bypassDatesFunc, isHidden);
         }
 
         public static AsyncOperation<TState, THiddenState, NamedValues> OnAction<TState, THiddenState>(
             this State<TState, THiddenState> state,
             string action,
-            string description = null)
+            string description = null,
+            bool isHidden = false)
         {
             IDisposable operation = null;
             return state.AllowActions(action)
@@ -92,12 +96,14 @@ namespace WorkflowsCore.StateMachines
                         return parameters;
                     },
                     description ?? $"On {action}",
-                    () => operation);
+                    () => operation,
+                    isHidden);
         }
 
         public static AsyncOperation<TState, THiddenState, NamedValues> OnActions<TState, THiddenState>(
             this State<TState, THiddenState> state,
-            string description,
+            string description, 
+            bool isHidden,
             params string[] actions)
         {
             IDisposable operation = null;
@@ -123,16 +129,21 @@ namespace WorkflowsCore.StateMachines
                         return parameters;
                     },
                     description,
-                    () => operation);
+                    () => operation,
+                    isHidden);
         }
 
         public static AsyncOperation<TState, THiddenState> OnActionWithWasExecutedCheck<TState, THiddenState>(
             this State<TState, THiddenState> state,
             string action,
-            string description = null)
+            string description = null, 
+            bool isHidden = false)
         {
             return state
-                .OnAsync(() => Workflow.WaitForActionWithWasExecutedCheck(action), description ?? $"On {action}")
+                .OnAsync(
+                    () => Workflow.WaitForActionWithWasExecutedCheck(action),
+                    description ?? $"On {action}",
+                    isHidden: isHidden)
                 .If(() => Workflow.WasExecuted(action));
         }
     }

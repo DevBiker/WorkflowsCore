@@ -78,7 +78,7 @@ namespace WorkflowsCore.Tests
         {
             var tcs = new TaskCompletionSource<NamedValues>();
             var state = _stateMachine.ConfigureState(States.State1)
-                .OnActions("Some description", "Action 1", "Action 2")
+                .OnActions("Some description", false, "Action 1", "Action 2")
                 .Do(v => tcs.SetResult(v));
 
             Workflow = new TestWorkflow();

@@ -9,9 +9,11 @@ namespace WorkflowsCore.StateMachines
     {
         string Description { get; }
 
+        bool IsHidden { get; }
+
         IList<TargetState<TState, THiddenState>> GetTargetStates(IEnumerable<string> conditions);
     }
-
+    
     public class TargetState<TState, THiddenState>
     {
         public TargetState(IEnumerable<string> conditions, State<TState, THiddenState> state)
@@ -29,15 +31,18 @@ namespace WorkflowsCore.StateMachines
     {
         private AsyncOperationHandler _handler;
 
-        public BaseAsyncOperation(State<TState, THiddenState> parent, string description)
+        public BaseAsyncOperation(State<TState, THiddenState> parent, string description, bool isHidden)
         {
             Parent = parent;
             Description = description;
+            IsHidden = isHidden;
         }
 
         public State<TState, THiddenState> Parent { get; }
 
         public string Description { get; }
+
+        public bool IsHidden { get; }
 
         protected AsyncOperationHandler Handler
         {
@@ -165,8 +170,8 @@ namespace WorkflowsCore.StateMachines
 
     public class AsyncOperation<TState, THiddenState> : BaseAsyncOperation<TState, THiddenState, AsyncOperationVoidData>
     {
-        public AsyncOperation(State<TState, THiddenState> parent, string description = null)
-            : base(parent, description)
+        public AsyncOperation(State<TState, THiddenState> parent, string description = null, bool isHidden = false)
+            : base(parent, description, isHidden)
         {
         }
 
@@ -324,8 +329,8 @@ namespace WorkflowsCore.StateMachines
 
     public class AsyncOperation<TState, THiddenState, TData> : BaseAsyncOperation<TState, THiddenState, TData>
     {
-        public AsyncOperation(State<TState, THiddenState> parent, string description = null)
-            : base(parent, description)
+        public AsyncOperation(State<TState, THiddenState> parent, string description = null, bool isHidden = false)
+            : base(parent, description, isHidden)
         {
         }
 

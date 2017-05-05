@@ -61,16 +61,16 @@ namespace WorkflowsCore.StateMachines
 
         public string Description { get; private set; }
 
-        public AsyncOperation<TState, THiddenState> OnEnter(string description = null)
+        public AsyncOperation<TState, THiddenState> OnEnter(string description = null, bool isHidden = false)
         {
-            var asyncOperation = new AsyncOperation<TState, THiddenState>(this, description);
+            var asyncOperation = new AsyncOperation<TState, THiddenState>(this, description ?? "On Enter");
             _enterHandlers.Add(asyncOperation);
             return asyncOperation;
         }
 
-        public AsyncOperation<TState, THiddenState> OnActivate(string description = null)
+        public AsyncOperation<TState, THiddenState> OnActivate(string description = null, bool isHidden = false)
         {
-            var asyncOperation = new AsyncOperation<TState, THiddenState>(this, description);
+            var asyncOperation = new AsyncOperation<TState, THiddenState>(this, description ?? "On Activate");
             _activationHandlers.Add(asyncOperation);
             return asyncOperation;
         }
@@ -78,9 +78,10 @@ namespace WorkflowsCore.StateMachines
         public AsyncOperation<TState, THiddenState, TR> OnAsync<TR>(
             Func<Task<TR>> taskFactory,
             string description = null,
-            Func<IDisposable> getOperationForImport = null)
+            Func<IDisposable> getOperationForImport = null,
+            bool isHidden = false)
         {
-            var asyncOperation = new AsyncOperation<TState, THiddenState, TR>(this, description);
+            var asyncOperation = new AsyncOperation<TState, THiddenState, TR>(this, description, isHidden);
             _onAsyncHandlers.Add(new AsyncOperationWrapper<TR>(taskFactory, asyncOperation, getOperationForImport));
             return asyncOperation;
         }
@@ -88,16 +89,17 @@ namespace WorkflowsCore.StateMachines
         public AsyncOperation<TState, THiddenState> OnAsync(
             Func<Task> taskFactory,
             string description = null,
-            Func<IDisposable> getOperationForImport = null)
+            Func<IDisposable> getOperationForImport = null,
+            bool isHidden = false)
         {
-            var asyncOperation = new AsyncOperation<TState, THiddenState>(this, description);
+            var asyncOperation = new AsyncOperation<TState, THiddenState>(this, description, isHidden);
             _onAsyncHandlers.Add(new AsyncOperationWrapper(taskFactory, asyncOperation, getOperationForImport));
             return asyncOperation;
         }
 
-        public AsyncOperation<TState, THiddenState> OnExit(string description = null)
+        public AsyncOperation<TState, THiddenState> OnExit(string description = null, bool isHidden = false)
         {
-            var asyncOperation = new AsyncOperation<TState, THiddenState>(this, description);
+            var asyncOperation = new AsyncOperation<TState, THiddenState>(this, description ?? "On Exit");
             _exitHandlers.Add(asyncOperation);
             return asyncOperation;
         }
@@ -366,6 +368,8 @@ namespace WorkflowsCore.StateMachines
 
             public string Description => _operation.Description;
 
+            public bool IsHidden => _operation.IsHidden;
+
             // ReSharper disable once FunctionNeverReturns
             public async Task WaitAndHandle(StateInstance instance)
             {
@@ -421,6 +425,8 @@ namespace WorkflowsCore.StateMachines
             }
 
             public string Description => _operation.Description;
+
+            public bool IsHidden => _operation.IsHidden;
 
             // ReSharper disable once FunctionNeverReturns
             public async Task WaitAndHandle(StateInstance instance)

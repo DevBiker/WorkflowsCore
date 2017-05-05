@@ -180,7 +180,10 @@ namespace WorkflowsCore.StateMachines
         {
             return
                 from s in states
-                from h in s.EnterHandlers.Concat(s.ActivationHandlers).Concat(s.OnAsyncHandlers).Concat(s.ExitHandlers)
+                from h in s.EnterHandlers.Concat(s.ActivationHandlers)
+                    .Concat(s.OnAsyncHandlers)
+                    .Concat(s.ExitHandlers)
+                    .Where(h => !h.IsHidden)
                 let targetStates = h.GetTargetStates(Enumerable.Empty<string>())
                 where targetStates.Any()
                 select DefineStateTransitions(indentation, s, targetStates, h.Description, workaroundNodes);
