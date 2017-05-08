@@ -11,15 +11,15 @@ namespace WorkflowsCore.Tests
             State1
         }
 
-        private enum HiddenStates
+        private enum InternalStates
         {
             State1
         }
 
         [Fact]
-        public void AccessingIdForHiddenStateShouldThorwIoe()
+        public void AccessingIdForInternalStateShouldThorwIoe()
         {
-            StateId<States, HiddenStates> stateId = HiddenStates.State1;
+            StateId<States, InternalStates> stateId = InternalStates.State1;
 
             var ex = Record.Exception(() => stateId.Id);
 
@@ -27,11 +27,11 @@ namespace WorkflowsCore.Tests
         }
 
         [Fact]
-        public void AccessingHiddenIdForNonHiddenStateShouldThorwIoe()
+        public void AccessingHiddenIdForNonInternalStateShouldThorwIoe()
         {
-            StateId<States, HiddenStates> stateId = States.State1;
+            StateId<States, InternalStates> stateId = States.State1;
 
-            var ex = Record.Exception(() => stateId.HiddenId);
+            var ex = Record.Exception(() => stateId.InternalState);
 
             Assert.IsType<InvalidOperationException>(ex);
         }

@@ -4,69 +4,69 @@ using System.Threading.Tasks;
 
 namespace WorkflowsCore.StateMachines
 {
-    public class StateMachine<TState, THiddenState>
+    public class StateMachine<TState, TInternalState>
     {
-        private readonly IDictionary<TState, State<TState, THiddenState>> _states =
-            new Dictionary<TState, State<TState, THiddenState>>();
+        private readonly IDictionary<TState, State<TState, TInternalState>> _states =
+            new Dictionary<TState, State<TState, TInternalState>>();
 
-        private readonly IDictionary<THiddenState, State<TState, THiddenState>> _hiddenStates =
-            new Dictionary<THiddenState, State<TState, THiddenState>>();
+        private readonly IDictionary<TInternalState, State<TState, TInternalState>> _internalStates =
+            new Dictionary<TInternalState, State<TState, TInternalState>>();
 
-        public IEnumerable<State<TState, THiddenState>> States => _states.Values;
+        public IEnumerable<State<TState, TInternalState>> States => _states.Values;
 
-        public IEnumerable<State<TState, THiddenState>> HiddenStates => _hiddenStates.Values;
+        public IEnumerable<State<TState, TInternalState>> InternalStates => _internalStates.Values;
 
-        public State<TState, THiddenState> ConfigureState(TState state)
+        public State<TState, TInternalState> ConfigureState(TState state)
         {
-            State<TState, THiddenState> stateObj;
+            State<TState, TInternalState> stateObj;
             if (_states.TryGetValue(state, out stateObj))
             {
                 return stateObj;
             }
 
-            stateObj = new State<TState, THiddenState>(this, state);
+            stateObj = new State<TState, TInternalState>(this, state);
             _states.Add(state, stateObj);
             return stateObj;
         }
 
-        public State<TState, THiddenState> ConfigureHiddenState(THiddenState state)
+        public State<TState, TInternalState> ConfigureInternalState(TInternalState state)
         {
-            State<TState, THiddenState> stateObj;
-            if (_hiddenStates.TryGetValue(state, out stateObj))
+            State<TState, TInternalState> stateObj;
+            if (_internalStates.TryGetValue(state, out stateObj))
             {
                 return stateObj;
             }
 
-            stateObj = new State<TState, THiddenState>(this, state);
-            _hiddenStates.Add(state, stateObj);
+            stateObj = new State<TState, TInternalState>(this, state);
+            _internalStates.Add(state, stateObj);
             return stateObj;
         }
 
-        public State<TState, THiddenState> ConfigureState(StateId<TState, THiddenState> state) => 
-            !state.IsHiddenState ? ConfigureState(state.Id) : ConfigureHiddenState(state.HiddenId);
+        public State<TState, TInternalState> ConfigureState(StateId<TState, TInternalState> state) => 
+            !state.IsInternalState ? ConfigureState(state.Id) : ConfigureInternalState(state.InternalState);
 
         public StateMachineInstance Run(
             WorkflowBase workflow,
-            StateId<TState, THiddenState> initialState,
+            StateId<TState, TInternalState> initialState,
             bool isRestoringState,
-            Action<StateTransition<TState, THiddenState>> onStateChangedHandler = null)
+            Action<StateTransition<TState, TInternalState>> onStateChangedHandler = null)
         {
             workflow.EnsureWorkflowTaskScheduler();
             var state = GetState(initialState);
             return new StateMachineInstance(workflow, state, isRestoringState, onStateChangedHandler);
         }
 
-        private State<TState, THiddenState> GetState(StateId<TState, THiddenState> stateId)
+        private State<TState, TInternalState> GetState(StateId<TState, TInternalState> stateId)
         {
-            State<TState, THiddenState> res;
+            State<TState, TInternalState> res;
 
-            if (!stateId.IsHiddenState)
+            if (!stateId.IsInternalState)
             {
                 _states.TryGetValue(stateId.Id, out res);
             }
             else
             {
-                _hiddenStates.TryGetValue(stateId.HiddenId, out res);
+                _internalStates.TryGetValue(stateId.InternalState, out res);
             }
 
             if (res == null)
@@ -79,15 +79,15 @@ namespace WorkflowsCore.StateMachines
 
         public class StateMachineInstance
         {
-            private readonly Action<StateTransition<TState, THiddenState>> _onStateChangedHandler;
+            private readonly Action<StateTransition<TState, TInternalState>> _onStateChangedHandler;
             private readonly Lazy<Task> _taskLazy;
-            private State<TState, THiddenState>.StateInstance _stateInstance;
+            private State<TState, TInternalState>.StateInstance _stateInstance;
 
             internal StateMachineInstance(
                 WorkflowBase workflow,
-                State<TState, THiddenState> state,
+                State<TState, TInternalState> state,
                 bool isRestoringState,
-                Action<StateTransition<TState, THiddenState>> onStateChangedHandler)
+                Action<StateTransition<TState, TInternalState>> onStateChangedHandler)
             {
                 _onStateChangedHandler = onStateChangedHandler;
                 Workflow = workflow;
@@ -111,11 +111,11 @@ namespace WorkflowsCore.StateMachines
                 StateExtensions.SetWorkflowTemporarily(Workflow, () => _stateInstance.IsActionAllowed(action)) ?? false;
 
             // ReSharper disable once FunctionNeverReturns
-            private async Task Run(State<TState, THiddenState> initialState, bool isRestoringState)
+            private async Task Run(State<TState, TInternalState> initialState, bool isRestoringState)
             {
                 var operation = await Workflow.WaitForReadyAndStartOperation();
                 Workflow.ResetOperation();
-                var intialTransition = new StateTransition<TState, THiddenState>(
+                var intialTransition = new StateTransition<TState, TInternalState>(
                     initialState,
                     operation,
                     isRestoringState,

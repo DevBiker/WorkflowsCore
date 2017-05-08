@@ -20,7 +20,7 @@ namespace WorkflowsCore.Tests
             State2
         }
 
-        public enum HiddenStates
+        public enum InternalStates
         {
             None,
             State2Hidden
@@ -69,7 +69,7 @@ namespace WorkflowsCore.Tests
         }
 
         [Fact]
-        public async Task WorkflowShouldSupportTransitionsToInnerHiddenStates()
+        public async Task WorkflowShouldSupportTransitionsToInnerInternalStates()
         {
             StartWorkflow();
 
@@ -77,25 +77,25 @@ namespace WorkflowsCore.Tests
             await Workflow.ReadyTask;
 
             Assert.Equal(States.State2, Workflow.State);
-            Assert.Equal(HiddenStates.State2Hidden, Workflow.HiddenState.Single());
+            Assert.Equal(InternalStates.State2Hidden, Workflow.InternalState.Single());
 
             await CancelWorkflowAsync();
         }
 
         [Fact]
-        public async Task WorkflowShouldProperlyRestoreHiddenState()
+        public async Task WorkflowShouldProperlyRestoreInternalState()
         {
             var loadedData = new Dictionary<string, object>
             {
                 ["StatesHistory"] = new List<States> { States.State1, States.State2 },
-                ["HiddenState"] = new List<HiddenStates> { HiddenStates.State2Hidden }
+                ["InternalState"] = new List<InternalStates> { InternalStates.State2Hidden }
             };
             StartWorkflow(loadedWorkflowData: loadedData);
 
             await Workflow.StartedTask;
 
             Assert.Equal(States.State2, Workflow.State);
-            Assert.Equal(HiddenStates.State2Hidden, Workflow.HiddenState.Single());
+            Assert.Equal(InternalStates.State2Hidden, Workflow.InternalState.Single());
             Assert.True(Workflow.IsLoaded);
             Assert.False(Workflow.WasIn(States.State2));
 
@@ -103,7 +103,7 @@ namespace WorkflowsCore.Tests
             await Workflow.ReadyTask;
 
             Assert.Equal(States.State1, Workflow.State);
-            Assert.False(Workflow.HiddenState.Any());
+            Assert.False(Workflow.InternalState.Any());
 
             await CancelWorkflowAsync();
         }
@@ -122,14 +122,14 @@ namespace WorkflowsCore.Tests
             await WaitUntilWorkflowCompleted();
         }
 
-        public class TestWorkflow : StateMachineWorkflow<States, HiddenStates>
+        public class TestWorkflow : StateMachineWorkflow<States, InternalStates>
         {
             public const string Action1 = nameof(Action1);
             public const string Action2 = nameof(Action2);
 
             public new States State => base.State;
 
-            public new IList<HiddenStates> HiddenState => base.HiddenState;
+            public new IList<InternalStates> InternalState => base.InternalState;
 
             public new bool IsLoaded => base.IsLoaded;
 
@@ -148,13 +148,13 @@ namespace WorkflowsCore.Tests
                 ConfigureState(States.State1)
                     .OnEnter().Do(() => Task.Delay(1))
                     .OnAction(Action1).GoTo(States.State2)
-                    .OnAction(Action2).GoTo(HiddenStates.State2Hidden);
+                    .OnAction(Action2).GoTo(InternalStates.State2Hidden);
 
                 ConfigureState(States.State2)
                     .OnEnter().Do(() => Task.Delay(1))
                     .OnAction(Action1).GoTo(States.State1);
 
-                ConfigureHiddenState(HiddenStates.State2Hidden)
+                ConfigureInternalState(InternalStates.State2Hidden)
                     .OnEnter().Do(() => Task.Delay(1))
                     .SubstateOf(States.State2)
                     .OnAction(Action2).GoTo(States.State1);

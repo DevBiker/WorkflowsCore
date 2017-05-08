@@ -2,32 +2,32 @@
 
 namespace WorkflowsCore.StateMachines
 {
-    public struct StateId<TState, THiddenState>
+    public struct StateId<TState, TInternalState>
     {
         private readonly TState _id;
-        private readonly THiddenState _hiddenId;
+        private readonly TInternalState _internalState;
 
         public StateId(TState state)
         {
-            IsHiddenState = false;
+            IsInternalState = false;
             _id = state;
-            _hiddenId = default(THiddenState);
+            _internalState = default(TInternalState);
         }
 
-        public StateId(THiddenState state)
+        public StateId(TInternalState state)
         {
-            IsHiddenState = true;
+            IsInternalState = true;
             _id = default(TState);
-            _hiddenId = state;
+            _internalState = state;
         }
 
-        public bool IsHiddenState { get; }
+        public bool IsInternalState { get; }
 
         public TState Id
         {
             get
             {
-                if (IsHiddenState)
+                if (IsInternalState)
                 {
                     throw new InvalidOperationException();
                 }
@@ -36,29 +36,29 @@ namespace WorkflowsCore.StateMachines
             }
         }
 
-        public THiddenState HiddenId
+        public TInternalState InternalState
         {
             get
             {
-                if (!IsHiddenState)
+                if (!IsInternalState)
                 {
                     throw new InvalidOperationException();
                 }
 
-                return _hiddenId;
+                return _internalState;
             }
         }
 
-        public static implicit operator StateId<TState, THiddenState>(TState state) => 
-            new StateId<TState, THiddenState>(state);
+        public static implicit operator StateId<TState, TInternalState>(TState state) => 
+            new StateId<TState, TInternalState>(state);
 
-        public static implicit operator StateId<TState, THiddenState>(THiddenState state) =>
-            new StateId<TState, THiddenState>(state);
+        public static implicit operator StateId<TState, TInternalState>(TInternalState state) =>
+            new StateId<TState, TInternalState>(state);
 
-        public static explicit operator TState(StateId<TState, THiddenState> state) => state.Id;
+        public static explicit operator TState(StateId<TState, TInternalState> state) => state.Id;
 
-        public static explicit operator THiddenState(StateId<TState, THiddenState> state) => state.HiddenId;
+        public static explicit operator TInternalState(StateId<TState, TInternalState> state) => state.InternalState;
 
-        public override string ToString() => !IsHiddenState ? $"{Id}" : $"{HiddenId} (hidden)";
+        public override string ToString() => !IsInternalState ? $"{Id}" : $"{InternalState} (hidden)";
     }
 }

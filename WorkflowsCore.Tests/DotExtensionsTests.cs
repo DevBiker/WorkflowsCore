@@ -14,17 +14,17 @@ namespace WorkflowsCore.Tests
             State3
         }
 
-        private enum HiddenStates
+        private enum InternalStates
         {
-            HiddenState1,
-            HiddenState2,
-            HiddenState3
+            InternalState1,
+            InternalState2,
+            InternalState3
         }
 
         [Fact]
         public void ForEmptyStateMachineEmptyGraphShouldBeReturned()
         {
-            var sm = new StateMachine<States, HiddenStates>();
+            var sm = new StateMachine<States, InternalStates>();
 
             var actual = sm.ToDotGraph();
 
@@ -38,13 +38,13 @@ namespace WorkflowsCore.Tests
         [Fact]
         public void IfSimpleStateHasNonNullDescriptionItShouldBeUsedAsLabelForIt()
         {
-            var sm = new StateMachine<States, HiddenStates>();
+            var sm = new StateMachine<States, InternalStates>();
             sm.ConfigureState(States.State2);
 
             sm.ConfigureState(States.State1)
                 .HasDescription("State 1");
 
-            sm.ConfigureHiddenState(HiddenStates.HiddenState1)
+            sm.ConfigureInternalState(InternalStates.InternalState1)
                 .HasDescription(string.Empty);
 
             var actual = sm.ToDotGraph();
@@ -52,7 +52,7 @@ namespace WorkflowsCore.Tests
             var expected = string.Join(
                 Environment.NewLine,
                 "digraph {",
-                "  HiddenState1 [label=\"\"];",
+                "  InternalState1 [label=\"\"];",
                 "  State1 [label=\"State 1\"];",
                 "  State2;",
                 "}");
@@ -62,7 +62,7 @@ namespace WorkflowsCore.Tests
         [Fact]
         public void TransitionsBetweenSimpleStatesShouldBeSupported()
         {
-            var sm = new StateMachine<States, HiddenStates>();
+            var sm = new StateMachine<States, InternalStates>();
             sm.ConfigureState(States.State1)
                 .OnAsync(() => Task.CompletedTask, "On Event 1").GoTo(States.State2);
             sm.ConfigureState(States.State2)
@@ -84,7 +84,7 @@ namespace WorkflowsCore.Tests
         [Fact]
         public void HiddenTransitionsShouldBeIgnored()
         {
-            var sm = new StateMachine<States, HiddenStates>();
+            var sm = new StateMachine<States, InternalStates>();
             sm.ConfigureState(States.State1)
                 .OnAsync(() => Task.CompletedTask, "On Event 1", isHidden: true).GoTo(States.State2);
             sm.ConfigureState(States.State2)
@@ -103,24 +103,24 @@ namespace WorkflowsCore.Tests
         }
 
         [Fact]
-        public void HiddenStatesShouldBeSkipped()
+        public void InternalStatesShouldBeSkipped()
         {
-            var sm = new StateMachine<States, HiddenStates>();
+            var sm = new StateMachine<States, InternalStates>();
             sm.ConfigureState(States.State2)
                 .OnAsync(() => Task.CompletedTask).GoTo(States.State2);
 
-            sm.ConfigureHiddenState(HiddenStates.HiddenState2)
+            sm.ConfigureInternalState(InternalStates.InternalState2)
                 .SubstateOf(States.State2)
                 .Hide();
 
             sm.ConfigureState(States.State1)
                 .Hide();
 
-            sm.ConfigureHiddenState(HiddenStates.HiddenState1)
+            sm.ConfigureInternalState(InternalStates.InternalState1)
                 .Hide();
 
             sm.ConfigureState(States.State3)
-                .SubstateOf(HiddenStates.HiddenState1);
+                .SubstateOf(InternalStates.InternalState1);
 
             var actual = sm.ToDotGraph();
 
@@ -134,22 +134,22 @@ namespace WorkflowsCore.Tests
         }
 
         [Fact]
-        public void HiddenStatesOfCompoundStatesShouldBeSkipped()
+        public void InternalStatesOfCompoundStatesShouldBeSkipped()
         {
-            var sm = new StateMachine<States, HiddenStates>();
+            var sm = new StateMachine<States, InternalStates>();
             sm.ConfigureState(States.State2);
-            sm.ConfigureHiddenState(HiddenStates.HiddenState2)
+            sm.ConfigureInternalState(InternalStates.InternalState2)
                 .SubstateOf(States.State2);
 
             sm.ConfigureState(States.State1)
-                .SubstateOf(HiddenStates.HiddenState2)
+                .SubstateOf(InternalStates.InternalState2)
                 .Hide();
 
-            sm.ConfigureHiddenState(HiddenStates.HiddenState1)
+            sm.ConfigureInternalState(InternalStates.InternalState1)
                 .Hide();
 
             sm.ConfigureState(States.State3)
-                .SubstateOf(HiddenStates.HiddenState1);
+                .SubstateOf(InternalStates.InternalState1);
 
             var actual = sm.ToDotGraph();
 
@@ -158,7 +158,7 @@ namespace WorkflowsCore.Tests
                 "digraph {",
                 "  compound=true;",
                 "  subgraph clusterState2 {",
-                "    HiddenState2;",
+                "    InternalState2;",
                 "  }",
                 "}");
             Assert.Equal(expected, actual);
@@ -167,9 +167,9 @@ namespace WorkflowsCore.Tests
         [Fact]
         public void CompoundStatesShouldBeProperlyDeclared()
         {
-            var sm = new StateMachine<States, HiddenStates>();
+            var sm = new StateMachine<States, InternalStates>();
 
-            sm.ConfigureHiddenState(HiddenStates.HiddenState1)
+            sm.ConfigureInternalState(InternalStates.InternalState1)
                 .SubstateOf(States.State1);
 
             sm.ConfigureState(States.State2)
@@ -178,7 +178,7 @@ namespace WorkflowsCore.Tests
             sm.ConfigureState(States.State3)
                 .SubstateOf(States.State2);
 
-            sm.ConfigureHiddenState(HiddenStates.HiddenState2);
+            sm.ConfigureInternalState(InternalStates.InternalState2);
 
             var actual = sm.ToDotGraph();
 
@@ -186,9 +186,9 @@ namespace WorkflowsCore.Tests
                 Environment.NewLine,
                 "digraph {",
                 "  compound=true;",
-                "  HiddenState2;",
+                "  InternalState2;",
                 "  subgraph clusterState1 {",
-                "    HiddenState1;",
+                "    InternalState1;",
                 "    subgraph clusterState2 {",
                 "      State3;",
                 "    }",
@@ -200,12 +200,12 @@ namespace WorkflowsCore.Tests
         [Fact]
         public void TransitionFromCompoundStateToSimpleStateShouldBeSupported()
         {
-            var sm = new StateMachine<States, HiddenStates>();
+            var sm = new StateMachine<States, InternalStates>();
 
             sm.ConfigureState(States.State1)
                 .OnAsync(() => Task.CompletedTask).GoTo(States.State2);
 
-            sm.ConfigureHiddenState(HiddenStates.HiddenState1)
+            sm.ConfigureInternalState(InternalStates.InternalState1)
                 .SubstateOf(States.State1);
 
             var actual = sm.ToDotGraph();
@@ -216,9 +216,9 @@ namespace WorkflowsCore.Tests
                 "  compound=true;",
                 "  State2;",
                 "  subgraph clusterState1 {",
-                "    HiddenState1;",
+                "    InternalState1;",
                 "  }",
-                "  HiddenState1 -> State2 [ltail=clusterState1];",
+                "  InternalState1 -> State2 [ltail=clusterState1];",
                 "}");
             Assert.Equal(expected, actual);
         }
@@ -226,9 +226,9 @@ namespace WorkflowsCore.Tests
         [Fact]
         public void TransitionFromSimpleStateToCompoundStateShouldBeSupported()
         {
-            var sm = new StateMachine<States, HiddenStates>();
+            var sm = new StateMachine<States, InternalStates>();
 
-            sm.ConfigureHiddenState(HiddenStates.HiddenState1)
+            sm.ConfigureInternalState(InternalStates.InternalState1)
                 .SubstateOf(States.State1);
 
             sm.ConfigureState(States.State2)
@@ -242,9 +242,9 @@ namespace WorkflowsCore.Tests
                 "  compound=true;",
                 "  State2;",
                 "  subgraph clusterState1 {",
-                "    HiddenState1;",
+                "    InternalState1;",
                 "  }",
-                "  State2 -> HiddenState1 [lhead=clusterState1];",
+                "  State2 -> InternalState1 [lhead=clusterState1];",
                 "}");
             Assert.Equal(expected, actual);
         }
@@ -252,12 +252,12 @@ namespace WorkflowsCore.Tests
         [Fact]
         public void SelfTransitionFromCompoundStateShouldBeSupported()
         {
-            var sm = new StateMachine<States, HiddenStates>();
+            var sm = new StateMachine<States, InternalStates>();
 
             sm.ConfigureState(States.State1)
-                .OnAsync(() => Task.CompletedTask).GoTo(HiddenStates.HiddenState1);
+                .OnAsync(() => Task.CompletedTask).GoTo(InternalStates.InternalState1);
 
-            sm.ConfigureHiddenState(HiddenStates.HiddenState1)
+            sm.ConfigureInternalState(InternalStates.InternalState1)
                 .SubstateOf(States.State1);
 
             var actual = sm.ToDotGraph();
@@ -268,10 +268,10 @@ namespace WorkflowsCore.Tests
                 "  compound=true;",
                 "  h1 [style=invis];",
                 "  subgraph clusterState1 {",
-                "    HiddenState1;",
+                "    InternalState1;",
                 "  }",
-                "  HiddenState1 -> h1 [ltail=clusterState1 dir=none headclip=false];",
-                "  h1 -> HiddenState1 [tailclip=false];",
+                "  InternalState1 -> h1 [ltail=clusterState1 dir=none headclip=false];",
+                "  h1 -> InternalState1 [tailclip=false];",
                 "}");
             Assert.Equal(expected, actual);
         }
@@ -279,9 +279,9 @@ namespace WorkflowsCore.Tests
         [Fact]
         public void SelfTransitionFromCompoundStateShouldBeSupported2()
         {
-            var sm = new StateMachine<States, HiddenStates>();
+            var sm = new StateMachine<States, InternalStates>();
 
-            sm.ConfigureHiddenState(HiddenStates.HiddenState1)
+            sm.ConfigureInternalState(InternalStates.InternalState1)
                 .SubstateOf(States.State1)
                 .OnAsync(() => Task.CompletedTask).GoTo(States.State1);
 
@@ -293,10 +293,10 @@ namespace WorkflowsCore.Tests
                 "  compound=true;",
                 "  h1 [style=invis];",
                 "  subgraph clusterState1 {",
-                "    HiddenState1;",
+                "    InternalState1;",
                 "  }",
-                "  HiddenState1 -> h1 [dir=none headclip=false];",
-                "  h1 -> HiddenState1 [lhead=clusterState1 tailclip=false];",
+                "  InternalState1 -> h1 [dir=none headclip=false];",
+                "  h1 -> InternalState1 [lhead=clusterState1 tailclip=false];",
                 "}");
             Assert.Equal(expected, actual);
         }
@@ -304,7 +304,7 @@ namespace WorkflowsCore.Tests
         [Fact]
         public void SimpleConditionalTransitionsShouldBeSupported()
         {
-            var sm = new StateMachine<States, HiddenStates>();
+            var sm = new StateMachine<States, InternalStates>();
             sm.ConfigureState(States.State1)
                 .OnAsync(() => Task.CompletedTask, "On Event 1").If(() => true, "On Condition 1").GoTo(States.State2);
 
@@ -323,7 +323,7 @@ namespace WorkflowsCore.Tests
         [Fact]
         public void ComplexConditionalTransitionsShouldBeSupported()
         {
-            var sm = new StateMachine<States, HiddenStates>();
+            var sm = new StateMachine<States, InternalStates>();
             sm.ConfigureState(States.State1)
                 .OnAsync(() => Task.CompletedTask, "On Event 1")
                 .If(() => true, "On Condition 1")
@@ -345,7 +345,7 @@ namespace WorkflowsCore.Tests
         [Fact]
         public void IfThereAreMultipleTargetStatesFromSingleTransitionTheyShouldBeEnumerated()
         {
-            var sm = new StateMachine<States, HiddenStates>();
+            var sm = new StateMachine<States, InternalStates>();
             sm.ConfigureState(States.State1)
                 .OnAsync(() => Task.CompletedTask, "On Event 1")
                 .IfThenGoTo(() => true, States.State3, "On Condition 1")
@@ -366,13 +366,13 @@ namespace WorkflowsCore.Tests
         }
 
         [Fact]
-        public void TransitionFromInnerHiddenStateShouldBeSupported()
+        public void TransitionFromInnerInternalStateShouldBeSupported()
         {
-            var sm = new StateMachine<States, HiddenStates>();
+            var sm = new StateMachine<States, InternalStates>();
 
             sm.ConfigureState(States.State1);
 
-            sm.ConfigureHiddenState(HiddenStates.HiddenState1)
+            sm.ConfigureInternalState(InternalStates.InternalState1)
                 .SubstateOf(States.State1)
                 .Hide()
                 .OnAsync(() => Task.CompletedTask).GoTo(States.State2);
@@ -380,11 +380,11 @@ namespace WorkflowsCore.Tests
             sm.ConfigureState(States.State3)
                 .SubstateOf(States.State1);
 
-            sm.ConfigureHiddenState(HiddenStates.HiddenState2)
+            sm.ConfigureInternalState(InternalStates.InternalState2)
                 .Hide();
 
-            sm.ConfigureHiddenState(HiddenStates.HiddenState3)
-                .SubstateOf(HiddenStates.HiddenState2)
+            sm.ConfigureInternalState(InternalStates.InternalState3)
+                .SubstateOf(InternalStates.InternalState2)
                 .OnAsync(() => Task.CompletedTask).GoTo(States.State2);
 
             var actual = sm.ToDotGraph();
@@ -403,28 +403,28 @@ namespace WorkflowsCore.Tests
         }
 
         [Fact]
-        public void TransitionToInnerHiddenStateShouldBeSupported()
+        public void TransitionToInnerInternalStateShouldBeSupported()
         {
-            var sm = new StateMachine<States, HiddenStates>();
+            var sm = new StateMachine<States, InternalStates>();
 
             sm.ConfigureState(States.State1);
 
-            sm.ConfigureHiddenState(HiddenStates.HiddenState1)
+            sm.ConfigureInternalState(InternalStates.InternalState1)
                 .SubstateOf(States.State1)
                 .Hide();
 
             sm.ConfigureState(States.State3)
                 .SubstateOf(States.State1);
 
-            sm.ConfigureHiddenState(HiddenStates.HiddenState2)
+            sm.ConfigureInternalState(InternalStates.InternalState2)
                 .Hide();
 
-            sm.ConfigureHiddenState(HiddenStates.HiddenState3)
-                .SubstateOf(HiddenStates.HiddenState2);
+            sm.ConfigureInternalState(InternalStates.InternalState3)
+                .SubstateOf(InternalStates.InternalState2);
 
             sm.ConfigureState(States.State2)
-                .OnAsync(() => Task.CompletedTask).GoTo(HiddenStates.HiddenState1)
-                .OnAsync(() => Task.CompletedTask).GoTo(HiddenStates.HiddenState3);
+                .OnAsync(() => Task.CompletedTask).GoTo(InternalStates.InternalState1)
+                .OnAsync(() => Task.CompletedTask).GoTo(InternalStates.InternalState3);
 
             var actual = sm.ToDotGraph();
 

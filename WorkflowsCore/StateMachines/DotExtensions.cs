@@ -8,35 +8,35 @@ namespace WorkflowsCore.StateMachines
     {
         private const string Indentation = "  ";
 
-        public static string ToDotGraph<TWorkflow, TState, THiddenState>(IDependencyInjectionContainer diContainer)
-            where TWorkflow : StateMachineWorkflow<TState, THiddenState>
+        public static string ToDotGraph<TWorkflow, TState, TInternalState>(IDependencyInjectionContainer diContainer)
+            where TWorkflow : StateMachineWorkflow<TState, TInternalState>
         {
-            var workflow = (StateMachineWorkflow<TState, THiddenState>)diContainer.Resolve(typeof(TWorkflow));
+            var workflow = (StateMachineWorkflow<TState, TInternalState>)diContainer.Resolve(typeof(TWorkflow));
             workflow.OnStatesInit();
             return workflow.StateMachine.ToDotGraph();
         }
 
-        public static string ToDotGraph<TState, THiddenState>(
-            this StateMachineWorkflow<TState, THiddenState> stateMachineWorkflow)
+        public static string ToDotGraph<TState, TInternalState>(
+            this StateMachineWorkflow<TState, TInternalState> stateMachineWorkflow)
         {
             return stateMachineWorkflow.StateMachine.ToDotGraph();
         }
 
-        public static string ToDotGraph<TState, THiddenState>(this StateMachine<TState, THiddenState> stateMachine) => 
+        public static string ToDotGraph<TState, TInternalState>(this StateMachine<TState, TInternalState> stateMachine) =>
             string.Join(Environment.NewLine, ToDotGraphCore(stateMachine));
 
-        private static IEnumerable<string> ToDotGraphCore<TState, THiddenState>(
-            StateMachine<TState, THiddenState> stateMachine)
+        private static IEnumerable<string> ToDotGraphCore<TState, TInternalState>(
+            StateMachine<TState, TInternalState> stateMachine)
         {
             yield return "digraph {";
 
-            var states = stateMachine.States.Concat(stateMachine.HiddenStates).OrderBy(GetDotId).ToList();
+            var states = stateMachine.States.Concat(stateMachine.InternalStates).OrderBy(GetDotId).ToList();
             if (states.Any(s => !s.IsHidden && !IsSimpleState(s)))
             {
                 yield return $"{Indentation}compound=true;";
             }
 
-            var workaroundNodes = new WorkaroundNodes<TState, THiddenState>();
+            var workaroundNodes = new WorkaroundNodes<TState, TInternalState>();
             var transitions = DefineStateTransitions(Indentation, states, workaroundNodes).ToList();
             var simpleRootStates = DeclareSimpleStates(
                 Indentation,
@@ -63,10 +63,10 @@ namespace WorkflowsCore.StateMachines
             yield return "}";
         }
 
-        private static IEnumerable<string> DeclareCompositeState<TState, THiddenState>(
+        private static IEnumerable<string> DeclareCompositeState<TState, TInternalState>(
             string indentation,
-            State<TState, THiddenState> state,
-            WorkaroundNodes<TState, THiddenState> workaroundNodes)
+            State<TState, TInternalState> state,
+            WorkaroundNodes<TState, TInternalState> workaroundNodes)
         {
             yield return $"{indentation}subgraph {GetDotId(state)} {{";
 
@@ -91,9 +91,9 @@ namespace WorkflowsCore.StateMachines
             yield return $"{indentation}}}";
         }
 
-        private static IEnumerable<string> DeclareSimpleStates<TState, THiddenState>(
+        private static IEnumerable<string> DeclareSimpleStates<TState, TInternalState>(
             string indentation,
-            IEnumerable<State<TState, THiddenState>> states,
+            IEnumerable<State<TState, TInternalState>> states,
             IEnumerable<string> workaroundNodes)
         {
             foreach (var line in DeclareSimpleStates(indentation, states))
@@ -107,9 +107,9 @@ namespace WorkflowsCore.StateMachines
             }
         }
 
-        private static IEnumerable<string> DeclareSimpleStates<TState, THiddenState>(
+        private static IEnumerable<string> DeclareSimpleStates<TState, TInternalState>(
             string indentation,
-            IEnumerable<State<TState, THiddenState>> states)
+            IEnumerable<State<TState, TInternalState>> states)
         {
             return
                 from s in states.Where(IsSimpleState)
@@ -167,19 +167,19 @@ namespace WorkflowsCore.StateMachines
             }
         }
 
-        private static string GetDotId<TState, THiddenState>(this State<TState, THiddenState> state)
+        private static string GetDotId<TState, TInternalState>(this State<TState, TInternalState> state)
         {
-            var dotId = !state.StateId.IsHiddenState ? state.StateId.Id.ToString() : state.StateId.HiddenId.ToString();
+            var dotId = !state.StateId.IsInternalState ? state.StateId.Id.ToString() : state.StateId.InternalState.ToString();
             return IsSimpleState(state) ? dotId : $"cluster{dotId}";
         }
 
-        private static bool IsSimpleState<TState, THiddenState>(State<TState, THiddenState> state) => 
+        private static bool IsSimpleState<TState, TInternalState>(State<TState, TInternalState> state) => 
             state.Children.All(c => c.IsHidden);
 
-        private static IEnumerable<string> DefineStateTransitions<TState, THiddenState>(
+        private static IEnumerable<string> DefineStateTransitions<TState, TInternalState>(
             string indentation,
-            IEnumerable<State<TState, THiddenState>> states,
-            WorkaroundNodes<TState, THiddenState> workaroundNodes)
+            IEnumerable<State<TState, TInternalState>> states,
+            WorkaroundNodes<TState, TInternalState> workaroundNodes)
         {
             return
                 from s in states
@@ -191,15 +191,15 @@ namespace WorkflowsCore.StateMachines
                 where v != null
                 let targetStates = h.GetTargetStates(Enumerable.Empty<string>())
                     .Select(
-                        t => new TargetState<TState, THiddenState>(t.Conditions, TryGetVisibleSelfOrParent(t.State)))
+                        t => new TargetState<TState, TInternalState>(t.Conditions, TryGetVisibleSelfOrParent(t.State)))
                     .Where(t => t.State != null)
                     .ToList()
                 where targetStates.Any()
                 select DefineStateTransitions(indentation, v, targetStates, h.Description, workaroundNodes);
         }
 
-        private static State<TState, THiddenState> TryGetVisibleSelfOrParent<TState, THiddenState>(
-            State<TState, THiddenState> state)
+        private static State<TState, TInternalState> TryGetVisibleSelfOrParent<TState, TInternalState>(
+            State<TState, TInternalState> state)
         {
             if (!state.IsHidden)
             {
@@ -217,12 +217,12 @@ namespace WorkflowsCore.StateMachines
             return null;
         }
 
-        private static string DefineStateTransitions<TState, THiddenState>(
+        private static string DefineStateTransitions<TState, TInternalState>(
             string indentation,
-            State<TState, THiddenState> srcState,
-            IList<TargetState<TState, THiddenState>> targetStates,
+            State<TState, TInternalState> srcState,
+            IList<TargetState<TState, TInternalState>> targetStates,
             string description,
-            WorkaroundNodes<TState, THiddenState> workaroundNodes)
+            WorkaroundNodes<TState, TInternalState> workaroundNodes)
         {
             var enumerate = targetStates.Count > 1;
             return string.Join(
@@ -237,20 +237,20 @@ namespace WorkflowsCore.StateMachines
                         workaroundNodes)));
         }
 
-        private static State<TState, THiddenState> GetSimpleChild<TState, THiddenState>(
-            State<TState, THiddenState> state)
+        private static State<TState, TInternalState> GetSimpleChild<TState, TInternalState>(
+            State<TState, TInternalState> state)
         {
             var child = state.Children.First(c => !c.IsHidden);
             return IsSimpleState(child) ? child : GetSimpleChild(child);
         }
 
-        private static string DefineStateTransition<TState, THiddenState>(
+        private static string DefineStateTransition<TState, TInternalState>(
             string indentation,
-            State<TState, THiddenState> srcState,
-            TargetState<TState, THiddenState> targetState,
+            State<TState, TInternalState> srcState,
+            TargetState<TState, TInternalState> targetState,
             string description,
             int? index,
-            WorkaroundNodes<TState, THiddenState> workaroundNodes)
+            WorkaroundNodes<TState, TInternalState> workaroundNodes)
         {
             var isSrcStateSimple = IsSimpleState(srcState);
             var srcDotId = (isSrcStateSimple ? srcState : GetSimpleChild(srcState)).GetDotId();
@@ -285,22 +285,22 @@ namespace WorkflowsCore.StateMachines
                 $"{indentation}{workaroundNode} -> {targetDotId}{properties2};");
         }
 
-        private static State<TState, THiddenState> IsSelfTransitionFromCompoundState<TState, THiddenState>(
-            State<TState, THiddenState> srcState,
-            State<TState, THiddenState> targetState)
+        private static State<TState, TInternalState> IsSelfTransitionFromCompoundState<TState, TInternalState>(
+            State<TState, TInternalState> srcState,
+            State<TState, TInternalState> targetState)
         {
             if (!IsSimpleState(srcState) && srcState == targetState)
             {
                 return srcState;
             }
 
-            var transition = new StateTransition<TState, THiddenState>(targetState);
+            var transition = new StateTransition<TState, TInternalState>(targetState);
             if (transition.FindPathFrom(srcState) != null)
             {
                 return srcState;
             }
 
-            transition = new StateTransition<TState, THiddenState>(srcState);
+            transition = new StateTransition<TState, TInternalState>(srcState);
             if (transition.FindPathFrom(targetState) != null)
             {
                 return targetState;
@@ -309,16 +309,16 @@ namespace WorkflowsCore.StateMachines
             return null;
         }
 
-        private class WorkaroundNodes<TState, THiddenState>
+        private class WorkaroundNodes<TState, TInternalState>
         {
             private readonly IList<string> _rootWorkaroundNodes = new List<string>();
 
-            private readonly IDictionary<State<TState, THiddenState>, IList<string>> _workaroundNodesMap =
-                new Dictionary<State<TState, THiddenState>, IList<string>>();
+            private readonly IDictionary<State<TState, TInternalState>, IList<string>> _workaroundNodesMap =
+                new Dictionary<State<TState, TInternalState>, IList<string>>();
 
             private int _index = 1;
 
-            public string AddWorkaroundNode(State<TState, THiddenState> parent)
+            public string AddWorkaroundNode(State<TState, TInternalState> parent)
             {
                 var node = $"h{_index++}";
                 if (parent == null)
@@ -338,7 +338,7 @@ namespace WorkflowsCore.StateMachines
                 return node;
             }
 
-            public IEnumerable<string> GetWorkaroundNodes(State<TState, THiddenState> parent)
+            public IEnumerable<string> GetWorkaroundNodes(State<TState, TInternalState> parent)
             {
                 if (parent == null)
                 {

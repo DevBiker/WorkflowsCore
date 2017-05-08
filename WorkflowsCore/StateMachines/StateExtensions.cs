@@ -45,8 +45,8 @@ namespace WorkflowsCore.StateMachines
             }
         }
 
-        public static AsyncOperation<TState, THiddenState, DateTime> OnDate<TState, THiddenState>(
-            this State<TState, THiddenState> state,
+        public static AsyncOperation<TState, TInternalState, DateTime> OnDate<TState, TInternalState>(
+            this State<TState, TInternalState> state,
             Func<Task<DateTime>> dateTaskFactory,
             string description = null,
             Func<WorkflowBase, Task<bool>> bypassDatesFunc = null, 
@@ -65,8 +65,8 @@ namespace WorkflowsCore.StateMachines
                 isHidden: isHidden);
         }
 
-        public static AsyncOperation<TState, THiddenState, DateTime> OnDate<TState, THiddenState>(
-            this State<TState, THiddenState> state,
+        public static AsyncOperation<TState, TInternalState, DateTime> OnDate<TState, TInternalState>(
+            this State<TState, TInternalState> state,
             Func<DateTime> dateFactory,
             string description = null,
             Func<WorkflowBase, Task<bool>> bypassDatesFunc = null, 
@@ -75,8 +75,8 @@ namespace WorkflowsCore.StateMachines
             return state.OnDate(() => Task.FromResult(dateFactory()), description, bypassDatesFunc, isHidden);
         }
 
-        public static AsyncOperation<TState, THiddenState, NamedValues> OnAction<TState, THiddenState>(
-            this State<TState, THiddenState> state,
+        public static AsyncOperation<TState, TInternalState, NamedValues> OnAction<TState, TInternalState>(
+            this State<TState, TInternalState> state,
             string action,
             string description = null,
             bool isHidden = false)
@@ -100,8 +100,8 @@ namespace WorkflowsCore.StateMachines
                     isHidden);
         }
 
-        public static AsyncOperation<TState, THiddenState, NamedValues> OnActions<TState, THiddenState>(
-            this State<TState, THiddenState> state,
+        public static AsyncOperation<TState, TInternalState, NamedValues> OnActions<TState, TInternalState>(
+            this State<TState, TInternalState> state,
             string description, 
             bool isHidden,
             params string[] actions)
@@ -133,8 +133,8 @@ namespace WorkflowsCore.StateMachines
                     isHidden);
         }
 
-        public static AsyncOperation<TState, THiddenState> OnActionWithWasExecutedCheck<TState, THiddenState>(
-            this State<TState, THiddenState> state,
+        public static AsyncOperation<TState, TInternalState> OnActionWithWasExecutedCheck<TState, TInternalState>(
+            this State<TState, TInternalState> state,
             string action,
             string description = null, 
             bool isHidden = false)

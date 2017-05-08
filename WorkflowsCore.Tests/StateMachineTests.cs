@@ -29,10 +29,10 @@ namespace WorkflowsCore.Tests
         }
 
         [Fact]
-        public void ConfigureHiddenStateShouldCreateHiddenStateIfItDoesNotExist()
+        public void ConfigureInternalStateShouldCreateInternalStateIfItDoesNotExist()
         {
-            var state = _stateMachine.ConfigureHiddenState("Hidden State 1");
-            var state2 = _stateMachine.ConfigureHiddenState("Hidden State 1");
+            var state = _stateMachine.ConfigureInternalState("Internal State 1");
+            var state2 = _stateMachine.ConfigureInternalState("Internal State 1");
 
             Assert.NotNull(state);
             Assert.Same(state, state2);
