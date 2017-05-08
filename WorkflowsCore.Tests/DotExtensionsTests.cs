@@ -17,7 +17,8 @@ namespace WorkflowsCore.Tests
         private enum HiddenStates
         {
             HiddenState1,
-            HiddenState2
+            HiddenState2,
+            HiddenState3
         }
 
         [Fact]
@@ -97,6 +98,68 @@ namespace WorkflowsCore.Tests
                 "  State1;",
                 "  State2;",
                 "  State2 -> State2;",
+                "}");
+            Assert.Equal(expected, actual);
+        }
+
+        [Fact]
+        public void HiddenStatesShouldBeSkipped()
+        {
+            var sm = new StateMachine<States, HiddenStates>();
+            sm.ConfigureState(States.State2)
+                .OnAsync(() => Task.CompletedTask).GoTo(States.State2);
+
+            sm.ConfigureHiddenState(HiddenStates.HiddenState2)
+                .SubstateOf(States.State2)
+                .Hide();
+
+            sm.ConfigureState(States.State1)
+                .Hide();
+
+            sm.ConfigureHiddenState(HiddenStates.HiddenState1)
+                .Hide();
+
+            sm.ConfigureState(States.State3)
+                .SubstateOf(HiddenStates.HiddenState1);
+
+            var actual = sm.ToDotGraph();
+
+            var expected = string.Join(
+                Environment.NewLine,
+                "digraph {",
+                "  State2;",
+                "  State2 -> State2;",
+                "}");
+            Assert.Equal(expected, actual);
+        }
+
+        [Fact]
+        public void HiddenStatesOfCompoundStatesShouldBeSkipped()
+        {
+            var sm = new StateMachine<States, HiddenStates>();
+            sm.ConfigureState(States.State2);
+            sm.ConfigureHiddenState(HiddenStates.HiddenState2)
+                .SubstateOf(States.State2);
+
+            sm.ConfigureState(States.State1)
+                .SubstateOf(HiddenStates.HiddenState2)
+                .Hide();
+
+            sm.ConfigureHiddenState(HiddenStates.HiddenState1)
+                .Hide();
+
+            sm.ConfigureState(States.State3)
+                .SubstateOf(HiddenStates.HiddenState1);
+
+            var actual = sm.ToDotGraph();
+
+            var expected = string.Join(
+                Environment.NewLine,
+                "digraph {",
+                "  compound=true;",
+                "  subgraph clusterState2 {",
+                "    HiddenState2;",
+                "  }",
                 "}");
             Assert.Equal(expected, actual);
         }
@@ -298,6 +361,82 @@ namespace WorkflowsCore.Tests
                 "  State3;",
                 "  State1 -> State3 [label=\"1: On Event 1 [On Condition 1]\"];",
                 "  State1 -> State2 [label=\"2: On Event 1\"];",
+                "}");
+            Assert.Equal(expected, actual);
+        }
+
+        [Fact]
+        public void TransitionFromInnerHiddenStateShouldBeSupported()
+        {
+            var sm = new StateMachine<States, HiddenStates>();
+
+            sm.ConfigureState(States.State1);
+
+            sm.ConfigureHiddenState(HiddenStates.HiddenState1)
+                .SubstateOf(States.State1)
+                .Hide()
+                .OnAsync(() => Task.CompletedTask).GoTo(States.State2);
+
+            sm.ConfigureState(States.State3)
+                .SubstateOf(States.State1);
+
+            sm.ConfigureHiddenState(HiddenStates.HiddenState2)
+                .Hide();
+
+            sm.ConfigureHiddenState(HiddenStates.HiddenState3)
+                .SubstateOf(HiddenStates.HiddenState2)
+                .OnAsync(() => Task.CompletedTask).GoTo(States.State2);
+
+            var actual = sm.ToDotGraph();
+
+            var expected = string.Join(
+                Environment.NewLine,
+                "digraph {",
+                "  compound=true;",
+                "  State2;",
+                "  subgraph clusterState1 {",
+                "    State3;",
+                "  }",
+                "  State3 -> State2 [ltail=clusterState1];",
+                "}");
+            Assert.Equal(expected, actual);
+        }
+
+        [Fact]
+        public void TransitionToInnerHiddenStateShouldBeSupported()
+        {
+            var sm = new StateMachine<States, HiddenStates>();
+
+            sm.ConfigureState(States.State1);
+
+            sm.ConfigureHiddenState(HiddenStates.HiddenState1)
+                .SubstateOf(States.State1)
+                .Hide();
+
+            sm.ConfigureState(States.State3)
+                .SubstateOf(States.State1);
+
+            sm.ConfigureHiddenState(HiddenStates.HiddenState2)
+                .Hide();
+
+            sm.ConfigureHiddenState(HiddenStates.HiddenState3)
+                .SubstateOf(HiddenStates.HiddenState2);
+
+            sm.ConfigureState(States.State2)
+                .OnAsync(() => Task.CompletedTask).GoTo(HiddenStates.HiddenState1)
+                .OnAsync(() => Task.CompletedTask).GoTo(HiddenStates.HiddenState3);
+
+            var actual = sm.ToDotGraph();
+
+            var expected = string.Join(
+                Environment.NewLine,
+                "digraph {",
+                "  compound=true;",
+                "  State2;",
+                "  subgraph clusterState1 {",
+                "    State3;",
+                "  }",
+                "  State2 -> State3 [lhead=clusterState1];",
                 "}");
             Assert.Equal(expected, actual);
         }

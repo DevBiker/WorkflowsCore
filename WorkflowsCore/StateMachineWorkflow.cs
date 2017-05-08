@@ -35,10 +35,11 @@ namespace WorkflowsCore
 
         protected internal override bool IsActionAllowed(string action) => _instance?.IsActionAllowed(action) ?? false;
 
-        protected State<TState, THiddenState> ConfigureState(TState state) => StateMachine.ConfigureState(state);
+        protected State<TState, THiddenState> ConfigureState(TState state, bool isHidden = false) => 
+            StateMachine.ConfigureState(state).Hide(isHidden);
 
-        protected State<TState, THiddenState> ConfigureHiddenState(THiddenState state) => 
-            StateMachine.ConfigureState(state);
+        protected State<TState, THiddenState> ConfigureHiddenState(THiddenState state, bool isHidden = false) => 
+            StateMachine.ConfigureState(state).Hide(isHidden);
 
         protected void SetInitialState(StateId<TState, THiddenState> state) => _initialState = state;
 

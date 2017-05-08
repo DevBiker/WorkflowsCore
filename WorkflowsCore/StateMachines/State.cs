@@ -26,6 +26,7 @@ namespace WorkflowsCore.StateMachines
 
         private readonly List<string> _allowedActions = new List<string>();
         private readonly List<string> _disallowedActions = new List<string>();
+        private bool? _isHidden;
 
         internal State(StateMachine<TState, THiddenState> stateMachine, StateId<TState, THiddenState> stateId)
         {
@@ -47,6 +48,8 @@ namespace WorkflowsCore.StateMachines
 
         public StateId<TState, THiddenState> StateId { get; }
 
+        public bool IsHidden => _isHidden ?? Parent?.IsHidden ?? false;
+
         public State<TState, THiddenState> Parent { get; private set; }
 
         public IReadOnlyCollection<State<TState, THiddenState>> Children { get; }
@@ -63,14 +66,14 @@ namespace WorkflowsCore.StateMachines
 
         public AsyncOperation<TState, THiddenState> OnEnter(string description = null, bool isHidden = false)
         {
-            var asyncOperation = new AsyncOperation<TState, THiddenState>(this, description ?? "On Enter");
+            var asyncOperation = new AsyncOperation<TState, THiddenState>(this, description ?? "On Enter", isHidden);
             _enterHandlers.Add(asyncOperation);
             return asyncOperation;
         }
 
         public AsyncOperation<TState, THiddenState> OnActivate(string description = null, bool isHidden = false)
         {
-            var asyncOperation = new AsyncOperation<TState, THiddenState>(this, description ?? "On Activate");
+            var asyncOperation = new AsyncOperation<TState, THiddenState>(this, description ?? "On Activate", isHidden);
             _activationHandlers.Add(asyncOperation);
             return asyncOperation;
         }
@@ -99,7 +102,7 @@ namespace WorkflowsCore.StateMachines
 
         public AsyncOperation<TState, THiddenState> OnExit(string description = null, bool isHidden = false)
         {
-            var asyncOperation = new AsyncOperation<TState, THiddenState>(this, description ?? "On Exit");
+            var asyncOperation = new AsyncOperation<TState, THiddenState>(this, description ?? "On Exit", isHidden);
             _exitHandlers.Add(asyncOperation);
             return asyncOperation;
         }
@@ -122,6 +125,12 @@ namespace WorkflowsCore.StateMachines
         public State<TState, THiddenState> DisallowActions(params string[] actions)
         {
             _disallowedActions.AddRange(actions.Except(_disallowedActions)); // TODO: Check action configured
+            return this;
+        }
+
+        public State<TState, THiddenState> Hide(bool isHidden = true)
+        {
+            _isHidden = isHidden ? true : (bool?)null;
             return this;
         }
 
