@@ -355,6 +355,7 @@ namespace WorkflowsCore.StateMachines
 
             private Task ProcessOnAsyncs()
             {
+                Workflow.ResetOperation();
                 var onAsyncs = State._onAsyncHandlers
                     .Select(h => (Func<Task>)(() => ((IAsyncOperationWrapper)h).WaitAndHandle(this))).ToArray();
                 return onAsyncs.Any() ? Workflow.WaitForAny(onAsyncs) : System.Threading.Tasks.Task.CompletedTask;

@@ -206,6 +206,10 @@ namespace WorkflowsCore.Tests
                 .OnAsync(
                     async () =>
                     {
+                        Workflow.CreateOperation();
+                        var operation = Workflow.TryStartOperation();
+                        Assert.Null(operation); // OnAsyncs() should not import current workflow operation
+
                         await Workflow.WaitForDate(date);
                         return date;
                     })
@@ -225,7 +229,8 @@ namespace WorkflowsCore.Tests
 
             TestingTimeProvider.Current.SetCurrentTime(date);
 
-            await tcs.Task;
+            var task = await Task.WhenAny(tcs.Task, instance.Task);
+            await task;
 
             tcs = new TaskCompletionSource<bool>();
 
@@ -649,22 +654,14 @@ namespace WorkflowsCore.Tests
 
         private State<States, string> CreateState(States state) => _baseStateTest.CreateState(state);
 
-        private StateTransition<States, string> CreateTransition(State<States, string> state, bool isRestoring)
+        private State<States, string>.StateInstance RunState(
+            State<States, string> targetState,
+            bool isRestoring = false)
         {
-            try
-            {
-                Workflow.CreateOperation();
-                return new StateTransition<States, string>(state, Workflow.TryStartOperation(), isRestoring);
-            }
-            finally
-            {
-                Workflow.ResetOperation();
-            }
-        }
+            Workflow.CreateOperation();
 
-        private State<States, string>.StateInstance RunState(State<States, string> targetState, bool isRestoring = false)
-        {
-            var instance = _state.Run(CreateTransition(targetState, isRestoring));
+            var instance =
+                _state.Run(new StateTransition<States, string>(targetState, Workflow.TryStartOperation(), isRestoring));
             var task = SetWorkflowTemporarily(Workflow, () => instance.Task); // This will actually execute state
             Assert.NotNull(task);
             return instance;
