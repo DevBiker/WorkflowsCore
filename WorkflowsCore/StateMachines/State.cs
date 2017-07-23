@@ -295,6 +295,7 @@ namespace WorkflowsCore.StateMachines
                     () => Workflow.Optional(ProcessOnAsyncs()),
                     async () => transition = await HandleStateTransitions(transition, initialChildrenStates));
 
+                Workflow.ImportOperation(transition.WorkflowOperation);
                 foreach (var enterHandler in State._exitHandlers)
                 {
                     var newState = await enterHandler.ExecuteAsync();
@@ -313,6 +314,7 @@ namespace WorkflowsCore.StateMachines
             {
                 do
                 {
+                    Workflow.ImportOperation(transition.WorkflowOperation);
                     var isFromInner = false;
                     if (initialChildrenStates.Any())
                     {

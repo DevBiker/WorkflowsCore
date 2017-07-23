@@ -103,7 +103,7 @@ namespace WorkflowsCore.Tests
         }
 
         [Fact]
-        public void InternalStatesShouldBeSkipped()
+        public void HiddenStatesShouldBeSkipped()
         {
             var sm = new StateMachine<States, InternalStates>();
             sm.ConfigureState(States.State2)
@@ -134,7 +134,7 @@ namespace WorkflowsCore.Tests
         }
 
         [Fact]
-        public void InternalStatesOfCompoundStatesShouldBeSkipped()
+        public void HiddenStatesOfCompoundStatesShouldBeSkipped()
         {
             var sm = new StateMachine<States, InternalStates>();
             sm.ConfigureState(States.State2);
@@ -366,7 +366,7 @@ namespace WorkflowsCore.Tests
         }
 
         [Fact]
-        public void TransitionFromInnerInternalStateShouldBeSupported()
+        public void TransitionFromInnerHiddenStateShouldBeSupported()
         {
             var sm = new StateMachine<States, InternalStates>();
 
@@ -403,7 +403,7 @@ namespace WorkflowsCore.Tests
         }
 
         [Fact]
-        public void TransitionToInnerInternalStateShouldBeSupported()
+        public void TransitionToInnerHiddenStateShouldBeSupported()
         {
             var sm = new StateMachine<States, InternalStates>();
 

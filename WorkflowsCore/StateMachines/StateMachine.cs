@@ -114,7 +114,6 @@ namespace WorkflowsCore.StateMachines
             private async Task Run(State<TState, TInternalState> initialState, bool isRestoringState)
             {
                 var operation = await Workflow.WaitForReadyAndStartOperation();
-                Workflow.ResetOperation();
                 var intialTransition = new StateTransition<TState, TInternalState>(
                     initialState,
                     operation,
@@ -126,6 +125,7 @@ namespace WorkflowsCore.StateMachines
                 {
                     var transition = await StateExtensions.SetWorkflowTemporarily(Workflow, () => _stateInstance.Task);
                     _stateInstance = transition.PerformTransition();
+                    Workflow.ImportOperation(transition.WorkflowOperation);
                 }
             }
         }

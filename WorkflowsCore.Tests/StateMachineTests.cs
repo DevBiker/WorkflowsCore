@@ -39,9 +39,17 @@ namespace WorkflowsCore.Tests
         }
 
         [Fact]
-        public async Task RunShouldStartInitialState()
+        public async Task RunShouldStartInitialStateAndImportWorkflowOperation()
         {
-            _stateMachine.ConfigureState(States.State1);
+            _stateMachine.ConfigureState(States.State1)
+                .OnEnter().Do(
+                    () =>
+                    {
+                        Workflow.CreateOperation();
+                        var operation = Workflow.TryStartOperation();
+                        Assert.NotNull(operation);
+                        operation.Dispose();
+                    });
             var state = _stateMachine.ConfigureState(States.State1Child1).SubstateOf(States.State1);
 
             Workflow = new TestWorkflow();
@@ -56,7 +64,8 @@ namespace WorkflowsCore.Tests
                     return i;
                 });
             
-            await tcsCurState.Task;
+            var task = await Task.WhenAny(tcsCurState.Task, instance.Task);
+            await task;
 
             Assert.Same(state, tcsCurState.Task.Result);
 
@@ -68,11 +77,20 @@ namespace WorkflowsCore.Tests
             Assert.IsType<TaskCanceledException>(ex);
         }
 
+        // NOTE: Import of current workflow operation is needed in order to be able to execute actions from OnEnter() handlers, for actions that may have OnAction() handlers in parent states
         [Fact]
-        public async Task RunShouldHandleSubsequentTransitions()
+        public async Task RunShouldHandleSubsequentTransitionsAndImportCurrentWorkflowOperation()
         {
             var date = DateTime.Now.AddDays(3);
-            var state2 = _stateMachine.ConfigureState(States.State2);
+            var state2 = _stateMachine.ConfigureState(States.State2)
+                .OnEnter().Do(
+                    () =>
+                    {
+                        Workflow.CreateOperation();
+                        var operation = Workflow.TryStartOperation();
+                        Assert.NotNull(operation);
+                        operation.Dispose();
+                    });
             _stateMachine.ConfigureState(States.State1)
                 .OnAsync(() => Workflow.WaitForDate(date)).GoTo(States.State2);
 
@@ -104,7 +122,8 @@ namespace WorkflowsCore.Tests
 
             TestingTimeProvider.Current.SetCurrentTime(date);
 
-            await tcsCurState.Task;
+            var task = await Task.WhenAny(tcsCurState.Task, instance.Task);
+            await task;
 
             Assert.Same(state2, tcsCurState.Task.Result);
 
@@ -142,6 +161,10 @@ namespace WorkflowsCore.Tests
 
         public class TestWorkflow : WorkflowBase
         {
+            public void CreateOperation() => base.CreateOperation();
+
+            public new IDisposable TryStartOperation() => base.TryStartOperation();
+
             protected override Task RunAsync() => Task.Delay(Timeout.Infinite, Utilities.CurrentCancellationToken);
         }
     }

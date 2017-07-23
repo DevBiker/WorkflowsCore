@@ -134,6 +134,33 @@ namespace WorkflowsCore.Tests
         }
 
         [Fact]
+        public async Task WhenStateIsExitedWorkflowOperationShouldBeImported()
+        {
+            StartWorkflow();
+            await Workflow.ReadyTask;
+
+            _state
+                .OnExit().Do(
+                    () =>
+                    {
+                        Workflow.CreateOperation();
+                        var operation = Workflow.TryStartOperation();
+                        Assert.NotNull(operation);
+                        operation.Dispose();
+                    });
+
+            var instance = RunState(_state);
+
+            var state2 = CreateState(States.State2);
+
+            SetWorkflowTemporarily(Workflow, () => instance.InitiateTransitionTo(state2));
+
+            await instance.Task;
+
+            await CancelWorkflowAsync();
+        }
+
+        [Fact]
         public async Task WhenCompoundStateIsExitedOnExitHandlersShouldBeCalledStartingFromLeafToRoot()
         {
             StartWorkflow();
@@ -258,6 +285,40 @@ namespace WorkflowsCore.Tests
 
             Assert.Same(childState, instance.Child.State);
             Assert.Equal(0, counter);
+
+            SetWorkflowTemporarily(Workflow, () => instance.InitiateTransitionTo(CreateState(States.State2)));
+
+            await instance.Task;
+
+            await CancelWorkflowAsync();
+        }
+
+        // NOTE: This is needed in order to be able to execute actions from OnEnter() handlers, for actions that may have OnAction() handlers in parent states
+        [Fact]
+        public async Task TransitionToInnerStateShouldImportCurrentWorkflowOperation()
+        {
+            StartWorkflow();
+            await Workflow.StartedTask;
+
+            var childState = CreateState(States.State1Child1)
+                .SubstateOf(_state)
+                .OnEnter().Do(
+                    () =>
+                    {
+                        Workflow.CreateOperation();
+                        var operation = Workflow.TryStartOperation();
+                        Assert.NotNull(operation);
+                        operation.Dispose();
+                    });
+
+            var instance = RunState(_state);
+
+            await Workflow.ReadyTask;
+
+            SetWorkflowTemporarily(Workflow, () => instance.InitiateTransitionTo(childState));
+
+            var task = await Task.WhenAny(Workflow.ReadyTask, instance.Task);
+            await task;
 
             SetWorkflowTemporarily(Workflow, () => instance.InitiateTransitionTo(CreateState(States.State2)));
 
@@ -617,10 +678,7 @@ namespace WorkflowsCore.Tests
 
             public new void ResetOperation() => base.ResetOperation();
 
-            protected override void OnActionsInit()
-            {
-                ConfigureAction("Action", synonym: "Action 1");
-            }
+            protected override void OnActionsInit() => ConfigureAction("Action", synonym: "Action 1");
 
             protected override Task RunAsync() => Task.Delay(Timeout.Infinite, Utilities.CurrentCancellationToken);
         }

@@ -48,6 +48,8 @@ namespace WorkflowsCore.StateMachines
 
         public Action<StateTransition<TState, TInternalState>> OnStateChangedHandler { get; }
 
+        internal IDisposable WorkflowOperation => _workflowOperation;
+
         public void CompleteTransition(State<TState, TInternalState>.StateInstance stateInstance)
         {
             StateInstance = stateInstance;
