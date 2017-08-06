@@ -95,7 +95,7 @@ namespace WorkflowsCore
 
         private void UpdateFullStatesHistory(TState state, bool isStateRestored)
         {
-            FullStatesHistory.Add(Tuple.Create(state, TimeProvider.Now, isStateRestored));
+            FullStatesHistory.Add(Tuple.Create(state, SystemClock.Now, isStateRestored));
             while (FullStatesHistory.Count > _fullStatesHistoryLimit)
             {
                 FullStatesHistory.RemoveAt(0);

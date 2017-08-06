@@ -94,7 +94,7 @@ namespace WorkflowsCore.Tests
             _stateMachine.ConfigureState(States.State1)
                 .OnAsync(() => Workflow.WaitForDate(date)).GoTo(States.State2);
 
-            Utilities.TimeProvider = new TestingTimeProvider();
+            Utilities.SystemClock = new TestingSystemClock();
             Workflow = new TestWorkflow();
             StartWorkflow();
 
@@ -120,7 +120,7 @@ namespace WorkflowsCore.Tests
 
             await Workflow.ReadyTask;
 
-            TestingTimeProvider.Current.SetCurrentTime(date);
+            TestingSystemClock.Current.SetCurrentTime(date);
 
             var task = await Task.WhenAny(tcsCurState.Task, instance.Task);
             await task;

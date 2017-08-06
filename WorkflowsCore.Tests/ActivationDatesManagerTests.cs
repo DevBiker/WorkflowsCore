@@ -13,6 +13,9 @@ namespace WorkflowsCore.Tests
         {
             _manager.AddActivationDate(CancellationToken.None, DateTime.MaxValue);
             Assert.Null(_manager.NextActivationDate);
+
+            _manager.AddActivationDate(CancellationToken.None, DateTimeOffset.MaxValue);
+            Assert.Null(_manager.NextActivationDate);
         }
 
         [Fact]

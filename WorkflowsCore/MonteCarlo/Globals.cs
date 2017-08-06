@@ -29,6 +29,6 @@ namespace WorkflowsCore.MonteCarlo
             internal set { AsynEventId.Value = value; }
         }
 
-        public static ITimeProvider TimeProvider => Utilities.TimeProvider;
+        public static ISystemClock SystemClock => Utilities.SystemClock;
     }
 }

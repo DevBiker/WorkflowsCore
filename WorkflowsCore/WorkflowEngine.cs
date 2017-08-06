@@ -174,7 +174,7 @@ namespace WorkflowsCore
 
                 var workflowInstances = _workflowRepoFactory()
                     .GetActiveWorkflows(
-                        Utilities.TimeProvider.Now.AddHours(preloadHours),
+                        Utilities.SystemClock.Now.AddHours(preloadHours),
                         RunningWorkflows.Where(w => w.Id != null).Select(w => w.Id));
 
                 foreach (var i in workflowInstances)
@@ -205,7 +205,7 @@ namespace WorkflowsCore
             {
                 while (true)
                 {
-                    await this.WaitForDate(Utilities.TimeProvider.Now.AddHours(PreloadHours).AddMinutes(-30));
+                    await this.WaitForDate(Utilities.SystemClock.Now.AddHours(PreloadHours).AddMinutes(-30));
                     WorkflowEngine.PreloadWorkflows(false, PreloadHours);
                 }
             }

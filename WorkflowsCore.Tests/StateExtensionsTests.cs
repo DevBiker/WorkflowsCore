@@ -25,7 +25,7 @@ namespace WorkflowsCore.Tests
             var tcs = new TaskCompletionSource<DateTime>();
             var state = _stateMachine.ConfigureState(States.State1).OnDate(() => date).Do(d => tcs.SetResult(d));
 
-            Utilities.TimeProvider = new TestingTimeProvider();
+            Utilities.SystemClock = new TestingSystemClock();
 
             Workflow = new TestWorkflow();
             StartWorkflow();
@@ -34,7 +34,7 @@ namespace WorkflowsCore.Tests
                 () => tcs.Task,
                 () => Workflow.DoWorkflowTaskAsync(w => _stateMachine.Run(w, state.StateId, false).Task));
 
-            TestingTimeProvider.Current.SetCurrentTime(date);
+            TestingSystemClock.Current.SetCurrentTime(date);
 
             await t;
 

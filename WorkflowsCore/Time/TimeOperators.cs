@@ -8,7 +8,7 @@ namespace WorkflowsCore.Time
     {
         public static async Task WaitForDate(
             this WorkflowBase workflow,
-            DateTime date,
+            DateTimeOffset date,
             Func<WorkflowBase, Task<bool>> bypassDatesFunc = null)
         {
             var token = Utilities.CurrentCancellationToken;
@@ -19,7 +19,7 @@ namespace WorkflowsCore.Time
                 await tcs.Task;
             }
 
-            if (date == DateTime.MaxValue)
+            if (date == DateTimeOffset.MaxValue)
             {
                 await Task.Delay(Timeout.Infinite, token);
                 return;
@@ -30,7 +30,7 @@ namespace WorkflowsCore.Time
                 () => workflow.RunViaWorkflowTaskScheduler(w => w.OnCancellationTokenCanceled(token), forceExecution: true),
                 false);
 
-            var now = Utilities.TimeProvider.Now;
+            var now = Utilities.SystemClock.UtcNow;
             var diff = date - now;
             if (diff.TotalMilliseconds <= 0)
             {
@@ -43,10 +43,10 @@ namespace WorkflowsCore.Time
                 return;
             }
 
-            var testingTimeProvider = Utilities.TimeProvider as ITestingTimeProvider;
-            if (testingTimeProvider != null)
+            var testingSystemClock = Utilities.SystemClock as ITestingSystemClock;
+            if (testingSystemClock != null)
             {
-                await WaitForDateWithTestingTimeProvider(workflow, testingTimeProvider, date);
+                await WaitForDateWithTestingSystemClock(workflow, testingSystemClock, date);
                 return;
             }
 
@@ -59,7 +59,7 @@ namespace WorkflowsCore.Time
                 }
 
                 await Task.Delay(diff, token);
-                now = Utilities.TimeProvider.Now;
+                now = Utilities.SystemClock.UtcNow;
                 diff = date - now;
             }
             while (diff.TotalMilliseconds > 0);
@@ -72,19 +72,19 @@ namespace WorkflowsCore.Time
             }
         }
 
-        private static Task WaitForDateWithTestingTimeProvider(
+        private static Task WaitForDateWithTestingSystemClock(
             WorkflowBase workflow,
-            ITestingTimeProvider testingTimeProvider,
-            DateTime date)
+            ITestingSystemClock testingSystemClock,
+            DateTimeOffset date)
         {
             var tcs = new TaskCompletionSource<bool>();
-            EventHandler<DateTime> handler = null;
+            EventHandler<DateTimeOffset> handler = null;
             var cancellationToken = Utilities.CurrentCancellationToken;
             var registration = cancellationToken.Register(
                 () =>
                 {
                     // ReSharper disable once AccessToModifiedClosure
-                    testingTimeProvider.TimeAdjusted -= handler;
+                    testingSystemClock.TimeAdjusted -= handler;
                     tcs.TrySetCanceled();
                 },
                 false);
@@ -101,7 +101,7 @@ namespace WorkflowsCore.Time
                     if (time >= date)
                     {
                         // ReSharper disable once AccessToModifiedClosure
-                        testingTimeProvider.TimeAdjusted -= handler;
+                        testingSystemClock.TimeAdjusted -= handler;
                         if (tcs.TrySetResult(true))
                         {
                             registration.Dispose();
@@ -110,8 +110,8 @@ namespace WorkflowsCore.Time
                 },
                 forceExecution: true).Wait();
 
-            testingTimeProvider.TimeAdjusted += handler;
-            handler(null, testingTimeProvider.Now);
+            testingSystemClock.TimeAdjusted += handler;
+            handler(null, testingSystemClock.UtcNow);
             return tcs.Task;
         }
     }

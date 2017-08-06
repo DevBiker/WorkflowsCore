@@ -341,7 +341,7 @@ namespace WorkflowsCore.MonteCarlo
             Func<TWorkflowType, IEventsAvailabilityAwaiter> getEventsAvailabilityAwaiter)
         {
             Globals.EventMonitor = new EventMonitor();
-            Utilities.TimeProvider = new TestingTimeProvider();
+            Utilities.SystemClock = new TestingSystemClock();
             Globals.EventId = Interlocked.Increment(ref _currentEventId);
             beforeSimulationCallback?.Invoke();
             try
@@ -393,7 +393,7 @@ namespace WorkflowsCore.MonteCarlo
                 Globals.EventMonitor.SimulationCompleted();
                 afterSimulationCallback?.Invoke();
                 Globals.EventMonitor = null;
-                Utilities.TimeProvider = null;
+                Utilities.SystemClock = null;
             }
         }
 
@@ -523,10 +523,10 @@ namespace WorkflowsCore.MonteCarlo
             public async Task<TWorkflowType> DoEvent(TWorkflowType workflow, bool isApplicationRestart)
             {
                 var newTimeEvent = await _getNewTimeEventFunc(workflow, isApplicationRestart);
-                TestingTimeProvider.Current.SetCurrentTime(newTimeEvent.NewTime);
+                TestingSystemClock.Current.SetCurrentTime(newTimeEvent.NewTime);
                 Globals.EventMonitor.LogEvent(
                     "World clock is advanced",
-                    Globals.TimeProvider.Now.ToString(Globals.DefaultDateTimeFormat));
+                    Globals.SystemClock.Now.ToString(Globals.DefaultDateTimeFormat));
                 await newTimeEvent.TimeChangeProcessed;
                 return workflow;
             }

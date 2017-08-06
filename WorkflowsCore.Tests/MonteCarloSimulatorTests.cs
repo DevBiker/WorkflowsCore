@@ -39,7 +39,7 @@ namespace WorkflowsCore.Tests
                 (w, _) =>
                 {
                     Interlocked.Increment(ref numberOfClockEvents);
-                    return Task.FromResult(new WorldClockAdvancingEvent(Globals.TimeProvider.Now.AddHours(1)));
+                    return Task.FromResult(new WorldClockAdvancingEvent(Globals.SystemClock.Now.AddHours(1)));
                 });
 
             var numberOfCustomEvents = 0;
@@ -72,7 +72,7 @@ namespace WorkflowsCore.Tests
         {
             _simulator.ConfigureWorldClockAdvancingEvent(
                 1.0,
-                (w, _) => Task.FromResult(new WorldClockAdvancingEvent(Globals.TimeProvider.Now.AddHours(1))));
+                (w, _) => Task.FromResult(new WorldClockAdvancingEvent(Globals.SystemClock.Now.AddHours(1))));
             var ex = Record.Exception(() => _simulator.ConfigureApplicationRestartEvent(0.0));
 
             Assert.IsType<ArgumentOutOfRangeException>(ex);
@@ -91,7 +91,7 @@ namespace WorkflowsCore.Tests
         {
             _simulator.ConfigureWorldClockAdvancingEvent(
                 1.0,
-                (w, _) => Task.FromResult(new WorldClockAdvancingEvent(Globals.TimeProvider.Now.AddHours(1))));
+                (w, _) => Task.FromResult(new WorldClockAdvancingEvent(Globals.SystemClock.Now.AddHours(1))));
             _simulator.ConfigureApplicationRestartEvent(1.0);
             var ex = Record.Exception(() => _simulator.ConfigureApplicationRestartEvent(2.0));
 
@@ -199,19 +199,19 @@ namespace WorkflowsCore.Tests
                     Assert.False(isAppRestart);
                     return Task.FromResult(
                         new WorldClockAdvancingEvent(
-                            Globals.TimeProvider.Now.AddHours(1).AddMinutes(23),
+                            Globals.SystemClock.Now.AddHours(1).AddMinutes(23),
                             t = Task.Delay(100)));
                 });
             var begin = default(DateTime);
             _simulator.RunSimulations(
                 1,
                 1,
-                beforeSimulationCallback: () => begin = Globals.TimeProvider.Now,
+                beforeSimulationCallback: () => begin = Globals.SystemClock.Now,
                 afterSimulationCallback: () =>
                 {
                     Assert.Equal(TaskStatus.RanToCompletion, t.Status);
                     var newTime = begin.AddHours(1).AddMinutes(23);
-                    Assert.Equal(newTime, Globals.TimeProvider.Now);
+                    Assert.Equal(newTime, Globals.SystemClock.Now);
                     var events = Globals.EventMonitor.GetEvents();
                     Assert.Equal(3, events.Count);
                     Assert.Equal("World clock is advanced", events[0].Name);
@@ -224,7 +224,7 @@ namespace WorkflowsCore.Tests
         {
             _simulator.ConfigureWorldClockAdvancingEvent(
                 1.0,
-                (w, _) => Task.FromResult(new WorldClockAdvancingEvent(Globals.TimeProvider.Now.AddHours(1))));
+                (w, _) => Task.FromResult(new WorldClockAdvancingEvent(Globals.SystemClock.Now.AddHours(1))));
             _simulator.ConfigureCustomEvent(
                 100.0,
                 w => Task.FromException(new Exception()),
@@ -338,7 +338,7 @@ namespace WorkflowsCore.Tests
                     Assert.Equal(1, w.TestId);
                     Assert.Equal(2, w.TransientTestId);
                     return Task.FromResult(
-                        new WorldClockAdvancingEvent(Globals.TimeProvider.Now.AddHours(1).AddMinutes(23)));
+                        new WorldClockAdvancingEvent(Globals.SystemClock.Now.AddHours(1).AddMinutes(23)));
                 });
             var customEventCalled = false;
             _simulator.ConfigureCustomEvent(
@@ -545,14 +545,14 @@ namespace WorkflowsCore.Tests
         [Fact]
         public async Task WorkflowActionsAvailabilityAwaiterShouldWaitForWorkflowStateChange()
         {
-            Utilities.TimeProvider = new TestingTimeProvider();
+            Utilities.SystemClock = new TestingSystemClock();
             var workflow = new TestWorkflow();
             workflow.StartWorkflow(initialWorkflowData: new Dictionary<string, object> { ["NoActions"] = true });
             await workflow.StateEventTask; // We cannot wait for StateInitializedTask because it is completed before StateChanged event
 
             var t = new WorkflowActionsAvailabilityAwaiter<States>(workflow).Task;
             Assert.False(t.IsCompleted);
-            TestingTimeProvider.Current.SetCurrentTime(Globals.TimeProvider.Now.AddHours(17));
+            TestingSystemClock.Current.SetCurrentTime(Globals.SystemClock.Now.AddHours(17));
 
             await t;
 
@@ -563,7 +563,7 @@ namespace WorkflowsCore.Tests
         [Fact]
         public async Task WorkflowActionsAvailabilityAwaiterShouldCompleteIfWorkflowIsStoppedOrCompleted()
         {
-            Utilities.TimeProvider = new TestingTimeProvider();
+            Utilities.SystemClock = new TestingSystemClock();
             var workflow = new TestWorkflow();
             workflow.StartWorkflow(
                 initialWorkflowData: new Dictionary<string, object> { ["NoActions"] = true, ["CompleteFast"] = true });
@@ -587,7 +587,7 @@ namespace WorkflowsCore.Tests
             _simulator.ConfigureWorldClockAdvancingEvent(
                 0.01,
                 (w, isAppRestart) =>
-                    Task.FromResult(new WorldClockAdvancingEvent(Globals.TimeProvider.Now.AddHours(1))));
+                    Task.FromResult(new WorldClockAdvancingEvent(Globals.SystemClock.Now.AddHours(1))));
 
             _simulator.ConfigureActionExecutionEvent(1.0);
             _simulator.ConfigureActionExecutionEvent(
@@ -658,7 +658,7 @@ namespace WorkflowsCore.Tests
 
             protected override async Task RunAsync()
             {
-                var date = Globals.TimeProvider.Now.AddHours(17);
+                var date = Globals.SystemClock.Now.AddHours(17);
                 SetState(!NoActions ? States.Due : States.Contacted);
                 await this.WaitForAny(
                     () => Task.Delay(CompleteFast ? 1 : 10000, Utilities.CurrentCancellationToken),

@@ -1059,7 +1059,7 @@ namespace WorkflowsCore.Tests
 
             public int NumberOfFailedWorkflows { get; private set; }
 
-            public void SaveWorkflowData(WorkflowBase workflow, DateTime? nextActivationDate)
+            public void SaveWorkflowData(WorkflowBase workflow, DateTimeOffset? nextActivationDate)
             {
                 Assert.NotNull(workflow);
                 ++SaveWorkflowDataCounter;

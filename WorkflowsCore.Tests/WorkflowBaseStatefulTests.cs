@@ -118,34 +118,34 @@ namespace WorkflowsCore.Tests
             }
         }
 
-        public class TestingTimeProviderTests
+        public class TestingSystemClockTests
         {
             private readonly TestWorkflow _workflow = new TestWorkflow();
 
-            public TestingTimeProviderTests()
+            public TestingSystemClockTests()
             {
-                Utilities.TimeProvider = new TestingTimeProvider();
+                Utilities.SystemClock = new TestingSystemClock();
             }
 
             [Fact]
             public void SetStateShouldAddStateToFullStatesHistory()
             {
-                var now = TestingTimeProvider.Current.Now;
+                var now = TestingSystemClock.Current.Now;
                 _workflow.SetState(States.Outstanding);
                 Assert.Equal(1, _workflow.FullStatesHistory.Count);
                 Assert.Equal(States.Outstanding, _workflow.FullStatesHistory[0].Item1);
                 Assert.Equal(now, _workflow.FullStatesHistory[0].Item2);
 
-                now = TestingTimeProvider.Current.SetCurrentTime(now.AddMinutes(1));
+                now = TestingSystemClock.Current.SetCurrentTime(now.AddMinutes(1));
                 _workflow.SetState(States.Outstanding);
                 Assert.Equal(2, _workflow.FullStatesHistory.Count);
                 Assert.Equal(States.Outstanding, _workflow.FullStatesHistory[1].Item1);
                 Assert.Equal(now, _workflow.FullStatesHistory[1].Item2);
 
-                now = TestingTimeProvider.Current.SetCurrentTime(now.AddHours(1));
+                now = TestingSystemClock.Current.SetCurrentTime(now.AddHours(1));
                 _workflow.SetState(States.Due);
 
-                now = TestingTimeProvider.Current.SetCurrentTime(now.AddMinutes(1));
+                now = TestingSystemClock.Current.SetCurrentTime(now.AddMinutes(1));
                 _workflow.SetState(States.Contacted);
                 Assert.Equal(4, _workflow.FullStatesHistory.Count);
                 Assert.Equal(States.Contacted, _workflow.FullStatesHistory[3].Item1);
@@ -266,7 +266,7 @@ namespace WorkflowsCore.Tests
         {
             public int SaveWorkflowDataCounter { get; private set; }
 
-            public override void SaveWorkflowData(WorkflowBase workflow, DateTime? nextActivationDate)
+            public override void SaveWorkflowData(WorkflowBase workflow, DateTimeOffset? nextActivationDate)
             {
                 Assert.NotNull(workflow);
                 ++SaveWorkflowDataCounter;

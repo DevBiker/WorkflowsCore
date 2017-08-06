@@ -16,7 +16,7 @@ namespace WorkflowsCore
     /// <remarks>Methods of the interface are always called within workflow <c>TaskScheduler</c></remarks>
     public interface IWorkflowStateRepository
     {
-        void SaveWorkflowData(WorkflowBase workflow, DateTime? nextActivationDate);
+        void SaveWorkflowData(WorkflowBase workflow, DateTimeOffset? nextActivationDate);
 
         void MarkWorkflowAsCompleted(WorkflowBase workflow);
 

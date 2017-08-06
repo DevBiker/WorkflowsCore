@@ -7,14 +7,14 @@ namespace WorkflowsCore
 {
     public class ActivationDatesManager
     {
-        private readonly IDictionary<CancellationToken, DateTime> _activationDates =
-            new Dictionary<CancellationToken, DateTime>();
+        private readonly IDictionary<CancellationToken, DateTimeOffset> _activationDates =
+            new Dictionary<CancellationToken, DateTimeOffset>();
 
-        private DateTime? _nextActivationDate;
+        private DateTimeOffset? _nextActivationDate;
 
         public event EventHandler NextActivationDateChanged;
 
-        public DateTime? NextActivationDate
+        public DateTimeOffset? NextActivationDate
         {
             get
             {
@@ -28,14 +28,14 @@ namespace WorkflowsCore
             }
         }
 
-        public void AddActivationDate(CancellationToken token, DateTime date)
+        public void AddActivationDate(CancellationToken token, DateTimeOffset date)
         {
-            if (date == DateTime.MaxValue)
+            if (date == DateTimeOffset.MaxValue)
             {
                 return;
             }
 
-            DateTime cur;
+            DateTimeOffset cur;
             if (!_activationDates.TryGetValue(token, out cur))
             {
                 _activationDates.Add(token, date);
@@ -53,7 +53,7 @@ namespace WorkflowsCore
 
         public void OnCancellationTokenCanceled(CancellationToken token)
         {
-            DateTime cur;
+            DateTimeOffset cur;
             if (!_activationDates.TryGetValue(token, out cur))
             {
                 return;
@@ -65,7 +65,7 @@ namespace WorkflowsCore
                 return;
             }
 
-            NextActivationDate = !_activationDates.Any() ? null : (DateTime?)_activationDates.Min(p => p.Value);
+            NextActivationDate = !_activationDates.Any() ? null : (DateTimeOffset?)_activationDates.Min(p => p.Value);
         }
     }
 }

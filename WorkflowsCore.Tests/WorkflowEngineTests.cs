@@ -15,7 +15,7 @@ namespace WorkflowsCore.Tests
 
         public WorkflowEngineTests()
         {
-            Utilities.TimeProvider = new TestingTimeProvider();
+            Utilities.SystemClock = new TestingSystemClock();
             _workflowRepo = new WorkflowRepository();
             _workflowEngine = new WorkflowEngine(new DependencyInjectionContainer(_workflowRepo), () => _workflowRepo);
         }
@@ -129,13 +129,13 @@ namespace WorkflowsCore.Tests
                     Data = new Dictionary<string, object> { ["Id"] = 2 }
                 }
             };
-            var newTime = TestingTimeProvider.Current.Now.AddHours(4).AddMinutes(-30);
+            var newTime = TestingSystemClock.Current.Now.AddHours(4).AddMinutes(-30);
             _workflowRepo.MaxActivationDate = newTime.AddHours(4);
             _workflowRepo.IgnoreWorkflowsIds = Enumerable.Repeat((object)1, 1);
 
             await Task.Delay(5);
             var t = _workflowRepo.InitGetActiveWorkflowsTask();
-            TestingTimeProvider.Current.SetCurrentTime(newTime);
+            TestingSystemClock.Current.SetCurrentTime(newTime);
 
             await t;
 
@@ -244,7 +244,7 @@ namespace WorkflowsCore.Tests
 
             public IList<WorkflowInstance> ActiveWorkflows { get; set; }
 
-            public DateTime MaxActivationDate { get; set; } = Utilities.TimeProvider.Now.AddHours(4);
+            public DateTime MaxActivationDate { get; set; } = Utilities.SystemClock.Now.AddHours(4);
 
             public IEnumerable<object> IgnoreWorkflowsIds { get; set; } = Enumerable.Empty<object>();
 
@@ -296,7 +296,7 @@ namespace WorkflowsCore.Tests
                 return null;
             }
 
-            public override void SaveWorkflowData(WorkflowBase workflow, DateTime? nextActivationDate) =>
+            public override void SaveWorkflowData(WorkflowBase workflow, DateTimeOffset? nextActivationDate) =>
                 workflow.Id = ++_workflowsSaved;
 
             public override void MarkWorkflowAsCompleted(WorkflowBase workflow) => Assert.NotNull(workflow);

@@ -4,7 +4,7 @@ namespace WorkflowsCore.Tests
 {
     public class DummyWorkflowStateRepository : IWorkflowStateRepository
     {
-        public virtual void SaveWorkflowData(WorkflowBase workflow, DateTime? nextActivationDate)
+        public virtual void SaveWorkflowData(WorkflowBase workflow, DateTimeOffset? nextActivationDate)
         {
             throw new NotImplementedException();
         }

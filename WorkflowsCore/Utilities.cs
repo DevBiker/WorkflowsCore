@@ -8,8 +8,8 @@ namespace WorkflowsCore
     public static class Utilities
     {
         private static readonly AsyncLocal<CancellationToken> AsyncCancellationToken = new AsyncLocal<CancellationToken>();
-        private static readonly ITimeProvider DefaultTimeProvider = new TimeProvider();
-        private static readonly AsyncLocal<ITimeProvider> AsyncTimeProvider = new AsyncLocal<ITimeProvider>();
+        private static readonly ISystemClock DefaultSystemClock = new SystemClock();
+        private static readonly AsyncLocal<ISystemClock> AsyncSystemClock = new AsyncLocal<ISystemClock>();
         private static readonly AsyncLocal<TaskScheduler> AsyncTaskScheduler = new AsyncLocal<TaskScheduler>();
         private static readonly IWorkflowMetadataCache DefaultWorkflowMetadataCache = new WorkflowMetadataCache();
         private static IWorkflowMetadataCache _workflowMetadataCache = DefaultWorkflowMetadataCache;
@@ -42,16 +42,16 @@ namespace WorkflowsCore
             set { AsyncTaskScheduler.Value = value; }
         }
 
-        public static ITimeProvider TimeProvider
+        public static ISystemClock SystemClock
         {
             get
             {
-                return AsyncTimeProvider.Value ?? DefaultTimeProvider;
+                return AsyncSystemClock.Value ?? DefaultSystemClock;
             }
 
             set
             {
-                AsyncTimeProvider.Value = value;
+                AsyncSystemClock.Value = value;
             }
         }
 

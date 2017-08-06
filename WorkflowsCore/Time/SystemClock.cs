@@ -2,35 +2,46 @@
 
 namespace WorkflowsCore.Time
 {
-    public interface ITimeProvider
+    public interface ISystemClock
     {
         DateTime Now { get; }
+
+        DateTimeOffset UtcNow { get; }
     }
 
-    public interface ITestingTimeProvider : ITimeProvider
+    public interface ITestingSystemClock : ISystemClock
     {
-        event EventHandler<DateTime> TimeAdjusted;
+        event EventHandler<DateTimeOffset> TimeAdjusted;
 
         DateTime SetCurrentTime(DateTime dateTime);
     }
 
-    public class TimeProvider : ITimeProvider
+    public class SystemClock : ISystemClock
     {
         public DateTime Now => DateTime.Now;
+
+        public DateTimeOffset UtcNow => DateTimeOffset.Now;
     }
 
-    public class TestingTimeProvider : ITestingTimeProvider
+    public class TestingSystemClock : ITestingSystemClock
     {
         private readonly object _lock = new object();
 
-        public event EventHandler<DateTime> TimeAdjusted;
+        public event EventHandler<DateTimeOffset> TimeAdjusted;
 
-        public static ITestingTimeProvider Current => (ITestingTimeProvider)Utilities.TimeProvider;
+        public static ITestingSystemClock Current => (ITestingSystemClock)Utilities.SystemClock;
 
         public DateTime Now { get; private set; } = DateTime.Now;
 
+        public DateTimeOffset UtcNow => Now;
+
         public DateTime SetCurrentTime(DateTime dateTime)
         {
+            if (dateTime.Kind != DateTimeKind.Local)
+            {
+                throw new ArgumentOutOfRangeException(nameof(dateTime));
+            }
+
             lock (_lock)
             {
                 if (dateTime < Now)
@@ -44,7 +55,7 @@ namespace WorkflowsCore.Time
                 }
 
                 Now = dateTime;
-                TimeAdjusted?.Invoke(this, Now);
+                TimeAdjusted?.Invoke(this, UtcNow);
                 return Now;
             }
         }

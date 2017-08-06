@@ -12,7 +12,7 @@ namespace WorkflowsCore.Tests
 
         public TimeOperatorsTests()
         {
-            Utilities.TimeProvider = new TestingTimeProvider();
+            Utilities.SystemClock = new TestingSystemClock();
         }
 
         [Fact]
@@ -22,10 +22,10 @@ namespace WorkflowsCore.Tests
                 new CancellationTokenSource(1000).Token,
                 async () =>
                 {
-                    var date = TestingTimeProvider.Current.Now.AddDays(1);
+                    var date = TestingSystemClock.Current.Now.AddDays(1);
                     var t = _workflow.WaitForDate(date);
                     Assert.False(t.IsCompleted);
-                    TestingTimeProvider.Current.SetCurrentTime(date);
+                    TestingSystemClock.Current.SetCurrentTime(date);
                     await t;
                 });
         }
@@ -33,10 +33,10 @@ namespace WorkflowsCore.Tests
         [Fact]
         public async Task WaitForDateShouldReturnImmediatelyForPastDates()
         {
-            var before = TestingTimeProvider.Current.Now;
+            var before = TestingSystemClock.Current.Now;
             var date = before.AddHours(-1);
             await _workflow.WaitForDate(date);
-            var now = TestingTimeProvider.Current.Now;
+            var now = TestingSystemClock.Current.Now;
             Assert.Equal(before, now);
         }
 
@@ -63,7 +63,7 @@ namespace WorkflowsCore.Tests
                     cts.Token,
                     async () =>
                     {
-                        var t = _workflow.WaitForDate(TestingTimeProvider.Current.Now.AddDays(1));
+                        var t = _workflow.WaitForDate(TestingSystemClock.Current.Now.AddDays(1));
                         Assert.False(t.IsCompleted);
                         cts.Cancel();
                         await t;
@@ -84,7 +84,7 @@ namespace WorkflowsCore.Tests
                     async () =>
                     {
                         cts.Cancel();
-                        await _workflow.WaitForDate(TestingTimeProvider.Current.Now.AddDays(-1));
+                        await _workflow.WaitForDate(TestingSystemClock.Current.Now.AddDays(-1));
                     }));
 
             Assert.IsType<TaskCanceledException>(ex);
@@ -101,9 +101,9 @@ namespace WorkflowsCore.Tests
                     cts.Token,
                     async () =>
                     {
-                        var expected = TestingTimeProvider.Current.Now.AddHours(1);
+                        var expected = TestingSystemClock.Current.Now.AddHours(1);
                         var t = _workflow.WaitForDate(expected);
-                        var date = await _workflow.GetTransientDataFieldAsync<DateTime?>(
+                        var date = await _workflow.GetTransientDataFieldAsync<DateTimeOffset?>(
                             "NextActivationDate",
                             forceExecution: true);
                         Assert.Equal(expected, date);
@@ -111,7 +111,7 @@ namespace WorkflowsCore.Tests
                         await t;
                     }));
 
-            var newDate = await _workflow.GetTransientDataFieldAsync<DateTime?>(
+            var newDate = await _workflow.GetTransientDataFieldAsync<DateTimeOffset?>(
                 "NextActivationDate",
                 forceExecution: true);
             Assert.Null(newDate);

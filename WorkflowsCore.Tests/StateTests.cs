@@ -223,18 +223,18 @@ namespace WorkflowsCore.Tests
                         tcs.SetResult(true);
                     });
 
-            Utilities.TimeProvider = new TestingTimeProvider();
+            Utilities.SystemClock = new TestingSystemClock();
 
             var instance = RunState(_state);
 
-            TestingTimeProvider.Current.SetCurrentTime(date);
+            TestingSystemClock.Current.SetCurrentTime(date);
 
             var task = await Task.WhenAny(tcs.Task, instance.Task);
             await task;
 
             tcs = new TaskCompletionSource<bool>();
 
-            TestingTimeProvider.Current.SetCurrentTime(date);
+            TestingSystemClock.Current.SetCurrentTime(date);
 
             await tcs.Task;
 
@@ -256,13 +256,13 @@ namespace WorkflowsCore.Tests
             var date = DateTime.Now.AddDays(3);
             _state.OnAsync(() => Workflow.WaitForDate(date)).GoTo(States.State2);
 
-            Utilities.TimeProvider = new TestingTimeProvider();
+            Utilities.SystemClock = new TestingSystemClock();
 
             var instance = RunState(_state);
 
             await Workflow.ReadyTask;
 
-            TestingTimeProvider.Current.SetCurrentTime(date);
+            TestingSystemClock.Current.SetCurrentTime(date);
 
             await instance.Task;
 
@@ -569,20 +569,23 @@ namespace WorkflowsCore.Tests
             IDisposable operation = null;
             var tcs = new TaskCompletionSource<bool>();
             _state.OnAsync(
-                () => Workflow.DoWorkflowTaskAsync(
-                    async () =>
+                async () =>
+                {
+                    if (operation != null)
                     {
-                        if (operation != null)
-                        {
-                            await Workflow.WaitForDate(DateTime.MaxValue);
-                            return 1;
-                        }
-
-                        operation = await Workflow.WaitForReadyAndStartOperation();
-                        tcs.SetResult(true);
-
+                        await Workflow.WaitForDate(DateTime.MaxValue);
                         return 1;
-                    }).Unwrap(),
+                    }
+
+                    return await Workflow.DoWorkflowTaskAsync(
+                        async () =>
+                        {
+                            operation = await Workflow.WaitForReadyAndStartOperation();
+                            tcs.SetResult(true);
+
+                            return 1;
+                        }).Unwrap();
+                },
                 getOperationForImport: () => operation)
                 .Do(
                     async () =>
@@ -602,9 +605,9 @@ namespace WorkflowsCore.Tests
             await Workflow.ReadyTask;
             SetWorkflowTemporarily(Workflow, () => instance.InitiateTransitionTo(CreateState(States.State2)));
 
-            await CancelWorkflowAsync();
-
             await instance.Task;
+
+            await CancelWorkflowAsync();
         }
 
         [Fact]
@@ -616,18 +619,21 @@ namespace WorkflowsCore.Tests
             IDisposable operation = null;
             var tcs = new TaskCompletionSource<bool>();
             _state.OnAsync(
-                () => Workflow.DoWorkflowTaskAsync(
-                    async () =>
+                async () =>
+                {
+                    if (operation != null)
                     {
-                        if (operation != null)
-                        {
-                            await Workflow.WaitForDate(DateTime.MaxValue);
-                            return;
-                        }
+                        await Workflow.WaitForDate(DateTime.MaxValue);
+                        return;
+                    }
 
-                        operation = await Workflow.WaitForReadyAndStartOperation();
-                        tcs.SetResult(true);
-                    }).Unwrap(),
+                    await Workflow.DoWorkflowTaskAsync(
+                        async () =>
+                        {
+                            operation = await Workflow.WaitForReadyAndStartOperation();
+                            tcs.SetResult(true);
+                        }).Unwrap();
+                },
                 getOperationForImport: () => operation)
                 .Do(
                     async () =>
@@ -647,9 +653,9 @@ namespace WorkflowsCore.Tests
             await Workflow.ReadyTask;
             SetWorkflowTemporarily(Workflow, () => instance.InitiateTransitionTo(CreateState(States.State2)));
 
-            await CancelWorkflowAsync();
-
             await instance.Task;
+
+            await CancelWorkflowAsync();
         }
 
         private State<States, string> CreateState(States state) => _baseStateTest.CreateState(state);

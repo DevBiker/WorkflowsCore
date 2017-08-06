@@ -88,7 +88,7 @@ namespace WorkflowsCore
 
         internal NamedValues TransientData { get; } = new NamedValues();
 
-        protected static ITimeProvider TimeProvider => Utilities.TimeProvider;
+        protected static ISystemClock SystemClock => Utilities.SystemClock;
 
         [DataField(IsTransient = true)]
         protected object ActionResult { get; set; }
@@ -110,7 +110,7 @@ namespace WorkflowsCore
         }
 
         [DataField(IsTransient = true)]
-        private DateTime? NextActivationDate => _activationDatesManager.NextActivationDate;
+        private DateTimeOffset? NextActivationDate => _activationDatesManager.NextActivationDate;
 
         [DataField]
         private IDictionary<string, int> ActionStats { get; set; }
@@ -326,7 +326,7 @@ namespace WorkflowsCore
                 });
         }
 
-        internal void AddActivationDate(CancellationToken token, DateTime date) =>
+        internal void AddActivationDate(CancellationToken token, DateTimeOffset date) =>
             _activationDatesManager.AddActivationDate(token, date);
 
         internal void OnCancellationTokenCanceled(CancellationToken token) =>
@@ -1001,7 +1001,7 @@ namespace WorkflowsCore
 
         private class DummyWorkflowStateRepository : IWorkflowStateRepository
         {
-            public void SaveWorkflowData(WorkflowBase workflow, DateTime? nextActivationDate)
+            public void SaveWorkflowData(WorkflowBase workflow, DateTimeOffset? nextActivationDate)
             {
             }
 
