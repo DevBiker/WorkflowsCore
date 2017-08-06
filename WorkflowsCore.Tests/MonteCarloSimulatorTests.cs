@@ -196,7 +196,7 @@ namespace WorkflowsCore.Tests
                 1.0,
                 (w, isAppRestart) =>
                 {
-                    Assert.Equal(false, isAppRestart);
+                    Assert.False(isAppRestart);
                     return Task.FromResult(
                         new WorldClockAdvancingEvent(
                             Globals.TimeProvider.Now.AddHours(1).AddMinutes(23),
@@ -334,7 +334,7 @@ namespace WorkflowsCore.Tests
                     clockAdvanced = true;
                     oldWorkflow = w;
                     Assert.True(w.CompletedTask.IsCompleted);
-                    Assert.Equal(true, isAppRestart);
+                    Assert.True(isAppRestart);
                     Assert.Equal(1, w.TestId);
                     Assert.Equal(2, w.TransientTestId);
                     return Task.FromResult(

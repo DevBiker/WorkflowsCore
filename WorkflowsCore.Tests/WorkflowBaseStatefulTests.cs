@@ -71,18 +71,18 @@ namespace WorkflowsCore.Tests
             public void SetStateShouldAddStateStats()
             {
                 _workflow.SetState(States.Outstanding);
-                Assert.Equal(true, _workflow.WasIn(States.Outstanding));
+                Assert.True(_workflow.WasIn(States.Outstanding));
                 Assert.Equal(1, _workflow.TimesIn(States.Outstanding));
 
                 _workflow.SetState(States.Outstanding);
-                Assert.Equal(true, _workflow.WasIn(States.Outstanding));
+                Assert.True(_workflow.WasIn(States.Outstanding));
                 Assert.Equal(2, _workflow.TimesIn(States.Outstanding));
             }
 
             [Fact]
             public void TimesInWasInShouldWorkForStatesThatWereNotEntered()
             {
-                Assert.Equal(false, _workflow.WasIn(States.Outstanding));
+                Assert.False(_workflow.WasIn(States.Outstanding));
                 Assert.Equal(0, _workflow.TimesIn(States.Outstanding));
             }
 
@@ -183,7 +183,7 @@ namespace WorkflowsCore.Tests
 
         public sealed class TestWorkflow : WorkflowBase<States>
         {
-            public TestWorkflow(Func<IWorkflowStateRepository> workflowRepoFactory = null, bool doInit = true) 
+            public TestWorkflow(Func<IWorkflowStateRepository> workflowRepoFactory = null, bool doInit = true)
                 : base(workflowRepoFactory, 4)
             {
                 if (doInit)
@@ -196,7 +196,7 @@ namespace WorkflowsCore.Tests
 
             public new States State => base.State;
 
-            public IList<States> StatesHistory => 
+            public IList<States> StatesHistory =>
                 GetDataFieldAsync<IList<States>>(nameof(StatesHistory), forceExecution: true).Result;
 
             public IList<Tuple<States, DateTime, bool>> FullStatesHistory
@@ -216,7 +216,7 @@ namespace WorkflowsCore.Tests
             public States OldState { get; set; }
 
             // ReSharper disable once UnusedParameter.Local
-            public new void SetState(States state, bool isStateRestored = false) => 
+            public new void SetState(States state, bool isStateRestored = false) =>
                 base.SetState(state, isStateRestored);
 
             public new void OnLoaded() => base.OnLoaded();

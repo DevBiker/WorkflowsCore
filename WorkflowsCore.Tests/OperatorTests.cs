@@ -829,7 +829,7 @@ namespace WorkflowsCore.Tests
             public new States State => base.State;
 
             // ReSharper disable once UnusedParameter.Local
-            public new void SetState(States state, bool isStateRestored = false) => 
+            public new void SetState(States state, bool isStateRestored = false) =>
                 base.SetState(state, isStateRestored);
 
             protected override void OnInit()

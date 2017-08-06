@@ -17,6 +17,6 @@ namespace WorkflowsCore.Tests
             var metadata1 = _metadadaCache.GetWorkflowMetadata(typeof(WorkflowBase));
             var metadata2 = _metadadaCache.GetWorkflowMetadata(typeof(WorkflowBase));
             Assert.Same(metadata1, metadata2);
-        } 
+        }
     }
 }

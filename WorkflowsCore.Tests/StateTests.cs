@@ -10,7 +10,7 @@ namespace WorkflowsCore.Tests
 {
     public class StateTests : BaseWorkflowTest<StateTests.TestWorkflow>
     {
-        private readonly BaseStateTest<States> _baseStateTest = new BaseStateTest<States>(); 
+        private readonly BaseStateTest<States> _baseStateTest = new BaseStateTest<States>();
         private readonly State<States, string> _state;
 
         public StateTests()
@@ -447,7 +447,7 @@ namespace WorkflowsCore.Tests
             var transition = await instance.Task;
             Assert.Same(childState, transition.State);
             Assert.Equal(1, counter);
-            
+
             await CancelWorkflowAsync();
         }
 

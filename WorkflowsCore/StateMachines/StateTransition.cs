@@ -13,7 +13,7 @@ namespace WorkflowsCore.StateMachines
             State<TState, TInternalState> state,
             IDisposable workflowOperation,
             bool isRestoringState = false,
-            Action<StateTransition<TState, TInternalState>> onStateChangedHandler = null) 
+            Action<StateTransition<TState, TInternalState>> onStateChangedHandler = null)
             : this(state)
         {
             if (workflowOperation == null)

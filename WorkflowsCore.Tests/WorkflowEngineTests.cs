@@ -164,7 +164,7 @@ namespace WorkflowsCore.Tests
             await _workflowEngine.LoadAndExecuteActiveWorkflowsAsync(4);
             Assert.Null(_workflowRepo.Exception);
 
-            var runningWorkflows = _workflowEngine.RunningWorkflows.Cast<TestWorkflowWithLoad>().ToList();            
+            var runningWorkflows = _workflowEngine.RunningWorkflows.Cast<TestWorkflowWithLoad>().ToList();
             await Task.WhenAll(runningWorkflows.Select(CancelWorkflowAsync));
 
             // ReSharper disable once PossibleNullReferenceException
@@ -240,7 +240,7 @@ namespace WorkflowsCore.Tests
         private class WorkflowRepository : DummyWorkflowStateRepository, IWorkflowRepository
         {
             private int _workflowsSaved;
-            private TaskCompletionSource<bool> _tcs; 
+            private TaskCompletionSource<bool> _tcs;
 
             public IList<WorkflowInstance> ActiveWorkflows { get; set; }
 
@@ -273,7 +273,7 @@ namespace WorkflowsCore.Tests
                     {
                         Exception = ex;
                     }
-                    
+
                     _tcs?.SetResult(true);
                     return ActiveWorkflows;
                 }
@@ -296,18 +296,18 @@ namespace WorkflowsCore.Tests
                 return null;
             }
 
-            public override void SaveWorkflowData(WorkflowBase workflow, DateTime? nextActivationDate) => 
+            public override void SaveWorkflowData(WorkflowBase workflow, DateTime? nextActivationDate) =>
                 workflow.Id = ++_workflowsSaved;
 
             public override void MarkWorkflowAsCompleted(WorkflowBase workflow) => Assert.NotNull(workflow);
 
-            public override void MarkWorkflowAsCanceled(WorkflowBase workflow, Exception exception) => 
+            public override void MarkWorkflowAsCanceled(WorkflowBase workflow, Exception exception) =>
                 Assert.NotNull(workflow);
         }
 
         private class TestWorkflow : WorkflowBase
         {
-            public TestWorkflow(Func<IWorkflowStateRepository> workflowRepoFactory) 
+            public TestWorkflow(Func<IWorkflowStateRepository> workflowRepoFactory)
                 : base(workflowRepoFactory)
             {
             }
@@ -322,7 +322,7 @@ namespace WorkflowsCore.Tests
 
         private class TestWorkflowWithData : WorkflowBase
         {
-            public TestWorkflowWithData(Func<IWorkflowStateRepository> workflowRepoFactory) 
+            public TestWorkflowWithData(Func<IWorkflowStateRepository> workflowRepoFactory)
                 : base(workflowRepoFactory)
             {
             }

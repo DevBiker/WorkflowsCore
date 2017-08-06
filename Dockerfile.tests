@@ -1,0 +1,10 @@
+FROM microsoft/dotnet:1.1.2-sdk
+
+ENV DOTNET_USE_POLLING_FILE_WATCHER=true
+
+VOLUME /app
+
+WORKDIR /app/WorkflowsCore.Tests
+
+ENTRYPOINT dotnet restore \
+  && dotnet watch xunit

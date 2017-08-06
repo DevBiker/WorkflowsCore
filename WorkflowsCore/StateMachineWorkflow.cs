@@ -13,14 +13,14 @@ namespace WorkflowsCore
         private StateId<TState, TInternalState> _initialState;
         private StateMachine<TState, TInternalState>.StateMachineInstance _instance;
 
-        protected StateMachineWorkflow(int fullStatesHistoryLimit = 100) 
+        protected StateMachineWorkflow(int fullStatesHistoryLimit = 100)
             : base(fullStatesHistoryLimit)
         {
         }
 
         protected StateMachineWorkflow(
             Func<IWorkflowStateRepository> workflowRepoFactory,
-            int fullStatesHistoryLimit = 100) 
+            int fullStatesHistoryLimit = 100)
             : base(workflowRepoFactory, fullStatesHistoryLimit)
         {
         }
@@ -35,10 +35,10 @@ namespace WorkflowsCore
 
         protected internal override bool IsActionAllowed(string action) => _instance?.IsActionAllowed(action) ?? false;
 
-        protected State<TState, TInternalState> ConfigureState(TState state, bool isHidden = false) => 
+        protected State<TState, TInternalState> ConfigureState(TState state, bool isHidden = false) =>
             StateMachine.ConfigureState(state).Hide(isHidden);
 
-        protected State<TState, TInternalState> ConfigureInternalState(TInternalState state, bool isHidden = false) => 
+        protected State<TState, TInternalState> ConfigureInternalState(TInternalState state, bool isHidden = false) =>
             StateMachine.ConfigureState(state).Hide(isHidden);
 
         protected void SetInitialState(StateId<TState, TInternalState> state) => _initialState = state;
@@ -105,7 +105,7 @@ namespace WorkflowsCore
 
     public abstract class StateMachineWorkflow<TState> : StateMachineWorkflow<TState, string>
     {
-        protected StateMachineWorkflow(int fullStatesHistoryLimit = 100) 
+        protected StateMachineWorkflow(int fullStatesHistoryLimit = 100)
             : base(fullStatesHistoryLimit)
         {
         }

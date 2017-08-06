@@ -42,7 +42,7 @@ namespace WorkflowsCore.StateMachines
             return stateObj;
         }
 
-        public State<TState, TInternalState> ConfigureState(StateId<TState, TInternalState> state) => 
+        public State<TState, TInternalState> ConfigureState(StateId<TState, TInternalState> state) =>
             !state.IsInternalState ? ConfigureState(state.Id) : ConfigureInternalState(state.InternalState);
 
         public StateMachineInstance Run(
@@ -107,7 +107,7 @@ namespace WorkflowsCore.StateMachines
 
             public Task Task => _taskLazy.Value;
 
-            public bool IsActionAllowed(string action) => 
+            public bool IsActionAllowed(string action) =>
                 StateExtensions.SetWorkflowTemporarily(Workflow, () => _stateInstance.IsActionAllowed(action)) ?? false;
 
             // ReSharper disable once FunctionNeverReturns

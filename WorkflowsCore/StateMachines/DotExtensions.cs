@@ -173,7 +173,7 @@ namespace WorkflowsCore.StateMachines
             return IsSimpleState(state) ? dotId : $"cluster{dotId}";
         }
 
-        private static bool IsSimpleState<TState, TInternalState>(State<TState, TInternalState> state) => 
+        private static bool IsSimpleState<TState, TInternalState>(State<TState, TInternalState> state) =>
             state.Children.All(c => c.IsHidden);
 
         private static IEnumerable<string> DefineStateTransitions<TState, TInternalState>(

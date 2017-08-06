@@ -28,7 +28,7 @@ namespace WorkflowsCore
             StatesHistory.Count == 0 ? default(TState) : StatesHistory[StatesHistory.Count - 1];
 
         [DataField(IsTransient = true)]
-        protected internal TState PreviousState => 
+        protected internal TState PreviousState =>
             StatesHistory.Count != 2 ? default(TState) : StatesHistory[0];
 
         [DataField(IsTransient = true)]

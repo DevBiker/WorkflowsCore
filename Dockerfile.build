@@ -1,0 +1,11 @@
+FROM microsoft/dotnet:1.1.2-sdk
+
+VOLUME /app
+
+WORKDIR /app/WorkflowsCore
+
+ENTRYPOINT dotnet restore \
+  && rm -rf bin/Release/* \
+  && dotnet pack --configuration Release /maxcpucount \
+  && mkdir -p ../dist \
+  && cp bin/Release/*.nupkg ../dist/

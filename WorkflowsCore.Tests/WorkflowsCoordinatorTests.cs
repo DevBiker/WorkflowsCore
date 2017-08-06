@@ -7,7 +7,7 @@ namespace WorkflowsCore.Tests
 {
     public class WorkflowsCoordinatorTests : IDisposable
     {
-        private readonly WorkflowsCoordinator<WorkflowNames> _workflowsCoordinator = 
+        private readonly WorkflowsCoordinator<WorkflowNames> _workflowsCoordinator =
             new WorkflowsCoordinator<WorkflowNames>();
 
         private readonly BaseWorkflowTest<TestWorkflow> _src = new BaseWorkflowTest<TestWorkflow>();
@@ -229,7 +229,7 @@ namespace WorkflowsCore.Tests
             _dst.StartWorkflow();
             await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name1, _src.Workflow);
             await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name2, _dst.Workflow);
-            
+
             await _src.Workflow.ExecuteActionAsync(TestWorkflow.Action1);
             await _dst.Workflow.WaitForState(WorkflowStates.State2);
 
@@ -243,7 +243,7 @@ namespace WorkflowsCore.Tests
             var tcs = new TaskCompletionSource<bool>();
             _workflowsCoordinator.RegisterWorkflowDependency(
                 WorkflowNames.Name1,
-                WorkflowStates.State1, 
+                WorkflowStates.State1,
                 WorkflowNames.Name2,
                 (s, d) =>
                 {
@@ -310,7 +310,7 @@ namespace WorkflowsCore.Tests
         {
             _workflowsCoordinator.RegisterWorkflowDependency(
                 WorkflowNames.Name1,
-                WorkflowStates.State1, 
+                WorkflowStates.State1,
                 WorkflowNames.Name2,
                 (s, d) =>
                 {
@@ -322,7 +322,7 @@ namespace WorkflowsCore.Tests
             _dst.StartWorkflow();
             await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name2, _dst.Workflow);
 
-            _src.StartWorkflow();            
+            _src.StartWorkflow();
             await _src.Workflow.ExecuteActionAsync(TestWorkflow.Action1);
             await _src.Workflow.WaitForState(WorkflowStates.State1);
             await _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name1, _src.Workflow);
@@ -382,7 +382,7 @@ namespace WorkflowsCore.Tests
             _dst.StartWorkflow();
             await _dst.Workflow.ExecuteActionAsync(TestWorkflow.Action2);
             var t1 = _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name2, _dst.Workflow);
-            var t2 = _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name1, _src.Workflow);            
+            var t2 = _workflowsCoordinator.AddWorkflowAsync(WorkflowNames.Name1, _src.Workflow);
             await _workflowsCoordinator.CancelWorkflowAsync(WorkflowNames.Name1);
 
             await t1;

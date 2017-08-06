@@ -13,7 +13,7 @@ namespace WorkflowsCore.StateMachines
 
         IList<TargetState<TState, TInternalState>> GetTargetStates(IEnumerable<string> conditions);
     }
-    
+
     public class TargetState<TState, TInternalState>
     {
         public TargetState(IEnumerable<string> conditions, State<TState, TInternalState> state)
@@ -84,7 +84,7 @@ namespace WorkflowsCore.StateMachines
             return Parent;
         }
 
-        public IList<TargetState<TState, TInternalState>> GetTargetStates(IEnumerable<string> conditions) => 
+        public IList<TargetState<TState, TInternalState>> GetTargetStates(IEnumerable<string> conditions) =>
             Handler.GetTargetStates(conditions);
 
         protected AsyncOperation<TState, TInternalState, TR> Invoke<TR>(Func<Task<TR>> taskFactory)
@@ -121,7 +121,7 @@ namespace WorkflowsCore.StateMachines
                 return null;
             }
 
-            public override IList<TargetState<TState, TInternalState>> GetTargetStates(IEnumerable<string> conditions) => 
+            public override IList<TargetState<TState, TInternalState>> GetTargetStates(IEnumerable<string> conditions) =>
                 new List<TargetState<TState, TInternalState>>();
         }
 
@@ -159,7 +159,7 @@ namespace WorkflowsCore.StateMachines
                 return await Child.ExecuteAsync(res);
             }
 
-            public override IList<TargetState<TState, TInternalState>> GetTargetStates(IEnumerable<string> conditions) => 
+            public override IList<TargetState<TState, TInternalState>> GetTargetStates(IEnumerable<string> conditions) =>
                 Child.GetTargetStates(conditions);
         }
     }
@@ -250,7 +250,7 @@ namespace WorkflowsCore.StateMachines
                 return await Child.ExecuteAsync();
             }
 
-            public override IList<TargetState<TState, TInternalState>> GetTargetStates(IEnumerable<string> conditions) => 
+            public override IList<TargetState<TState, TInternalState>> GetTargetStates(IEnumerable<string> conditions) =>
                 Child.GetTargetStates(conditions);
         }
 
@@ -542,7 +542,7 @@ namespace WorkflowsCore.StateMachines
                 return await Child.ExecuteAsync(res);
             }
 
-            public override IList<TargetState<TState, TInternalState>> GetTargetStates(IEnumerable<string> conditions) => 
+            public override IList<TargetState<TState, TInternalState>> GetTargetStates(IEnumerable<string> conditions) =>
                 Child.GetTargetStates(conditions);
         }
 
@@ -570,7 +570,7 @@ namespace WorkflowsCore.StateMachines
                 return await Child.ExecuteAsync(data);
             }
 
-            public override IList<TargetState<TState, TInternalState>> GetTargetStates(IEnumerable<string> conditions) => 
+            public override IList<TargetState<TState, TInternalState>> GetTargetStates(IEnumerable<string> conditions) =>
                 Child.GetTargetStates(conditions);
         }
 

@@ -28,7 +28,7 @@ namespace WorkflowsCore.Tests
                 Workflow = new TestWorkflow(allowOnFaulted: true);
                 Assert.NotEqual(TaskStatus.RanToCompletion, Workflow.StartedTask.Status);
                 StartWorkflow(beforeWorkflowStarted: () => { throw new InvalidOperationException(); });
-                
+
                 // ReSharper disable once PossibleNullReferenceException
                 var ex = await Record.ExceptionAsync(() => Workflow.CompletedTask);
 
@@ -685,17 +685,17 @@ namespace WorkflowsCore.Tests
                 StartWorkflow();
                 await Workflow.StartedTask;
 
-                Assert.Equal(false, Workflow.WasExecuted("Action 1"));
+                Assert.False(Workflow.WasExecuted("Action 1"));
                 Assert.Equal(0, Workflow.TimesExecuted("Action 1"));
 
                 await Workflow.ExecuteActionAsync("Action 1");
 
-                Assert.Equal(true, Workflow.WasExecuted("Action 1"));
+                Assert.True(Workflow.WasExecuted("Action 1"));
                 Assert.Equal(1, Workflow.TimesExecuted("Action 1"));
 
                 await Workflow.ExecuteActionAsync("Action 1");
 
-                Assert.Equal(true, Workflow.WasExecuted("Action 1"));
+                Assert.True(Workflow.WasExecuted("Action 1"));
                 Assert.Equal(2, Workflow.TimesExecuted("Action 1"));
 
                 await CancelWorkflowAsync();
@@ -709,12 +709,12 @@ namespace WorkflowsCore.Tests
 
                 await Workflow.ExecuteActionAsync("Action 1");
 
-                Assert.Equal(true, Workflow.WasExecuted("Action 1"));
+                Assert.True(Workflow.WasExecuted("Action 1"));
                 Assert.Equal(1, Workflow.TimesExecuted("Action 1"));
 
                 Workflow.ClearTimesExecuted("Action 1");
 
-                Assert.Equal(false, Workflow.WasExecuted("Action 1"));
+                Assert.False(Workflow.WasExecuted("Action 1"));
                 Assert.Equal(0, Workflow.TimesExecuted("Action 1"));
 
                 await CancelWorkflowAsync();
@@ -901,7 +901,7 @@ namespace WorkflowsCore.Tests
             private readonly bool _badCancellation;
             private readonly bool _failCancellation;
             private readonly TaskCompletionSource<bool> _badCancellationTcs = new TaskCompletionSource<bool>();
-            private readonly TaskCompletionSource<bool> _initializedTcs = new TaskCompletionSource<bool>(); 
+            private readonly TaskCompletionSource<bool> _initializedTcs = new TaskCompletionSource<bool>();
             private readonly int _timeout;
 
             private IDisposable _initializationOperation;

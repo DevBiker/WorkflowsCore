@@ -20,8 +20,8 @@ namespace WorkflowsCore
         private readonly TaskCompletionSource<bool> _completedTaskCompletionSource =
             new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-        private readonly IList<string> _actions = new List<string>(); 
-        private readonly IDictionary<string, ActionDefinition> _actionsDefinitions = 
+        private readonly IList<string> _actions = new List<string>();
+        private readonly IDictionary<string, ActionDefinition> _actionsDefinitions =
             new Dictionary<string, ActionDefinition>();
 
         private readonly ConcurrentExclusiveSchedulerPair _concurrentExclusiveSchedulerPair;
@@ -247,7 +247,7 @@ namespace WorkflowsCore
 
         public Task<object> GetIdAsync() => DoWorkflowTaskAsync(() => Id);
 
-        public Task ExecuteActionAsync(string action, bool throwNotAllowed = true) => 
+        public Task ExecuteActionAsync(string action, bool throwNotAllowed = true) =>
             ExecuteActionAsync<object>(action, new Dictionary<string, object>(), throwNotAllowed);
 
         public Task ExecuteActionAsync(
@@ -258,7 +258,7 @@ namespace WorkflowsCore
             return ExecuteActionAsync<object>(action, parameters, throwNotAllowed);
         }
 
-        public Task<T> ExecuteActionAsync<T>(string action, bool throwNotAllowed = true) => 
+        public Task<T> ExecuteActionAsync<T>(string action, bool throwNotAllowed = true) =>
             ExecuteActionAsync<T>(action, new Dictionary<string, object>(), throwNotAllowed);
 
         public Task<T> ExecuteActionAsync<T>(
@@ -307,7 +307,7 @@ namespace WorkflowsCore
         public Task<T> TryGetDataFieldAsync<T>(string key, bool forceExecution = false) =>
             RunViaWorkflowTaskScheduler(() => Metadata.TryGetDataField<T>(this, key), forceExecution);
 
-        public Task<T> GetDataFieldAsync<T>(string key, bool forceExecution = false) => 
+        public Task<T> GetDataFieldAsync<T>(string key, bool forceExecution = false) =>
             RunViaWorkflowTaskScheduler(() => Metadata.GetDataField<T>(this, key), forceExecution);
 
         public Task<T> GetTransientDataFieldAsync<T>(string key, bool forceExecution = false) =>
@@ -430,7 +430,7 @@ namespace WorkflowsCore
             return !ActionStats.TryGetValue(actionDefinition.Synonyms.First(), out stats) ? 0 : stats;
         }
 
-        protected void ClearTimesExecuted(string action) => 
+        protected void ClearTimesExecuted(string action) =>
             ActionStats.Remove(GetActionDefinition(action).Synonyms.First());
 
         protected void ConfigureAction(
@@ -622,7 +622,7 @@ namespace WorkflowsCore
                         }
 
                         break;
-                    case TaskStatus.Faulted: 
+                    case TaskStatus.Faulted:
                         // ReSharper disable once PossibleNullReferenceException
                         _exception = GetAggregatedExceptions(_exception, task.Exception.GetBaseException());
                         HandleCancellation(isCancellationRequested, out exception, out canceled);
@@ -709,7 +709,7 @@ namespace WorkflowsCore
                     {
                         throw new InvalidOperationException("Workflow has been terminated", exception);
                     }
-                    
+
                     _exception = GetAggregatedExceptions(_exception, exception);
                 }
             }
@@ -776,7 +776,7 @@ namespace WorkflowsCore
             return actionDefinition;
         }
 
-        private IList<string> GetAvailableActions() => 
+        private IList<string> GetAvailableActions() =>
             _actions.Where(a => IsActionAllowed(a) && !IsActionHidden(a)).ToList();
 
         private void ConfigureActionCore(

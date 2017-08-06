@@ -49,7 +49,7 @@ namespace WorkflowsCore.StateMachines
             }
         }
 
-        public static implicit operator StateId<TState, TInternalState>(TState state) => 
+        public static implicit operator StateId<TState, TInternalState>(TState state) =>
             new StateId<TState, TInternalState>(state);
 
         public static implicit operator StateId<TState, TInternalState>(TInternalState state) =>

@@ -63,7 +63,7 @@ namespace WorkflowsCore.Tests
                     Assert.NotNull(i.Task); // This actually will run state machine because its lazy
                     return i;
                 });
-            
+
             var task = await Task.WhenAny(tcsCurState.Task, instance.Task);
             await task;
 

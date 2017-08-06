@@ -18,7 +18,7 @@ namespace WorkflowsCore
 
     public class WorkflowsCoordinator<TWorkflowName>
     {
-        private readonly IList<Dependency> _dependencies = new List<Dependency>(); 
+        private readonly IList<Dependency> _dependencies = new List<Dependency>();
         private readonly IDictionary<TWorkflowName, WorkflowDefinition> _workflows =
             new Dictionary<TWorkflowName, WorkflowDefinition>();
 
@@ -74,7 +74,7 @@ namespace WorkflowsCore
             _dependencies.Add(dependency);
         }
 
-        public IList<WorkflowBase> GetWorkflows() => 
+        public IList<WorkflowBase> GetWorkflows() =>
             _workflows.Values.Select(d => d.Workflow).Where(w => w != null).ToList();
 
         public async Task SetWorkflowsAsync(
@@ -138,7 +138,7 @@ namespace WorkflowsCore
             return definition;
         }
 
-        private void OnUnhandledException(Exception ex) => 
+        private void OnUnhandledException(Exception ex) =>
             UnhandledException?.Invoke(this, new UnhandledExceptionEventArgs(ex));
 
         private abstract class Dependency

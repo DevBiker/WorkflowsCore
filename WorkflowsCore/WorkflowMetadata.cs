@@ -22,7 +22,7 @@ namespace WorkflowsCore
 
         public Type WorkflowType { get; }
 
-        public IReadOnlyDictionary<string, Type> DataFieldTypeMap { get; } 
+        public IReadOnlyDictionary<string, Type> DataFieldTypeMap { get; }
 
         public Dictionary<string, object> GetData(WorkflowBase workflow)
         {
@@ -50,7 +50,7 @@ namespace WorkflowsCore
             GetDataFieldMetadata(field).PropertyInfo.SetValue(workflow, value);
         }
 
-        public bool TrySetDataField<T>(WorkflowBase workflow, string field, T value) => 
+        public bool TrySetDataField<T>(WorkflowBase workflow, string field, T value) =>
             TrySetDataFieldCore(workflow, field, value, false);
 
         public void SetData(WorkflowBase workflow, IReadOnlyDictionary<string, object> newData)
@@ -169,11 +169,11 @@ namespace WorkflowsCore
         {
             var properties = new List<PropertyInfo>();
 
-            for (var type = WorkflowType; type != null; type = type.BaseType)
+            for (var type = WorkflowType; type != null; type = type.GetTypeInfo().BaseType)
             {
                 var typeProperties = type
                     .GetProperties(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
-                    .Where(p => p.DeclaringType == p.ReflectedType);
+                    .Where(p => p.DeclaringType == type);
                 properties.AddRange(typeProperties);
             }
 

@@ -475,7 +475,7 @@ namespace WorkflowsCore
             }
         }
 
-        private static bool IsNonOptionalTaskCompleted(Task t) => 
+        private static bool IsNonOptionalTaskCompleted(Task t) =>
             t.Status == TaskStatus.RanToCompletion && !(t.AsyncState is OptionalTask);
 
         private static Exception RequestCancellation(CancellationTokenSource cts, Exception exception = null)

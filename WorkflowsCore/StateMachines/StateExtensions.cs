@@ -49,7 +49,7 @@ namespace WorkflowsCore.StateMachines
             this State<TState, TInternalState> state,
             Func<Task<DateTime>> dateTaskFactory,
             string description = null,
-            Func<WorkflowBase, Task<bool>> bypassDatesFunc = null, 
+            Func<WorkflowBase, Task<bool>> bypassDatesFunc = null,
             bool isHidden = false)
         {
             return state.OnAsync(
@@ -69,7 +69,7 @@ namespace WorkflowsCore.StateMachines
             this State<TState, TInternalState> state,
             Func<DateTime> dateFactory,
             string description = null,
-            Func<WorkflowBase, Task<bool>> bypassDatesFunc = null, 
+            Func<WorkflowBase, Task<bool>> bypassDatesFunc = null,
             bool isHidden = false)
         {
             return state.OnDate(() => Task.FromResult(dateFactory()), description, bypassDatesFunc, isHidden);
@@ -102,7 +102,7 @@ namespace WorkflowsCore.StateMachines
 
         public static AsyncOperation<TState, TInternalState, NamedValues> OnActions<TState, TInternalState>(
             this State<TState, TInternalState> state,
-            string description, 
+            string description,
             bool isHidden,
             params string[] actions)
         {
@@ -136,7 +136,7 @@ namespace WorkflowsCore.StateMachines
         public static AsyncOperation<TState, TInternalState> OnActionWithWasExecutedCheck<TState, TInternalState>(
             this State<TState, TInternalState> state,
             string action,
-            string description = null, 
+            string description = null,
             bool isHidden = false)
         {
             return state

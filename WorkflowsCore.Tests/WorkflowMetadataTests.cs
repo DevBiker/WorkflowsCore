@@ -26,6 +26,7 @@ namespace WorkflowsCore.Tests
             Assert.True(_workflowMetadata.DataFieldTypeMap.ContainsKey("VirtualDataField"));
             Assert.True(_workflowMetadata.DataFieldTypeMap.ContainsKey("VirtualDataField2"));
             Assert.False(_workflowMetadata.DataFieldTypeMap.ContainsKey("TestDataField3"));
+            Assert.False(_workflowMetadata.DataFieldTypeMap.ContainsKey("TestStaticDataField"));
 
             Assert.Equal(typeof(bool), _workflowMetadata.DataFieldTypeMap["TestDataField"]);
             Assert.Equal(typeof(object), _workflowMetadata.DataFieldTypeMap["TestDataField2"]);
@@ -109,7 +110,7 @@ namespace WorkflowsCore.Tests
 
                     Assert.False(data.ContainsKey("TestDataField3"));
                     Assert.Equal(2, data["TestDataField2"]);
-                    Assert.Equal(true, data["TestDataField"]);
+                    Assert.True((bool)data["TestDataField"]);
                 });
             await CancelWorkflowAsync();
         }
@@ -127,7 +128,7 @@ namespace WorkflowsCore.Tests
                     var data = _workflowMetadata.GetData(w);
 
                     Assert.False(data.ContainsKey("Bad Field"));
-                    Assert.Equal(true, data["TestDataField"]);
+                    Assert.True((bool)data["TestDataField"]);
                 });
             await CancelWorkflowAsync();
         }
@@ -215,7 +216,7 @@ namespace WorkflowsCore.Tests
 
                     Assert.False(data.ContainsKey("TestDataField"));
                     Assert.Equal(2, data["TestDataField3"]);
-                    Assert.Equal(true, data["TestDataField4"]);
+                    Assert.True((bool)data["TestDataField4"]);
                 });
             await CancelWorkflowAsync();
         }
@@ -290,6 +291,9 @@ namespace WorkflowsCore.Tests
 
         public class TestWorkflow : BaseWorkflow
         {
+            [DataField]
+            public static bool TestStaticDataField { get; set; }
+
             [DataField]
             protected bool TestDataField { get; set; }
 

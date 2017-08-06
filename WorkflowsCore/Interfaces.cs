@@ -75,7 +75,7 @@ namespace WorkflowsCore
         WorkflowBase CreateWorkflow(string fullTypeName, IReadOnlyDictionary<string, object> initialWorkflowData);
 
         WorkflowBase CreateWorkflow(
-            string fullTypeName, 
+            string fullTypeName,
             IReadOnlyDictionary<string, object> initialWorkflowData,
             IReadOnlyDictionary<string, object> initialWorkflowTransientData);
 

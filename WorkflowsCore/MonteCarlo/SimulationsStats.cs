@@ -32,7 +32,7 @@ namespace WorkflowsCore.MonteCarlo
 
         public double AverageNumberOfEventsPerSimulation { get; }
 
-        public IReadOnlyList<Tuple<string, int>> Events { get; } 
+        public IReadOnlyList<Tuple<string, int>> Events { get; }
 
         public override string ToString()
         {

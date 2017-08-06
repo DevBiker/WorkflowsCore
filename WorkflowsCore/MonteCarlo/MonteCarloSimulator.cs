@@ -498,7 +498,7 @@ namespace WorkflowsCore.MonteCarlo
 
             public double ProbabilityWeight { get; }
 
-            public virtual Task<bool> GetIsAvailable(TWorkflowType workflow, bool isPrimaryPartition) => 
+            public virtual Task<bool> GetIsAvailable(TWorkflowType workflow, bool isPrimaryPartition) =>
                 Task.FromResult(GetIsAvailableCore(isPrimaryPartition));
 
             public abstract Task<TWorkflowType> DoEvent(TWorkflowType workflow);
@@ -626,7 +626,7 @@ namespace WorkflowsCore.MonteCarlo
                 {
                     await newWorkflow.CompletedTask; // Most probably workflow was stopped due to exception, so rethrow it
                 }
-                
+
                 return newWorkflow;
             }
         }
@@ -638,7 +638,7 @@ namespace WorkflowsCore.MonteCarlo
             private readonly IDictionary<string, ActionEventDefinition> _actions =
                 new Dictionary<string, ActionEventDefinition>();
 
-            public ActionExecutionEventDefinition(double probabilityWeight, bool concurrentEvents) 
+            public ActionExecutionEventDefinition(double probabilityWeight, bool concurrentEvents)
                 : base(probabilityWeight, false)
             {
                 _concurrentEvents = concurrentEvents;
@@ -710,7 +710,7 @@ namespace WorkflowsCore.MonteCarlo
 
         private class HelperException : Exception
         {
-            public HelperException(string message) 
+            public HelperException(string message)
                 : base(message)
             {
             }

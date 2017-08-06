@@ -416,7 +416,7 @@ namespace WorkflowsCore.StateMachines
                 }
             }
 
-            public IList<TargetState<TState, TInternalState>> GetTargetStates(IEnumerable<string> conditions) => 
+            public IList<TargetState<TState, TInternalState>> GetTargetStates(IEnumerable<string> conditions) =>
                 _operation.GetTargetStates(conditions);
         }
 

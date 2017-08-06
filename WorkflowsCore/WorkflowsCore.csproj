@@ -1,95 +1,19 @@
-﻿<?xml version="1.0" encoding="utf-8"?>
-<Project ToolsVersion="14.0" DefaultTargets="Build" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
-  <Import Project="$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props" Condition="Exists('$(MSBuildExtensionsPath)\$(MSBuildToolsVersion)\Microsoft.Common.props')" />
+﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
-    <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{CD248E76-B064-4602-8979-96AC28A90F0A}</ProjectGuid>
-    <OutputType>Library</OutputType>
-    <AppDesignerFolder>Properties</AppDesignerFolder>
-    <RootNamespace>WorkflowsCore</RootNamespace>
-    <AssemblyName>WorkflowsCore</AssemblyName>
-    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
-    <FileAlignment>512</FileAlignment>
-    <TargetFrameworkProfile />
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <DebugSymbols>true</DebugSymbols>
-    <DebugType>full</DebugType>
-    <Optimize>false</Optimize>
-    <OutputPath>bin\Debug\</OutputPath>
-    <DefineConstants>DEBUG;TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-    <CodeAnalysisRuleSet>..\StyleCopRules.ruleset</CodeAnalysisRuleSet>
-  </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <DebugType>pdbonly</DebugType>
-    <Optimize>true</Optimize>
-    <OutputPath>bin\Release\</OutputPath>
-    <DefineConstants>TRACE</DefineConstants>
-    <ErrorReport>prompt</ErrorReport>
-    <WarningLevel>4</WarningLevel>
-    <CodeAnalysisRuleSet>..\StyleCopRules.ruleset</CodeAnalysisRuleSet>
+    <TargetFramework>netstandard1.3</TargetFramework>
+    <PackageId>WorkflowsCore</PackageId>
+    <PackageVersion>0.8.0</PackageVersion>
+    <Title>WorkflowsCore Workflow Engine</Title>
+    <Authors>Eugene Shalyuk</Authors>
+    <Description>Lightweight workflow engine</Description>
+    <PackageTags>workflow-engine workflow state-machine</PackageTags>
+    <PackageProjectUrl>https://github.com/eugene-sea/WorkflowsCore</PackageProjectUrl>
+    <CodeAnalysisRuleSet>..\RuleSet.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="System" />
-    <Reference Include="System.Core" />
-    <Reference Include="System.Xml.Linq" />
-    <Reference Include="System.Data.DataSetExtensions" />
-    <Reference Include="Microsoft.CSharp" />
-    <Reference Include="System.Data" />
-    <Reference Include="System.Net.Http" />
-    <Reference Include="System.Xml" />
+    <PackageReference Include="Stylecop.Analyzers" Version="1.0.2" />
+    <PackageReference Include="System.Reflection.TypeExtensions" Version="4.3.0" />
+    <PackageReference Include="System.Threading.Tasks.Parallel" Version="4.3.0" />
+    <PackageReference Include="System.Threading.Thread" Version="4.3.0" />
   </ItemGroup>
-  <ItemGroup>
-    <Compile Include="ActivationDatesManager.cs" />
-    <Compile Include="DataFieldAttribute.cs" />
-    <Compile Include="MonteCarlo\EventMonitor.cs" />
-    <Compile Include="MonteCarlo\Globals.cs" />
-    <Compile Include="MonteCarlo\MonteCarloSimulator.cs" />
-    <Compile Include="MonteCarlo\RandomGenerator.cs" />
-    <Compile Include="MonteCarlo\SimulationException.cs" />
-    <Compile Include="MonteCarlo\SimulationsStats.cs" />
-    <Compile Include="SingleThreadTaskScheduler.cs" />
-    <Compile Include="StateMachines\AsyncOperation.cs" />
-    <Compile Include="StateMachines\DotExtensions.cs" />
-    <Compile Include="StateMachines\State.cs" />
-    <Compile Include="StateMachines\StateExtensions.cs" />
-    <Compile Include="StateMachines\StateId.cs" />
-    <Compile Include="StateMachines\StateMachine.cs" />
-    <Compile Include="StateMachines\StateTransition.cs" />
-    <Compile Include="StateMachineWorkflow.cs" />
-    <Compile Include="Time\TimeOperators.cs" />
-    <Compile Include="Time\TimeProvider.cs" />
-    <Compile Include="Interfaces.cs" />
-    <Compile Include="NamedValues.cs" />
-    <Compile Include="Operators.cs" />
-    <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Utilities.cs" />
-    <Compile Include="WorkflowBase.cs" />
-    <Compile Include="WorkflowBaseStateful.cs" />
-    <Compile Include="WorkflowEngine.cs" />
-    <Compile Include="WorkflowMetadata.cs" />
-    <Compile Include="WorkflowMetadataCache.cs" />
-    <Compile Include="WorkflowsCoordinator.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="packages.config">
-      <SubType>Designer</SubType>
-    </None>
-  </ItemGroup>
-  <ItemGroup>
-    <Analyzer Include="..\..\packages\StyleCop.Analyzers.1.0.0\analyzers\dotnet\cs\Newtonsoft.Json.dll" />
-    <Analyzer Include="..\..\packages\StyleCop.Analyzers.1.0.0\analyzers\dotnet\cs\StyleCop.Analyzers.CodeFixes.dll" />
-    <Analyzer Include="..\..\packages\StyleCop.Analyzers.1.0.0\analyzers\dotnet\cs\StyleCop.Analyzers.dll" />
-  </ItemGroup>
-  <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
-  <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
-       Other similar extension points exist, see Microsoft.Common.targets.
-  <Target Name="BeforeBuild">
-  </Target>
-  <Target Name="AfterBuild">
-  </Target>
-  -->
 </Project>

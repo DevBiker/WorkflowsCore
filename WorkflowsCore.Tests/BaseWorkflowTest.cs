@@ -5,7 +5,7 @@ using Xunit;
 
 namespace WorkflowsCore.Tests
 {
-    public class BaseWorkflowTest<T> : IDisposable 
+    public class BaseWorkflowTest<T> : IDisposable
         where T : WorkflowBase
     {
         private bool _wasStarted;
@@ -65,7 +65,7 @@ namespace WorkflowsCore.Tests
             // ReSharper disable once PossibleNullReferenceException
             var ex = await Record.ExceptionAsync(() => Workflow.CompletedTask);
 
-            Assert.IsType(typeof(TEx), ex);
+            Assert.IsType<TEx>(ex);
         }
 
         public virtual void Dispose()

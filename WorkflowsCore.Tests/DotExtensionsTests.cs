@@ -29,8 +29,8 @@ namespace WorkflowsCore.Tests
             var actual = sm.ToDotGraph();
 
             var expected = string.Join(
-                Environment.NewLine, 
-                "digraph {", 
+                Environment.NewLine,
+                "digraph {",
                 "}");
             Assert.Equal(expected, actual);
         }
