@@ -84,7 +84,7 @@ namespace WorkflowsCore
         {
             foreach (var pair in workflows)
             {
-                var workflow = workflowEngine.GetActiveWorkflowById(pair.Value);
+                var workflow = await workflowEngine.GetActiveWorkflowByIdAsync(pair.Value);
                 if (workflow != null)
                 {
                     await AddWorkflowAsync(pair.Key, workflow, initializeDependencies);
@@ -286,8 +286,9 @@ namespace WorkflowsCore
                     return;
                 }
 
+                // TODO: Handle TaskCanceledException
                 var wasExecuted = await SrcWorkflowDefinition.Workflow.RunViaWorkflowTaskScheduler(
-                    () => SrcWorkflowDefinition.Workflow.WasExecuted(_srcWorkflowAction));
+                    () => SrcWorkflowDefinition.Workflow?.WasExecuted(_srcWorkflowAction) ?? false);
 
                 if (!wasExecuted)
                 {
@@ -374,8 +375,9 @@ namespace WorkflowsCore
                     return;
                 }
 
+                // TODO: Handle TaskCanceledException
                 var wasIn = await SrcWorkflowDefinition.Workflow.RunViaWorkflowTaskScheduler(
-                    () => ((WorkflowBase<TState>)SrcWorkflowDefinition.Workflow).WasIn(_srcWorkflowState));
+                    () => ((WorkflowBase<TState>)SrcWorkflowDefinition.Workflow)?.WasIn(_srcWorkflowState) ?? false);
 
                 if (!wasIn)
                 {
@@ -424,7 +426,7 @@ namespace WorkflowsCore
 
                     if (Workflow == null)
                     {
-                        return;  // Workflow was canceled
+                        return; // Workflow was canceled
                     }
 
                     dependency.OnSrcWorkflowSet();

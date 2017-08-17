@@ -70,6 +70,8 @@ namespace WorkflowsCore
     {
         IList<WorkflowBase> RunningWorkflows { get; }
 
+        Task PreloadWorkflowsTask { get; }
+
         WorkflowBase CreateWorkflow(string fullTypeName);
 
         WorkflowBase CreateWorkflow(string fullTypeName, IReadOnlyDictionary<string, object> initialWorkflowData);
@@ -83,7 +85,7 @@ namespace WorkflowsCore
 
         Task LoadAndExecuteActiveWorkflowsAsync(int preloadHours);
 
-        WorkflowBase GetActiveWorkflowById(object id);
+        Task<WorkflowBase> GetActiveWorkflowByIdAsync(object id);
     }
 
     public interface IWorkflowRepository
@@ -93,20 +95,31 @@ namespace WorkflowsCore
         /// </summary>
         /// <param name="maxActivationDate">Workflows with next activation date greater than <c>maxActivationDate</c> should be ignored.</param>
         /// <param name="ignoreWorkflowsIds">IDs of workflows to ignore.</param>
-        IList<WorkflowInstance> GetActiveWorkflows(DateTime maxActivationDate, IEnumerable<object> ignoreWorkflowsIds);
+        Task<IList<WorkflowInstance>> GetActiveWorkflowsAsync(DateTimeOffset maxActivationDate, IEnumerable<object> ignoreWorkflowsIds);
 
         /// <summary>
         /// It should return workflows in progress and faulted.
         /// </summary>
-        WorkflowInstance GetActiveWorkflowById(object workflowId);
+        Task<WorkflowInstance> GetActiveWorkflowByIdAsync(object workflowId);
     }
 
     public class WorkflowInstance
     {
-        public object Id { get; set; }
+        public WorkflowInstance(
+            object id, WorkflowStatus status, string workflowTypeName, IReadOnlyDictionary<string, object> data)
+        {
+            Id = id ?? throw new ArgumentNullException(nameof(id));
+            Status = status;
+            WorkflowTypeName = workflowTypeName ?? throw new ArgumentNullException(nameof(workflowTypeName));
+            Data = data ?? throw new ArgumentNullException(nameof(data));
+        }
 
-        public string WorkflowTypeName { get; set; }
+        public object Id { get; private set; }
 
-        public IReadOnlyDictionary<string, object> Data { get; set; }
+        public WorkflowStatus Status { get; private set; }
+
+        public string WorkflowTypeName { get; private set; }
+
+        public IReadOnlyDictionary<string, object> Data { get; private set; }
     }
 }

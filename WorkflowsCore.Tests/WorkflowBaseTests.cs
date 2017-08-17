@@ -23,6 +23,21 @@ namespace WorkflowsCore.Tests
             }
 
             [Fact]
+            public async Task StartedTaskShouldWaitUntilIdIsSetForCustomRepository()
+            {
+                Workflow = new TestWorkflow(() => new WorkflowRepository(setId: false));
+                StartWorkflow();
+
+                await Task.Delay(1);
+                Assert.NotEqual(TaskStatus.RanToCompletion, Workflow.StartedTask.Status);
+
+                Workflow.Id = 1;
+                await Workflow.StartedTask;
+
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
             public async Task StartedTaskShouldBeCanceledIfStartingIsFailed()
             {
                 Workflow = new TestWorkflow(allowOnFaulted: true);
@@ -173,7 +188,7 @@ namespace WorkflowsCore.Tests
             }
 
             [Fact]
-            public async Task StartingInnerOperationShoulSucceed()
+            public async Task StartingInnerOperationShouldSucceed()
             {
                 Workflow = new TestWorkflow();
                 StartWorkflow();
@@ -213,6 +228,43 @@ namespace WorkflowsCore.Tests
                     }).Unwrap();
 
                 await CancelWorkflowAsync();
+            }
+
+            [Fact]
+            public async Task IfWorkflowStopedThenInnerOperationsShouldBeCanceled()
+            {
+                Workflow = new TestWorkflow(allowOnFaulted: true);
+                StartWorkflow();
+
+                await Workflow.DoWorkflowTaskAsync(
+                    async () =>
+                    {
+                        Exception exception;
+                        Workflow.CreateOperation();
+                        using (var outerOp = Workflow.TryStartOperation())
+                        {
+                            await Task.Delay(1);
+
+                            Workflow.CreateOperation();
+#pragma warning disable 4014
+                            Workflow.DoWorkflowTaskAsync(async () =>
+                            {
+                                using (var innerOp = Workflow.TryStartOperation())
+                                {
+                                    Assert.NotSame(outerOp, innerOp);
+                                    await Task.Delay(1);
+                                    Workflow.StopWorkflow(new ArgumentOutOfRangeException()); // Simulates failure of inner operation
+                                }
+                            });
+#pragma warning restore 4014
+
+                            exception = await Record.ExceptionAsync(() => outerOp.WaitForAllInnerOperationsCompletion());
+                        }
+
+                        Assert.IsType<TaskCanceledException>(exception);
+                    }).Unwrap();
+
+                await WaitUntilWorkflowFailed<ArgumentOutOfRangeException>();
             }
 
             [Fact]
@@ -267,17 +319,14 @@ namespace WorkflowsCore.Tests
 
         public class GeneralTests : BaseWorkflowTest<TestWorkflow>
         {
-            public GeneralTests()
-            {
-                Workflow = new TestWorkflow();
-            }
+            public GeneralTests() => Workflow = new TestWorkflow();
 
             [Fact]
             public void WorkflowIdCouldBeSetOnlyOnce()
             {
                 Workflow.Id = 1;
 
-                var ex = Record.Exception(() => Workflow.Id = 2);
+                var ex = Record.Exception(() => Workflow.Id = 1);
 
                 Assert.Equal(1, Workflow.Id);
                 Assert.IsType<InvalidOperationException>(ex);
@@ -438,10 +487,7 @@ namespace WorkflowsCore.Tests
 
         public class ActionsTests : BaseWorkflowTest<TestWorkflow>
         {
-            public ActionsTests()
-            {
-                Workflow = new TestWorkflow();
-            }
+            public ActionsTests() => Workflow = new TestWorkflow();
 
             [Fact]
             public async Task ConfiguredActionShouldBeExecutedOnRequestWithOperationStarted()
@@ -478,6 +524,37 @@ namespace WorkflowsCore.Tests
                 var parameters = new Dictionary<string, object> { ["Id"] = 1 };
                 await Workflow.ExecuteActionAsync("Action Synonym", parameters);
 
+                parameters["Action"] = "Action 1";
+                Assert.Equal(parameters, invocationParameters.Data);
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
+            public async Task ConfiguredActionIsActionAllowedHandlerShouldBeInvokedWithPassedParameters()
+            {
+                var isActionAllowed = false;
+                NamedValues invocationParameters = null;
+                var metadata = new Dictionary<string, object> { ["Test"] = "test" };
+                Workflow.ConfigureAction(
+                    "Action 1",
+                    _ => { },
+                    isActionAllowed: parametersIn =>
+                    {
+                        invocationParameters = parametersIn;
+                        return isActionAllowed;
+                    });
+                StartWorkflow();
+
+                var parameters = new Dictionary<string, object> { ["Id"] = 1 };
+                var actions = await Workflow.GetAvailableActionsAsync(parameters);
+                Assert.Equal(parameters, invocationParameters?.Data);
+                Assert.DoesNotContain("Action 1", actions);
+
+                isActionAllowed = true;
+                actions = await Workflow.GetAvailableActionsAsync(parameters);
+                Assert.Contains("Action 1", actions);
+
+                await Workflow.ExecuteActionAsync("Action 1", parameters);
                 parameters["Action"] = "Action 1";
                 Assert.Equal(parameters, invocationParameters.Data);
                 await CancelWorkflowAsync();
@@ -967,9 +1044,10 @@ namespace WorkflowsCore.Tests
                 IReadOnlyDictionary<string, object> metadata = null,
                 string synonym = null,
                 IEnumerable<string> synonyms = null,
-                bool isHidden = false)
+                bool isHidden = false,
+                Func<NamedValues, bool> isActionAllowed = null)
             {
-                base.ConfigureAction(action, actionHandler, metadata, synonym, synonyms, isHidden);
+                base.ConfigureAction(action, actionHandler, metadata, synonym, synonyms, isHidden, isActionAllowed);
             }
 
             [SuppressMessage("ReSharper", "UnusedParameter.Local", Justification = "It is OK")]
@@ -979,9 +1057,10 @@ namespace WorkflowsCore.Tests
                 IReadOnlyDictionary<string, object> metadata = null,
                 string synonym = null,
                 IEnumerable<string> synonyms = null,
-                bool isHidden = false)
+                bool isHidden = false,
+                Func<NamedValues, bool> isActionAllowed = null)
             {
-                base.ConfigureAction(action, actionHandler, metadata, synonym, synonyms, isHidden);
+                base.ConfigureAction(action, actionHandler, metadata, synonym, synonyms, isHidden, isActionAllowed);
             }
 
             // ReSharper disable once UnusedParameter.Local
@@ -1032,7 +1111,8 @@ namespace WorkflowsCore.Tests
                 Assert.Equal(CurrentCancellationToken, Utilities.CurrentCancellationToken);
             }
 
-            protected override bool IsActionAllowed(string action) => ActionsAllowed && action != NotAllowedAction;
+            protected override bool IsActionAllowed(string action, NamedValues parameters) =>
+                ActionsAllowed && action != NotAllowedAction;
 
             protected override void OnCanceled(Exception exception)
             {
@@ -1051,6 +1131,10 @@ namespace WorkflowsCore.Tests
 
         private class WorkflowRepository : IWorkflowStateRepository
         {
+            private readonly bool _setId;
+
+            public WorkflowRepository(bool setId = true) => _setId = setId;
+
             public int SaveWorkflowDataCounter { get; private set; }
 
             public int NumberOfCompletedWorkflows { get; private set; }
@@ -1063,6 +1147,10 @@ namespace WorkflowsCore.Tests
             {
                 Assert.NotNull(workflow);
                 ++SaveWorkflowDataCounter;
+                if (_setId && workflow.Id == null)
+                {
+                    workflow.Id = 1;
+                }
             }
 
             public void MarkWorkflowAsCompleted(WorkflowBase workflow)

@@ -73,22 +73,20 @@ namespace WorkflowsCore.Tests
         }
 
         [Fact]
-        public async Task LoadAndExecuteActiveWorkflowsShouldGetActiveWorkflowsAndExecuteThem()
+        public async Task LoadAndExecuteActiveWorkflowsAsyncShouldGetActiveWorkflowsAndExecuteThem()
         {
             _workflowRepo.ActiveWorkflows = new[]
             {
-                new WorkflowInstance
-                {
-                    WorkflowTypeName = typeof(TestWorkflowWithLoad).AssemblyQualifiedName,
-                    Id = 1,
-                    Data = new Dictionary<string, object> { ["Id"] = 1 }
-                },
-                new WorkflowInstance
-                {
-                    WorkflowTypeName = typeof(TestWorkflowWithLoad).AssemblyQualifiedName,
-                    Id = 2,
-                    Data = new Dictionary<string, object> { ["Id"] = 2 }
-                }
+                new WorkflowInstance(
+                    1,
+                    WorkflowStatus.InProgress,
+                    typeof(TestWorkflowWithLoad).AssemblyQualifiedName,
+                    new Dictionary<string, object> { ["Id"] = 1 }),
+                new WorkflowInstance(
+                    2,
+                    WorkflowStatus.InProgress,
+                    typeof(TestWorkflowWithLoad).AssemblyQualifiedName,
+                    new Dictionary<string, object> { ["Id"] = 2 })
             };
 
             await _workflowEngine.LoadAndExecuteActiveWorkflowsAsync(4);
@@ -105,16 +103,23 @@ namespace WorkflowsCore.Tests
         }
 
         [Fact]
-        public async Task LoadAndExecuteActiveWorkflowsShouldPreloadWorkflowsRegularly()
+        public async Task LoadAndExecuteActiveWorkflowsAsyncShouldHandleExceptionsOnWorkflowsLoading()
+        {
+            await _workflowEngine.LoadAndExecuteActiveWorkflowsAsync(4);
+            var ex = await Record.ExceptionAsync(() => _workflowEngine.PreloadWorkflowsTask);
+            Assert.IsType<NotImplementedException>(ex);
+        }
+
+        [Fact]
+        public async Task LoadAndExecuteActiveWorkflowsAsyncShouldPreloadWorkflowsRegularly()
         {
             _workflowRepo.ActiveWorkflows = new[]
             {
-                new WorkflowInstance
-                {
-                    WorkflowTypeName = typeof(TestWorkflowWithLoad).AssemblyQualifiedName,
-                    Id = 1,
-                    Data = new Dictionary<string, object> { ["Id"] = 1 }
-                }
+                new WorkflowInstance(
+                    1,
+                    WorkflowStatus.InProgress,
+                    typeof(TestWorkflowWithLoad).AssemblyQualifiedName,
+                    new Dictionary<string, object> { ["Id"] = 1 })
             };
 
             await _workflowEngine.LoadAndExecuteActiveWorkflowsAsync(4);
@@ -122,15 +127,14 @@ namespace WorkflowsCore.Tests
 
             _workflowRepo.ActiveWorkflows = new[]
             {
-                new WorkflowInstance
-                {
-                    WorkflowTypeName = typeof(TestWorkflowWithLoad).AssemblyQualifiedName,
-                    Id = 2,
-                    Data = new Dictionary<string, object> { ["Id"] = 2 }
-                }
+                new WorkflowInstance(
+                    2,
+                    WorkflowStatus.InProgress,
+                    typeof(TestWorkflowWithLoad).AssemblyQualifiedName,
+                    new Dictionary<string, object> { ["Id"] = 2 })
             };
             var newTime = TestingSystemClock.Current.Now.AddHours(4).AddMinutes(-30);
-            _workflowRepo.MaxActivationDate = newTime.AddHours(4);
+            _workflowRepo.MaxActivationDate = newTime.ToUniversalTime().AddHours(4);
             _workflowRepo.IgnoreWorkflowsIds = Enumerable.Repeat((object)1, 1);
 
             await Task.Delay(5);
@@ -139,7 +143,7 @@ namespace WorkflowsCore.Tests
 
             await t;
 
-            var workflow = _workflowEngine.GetActiveWorkflowById(2);
+            var workflow = await _workflowEngine.GetActiveWorkflowByIdAsync(2);
             Assert.Null(_workflowRepo.Exception);
             Assert.NotNull(workflow);
 
@@ -153,12 +157,11 @@ namespace WorkflowsCore.Tests
         {
             _workflowRepo.ActiveWorkflows = new[]
             {
-                new WorkflowInstance
-                {
-                    WorkflowTypeName = typeof(TestWorkflowWithLoad).AssemblyQualifiedName,
-                    Id = 1,
-                    Data = new Dictionary<string, object> { ["Id"] = 1 }
-                }
+                new WorkflowInstance(
+                    1,
+                    WorkflowStatus.InProgress,
+                    typeof(TestWorkflowWithLoad).AssemblyQualifiedName,
+                    new Dictionary<string, object> { ["Id"] = 1 })
             };
 
             await _workflowEngine.LoadAndExecuteActiveWorkflowsAsync(4);
@@ -174,30 +177,39 @@ namespace WorkflowsCore.Tests
         }
 
         [Fact]
-        public async Task GetActiveWorkflowByIdShouldReturnRunningWorkflow()
+        public async Task GetActiveWorkflowByIdAsyncShouldReturnRunningWorkflow()
         {
             var workflow = _workflowEngine.CreateWorkflow(typeof(TestWorkflow).AssemblyQualifiedName);
             var id = await workflow.GetIdAsync();
 
-            Assert.Same(workflow, _workflowEngine.GetActiveWorkflowById(id));
+            Assert.Same(workflow, await _workflowEngine.GetActiveWorkflowByIdAsync(id));
             await CancelWorkflowAsync(workflow);
-            Assert.Null(_workflowEngine.GetActiveWorkflowById(id));
+            Assert.Null(await _workflowEngine.GetActiveWorkflowByIdAsync(id));
         }
 
         [Fact]
-        public async Task GetActiveWorkflowByIdShouldLoadActiveWorkflowIfItIsNotRunningYet()
+        public async Task GetActiveWorkflowByIdAsyncShouldLoadActiveWorkflowIfItIsNotRunningYet()
         {
             _workflowRepo.LoadOnDemandWorkflowId = 3;
-            var workflow = _workflowEngine.GetActiveWorkflowById(3);
+            var workflow = await _workflowEngine.GetActiveWorkflowByIdAsync(3);
             Assert.NotNull(workflow);
 
             var id = await workflow.GetIdAsync();
             Assert.Equal(3, id);
-            Assert.Same(workflow, _workflowEngine.GetActiveWorkflowById(3));
+            Assert.Same(workflow, await _workflowEngine.GetActiveWorkflowByIdAsync(3));
 
             await CancelWorkflowAsync(workflow);
             _workflowRepo.LoadOnDemandWorkflowId = null;
-            Assert.Null(_workflowEngine.GetActiveWorkflowById(3));
+            Assert.Null(await _workflowEngine.GetActiveWorkflowByIdAsync(3));
+        }
+
+        [Fact]
+        public async Task GetActiveWorkflowByIdAsyncShouldHandleExceptionsOnWorkflowLoad()
+        {
+            _workflowRepo.FailLoadingOnDemand = true;
+            var ex = await Record.ExceptionAsync(() => _workflowEngine.GetActiveWorkflowByIdAsync(3));
+
+            Assert.IsType<InvalidOperationException>(ex);
         }
 
         private static async Task CancelWorkflowAsync(WorkflowBase workflow)
@@ -244,7 +256,7 @@ namespace WorkflowsCore.Tests
 
             public IList<WorkflowInstance> ActiveWorkflows { get; set; }
 
-            public DateTime MaxActivationDate { get; set; } = Utilities.SystemClock.Now.AddHours(4);
+            public DateTimeOffset MaxActivationDate { get; set; } = Utilities.SystemClock.UtcNow.AddHours(4);
 
             public IEnumerable<object> IgnoreWorkflowsIds { get; set; } = Enumerable.Empty<object>();
 
@@ -252,14 +264,16 @@ namespace WorkflowsCore.Tests
 
             public object LoadOnDemandWorkflowId { get; set; }
 
+            public bool FailLoadingOnDemand { get; set; }
+
             public Task InitGetActiveWorkflowsTask()
             {
                 _tcs = new TaskCompletionSource<bool>();
                 return _tcs.Task;
             }
 
-            public IList<WorkflowInstance> GetActiveWorkflows(
-                DateTime maxActivationDate,
+            public Task<IList<WorkflowInstance>> GetActiveWorkflowsAsync(
+                DateTimeOffset maxActivationDate,
                 IEnumerable<object> ignoreWorkflowsIds)
             {
                 if (ActiveWorkflows != null)
@@ -275,25 +289,29 @@ namespace WorkflowsCore.Tests
                     }
 
                     _tcs?.SetResult(true);
-                    return ActiveWorkflows;
+                    return Task.FromResult(ActiveWorkflows);
                 }
 
-                throw new NotImplementedException();
+                return Task.FromException<IList<WorkflowInstance>>(new NotImplementedException());
             }
 
-            public WorkflowInstance GetActiveWorkflowById(object workflowId)
+            public Task<WorkflowInstance> GetActiveWorkflowByIdAsync(object workflowId)
             {
-                if (Equals(workflowId, LoadOnDemandWorkflowId))
+                if (FailLoadingOnDemand)
                 {
-                    return new WorkflowInstance
-                    {
-                        WorkflowTypeName = typeof(TestWorkflowWithLoad).AssemblyQualifiedName,
-                        Id = workflowId,
-                        Data = new Dictionary<string, object> { ["Id"] = 1 }
-                    };
+                    return Task.FromException<WorkflowInstance>(new InvalidOperationException());
                 }
 
-                return null;
+                if (Equals(workflowId, LoadOnDemandWorkflowId))
+                {
+                    return Task.FromResult(new WorkflowInstance(
+                        workflowId,
+                        WorkflowStatus.InProgress,
+                        typeof(TestWorkflowWithLoad).AssemblyQualifiedName,
+                        new Dictionary<string, object> { ["Id"] = 1 }));
+                }
+
+                return Task.FromResult<WorkflowInstance>(null);
             }
 
             public override void SaveWorkflowData(WorkflowBase workflow, DateTimeOffset? nextActivationDate) =>

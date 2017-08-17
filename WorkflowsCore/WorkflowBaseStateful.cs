@@ -44,7 +44,7 @@ namespace WorkflowsCore
         /// It is stored for diagnosing purposes only
         /// </summary>
         [DataField]
-        private IList<Tuple<TState, DateTime, bool>> FullStatesHistory { get; set; }
+        private IList<Tuple<TState, DateTimeOffset, bool>> FullStatesHistory { get; set; }
 
         public Task<TState> GetStateAsync() => DoWorkflowTaskAsync(() => State);
 
@@ -56,7 +56,7 @@ namespace WorkflowsCore
         {
             base.OnInit();
             StatesHistory = new List<TState>();
-            FullStatesHistory = new List<Tuple<TState, DateTime, bool>>();
+            FullStatesHistory = new List<Tuple<TState, DateTimeOffset, bool>>();
             StatesStats = new Dictionary<TState, int>();
             OnStatesInit();
         }
@@ -95,7 +95,7 @@ namespace WorkflowsCore
 
         private void UpdateFullStatesHistory(TState state, bool isStateRestored)
         {
-            FullStatesHistory.Add(Tuple.Create(state, SystemClock.Now, isStateRestored));
+            FullStatesHistory.Add(Tuple.Create(state, SystemClock.UtcNow, isStateRestored));
             while (FullStatesHistory.Count > _fullStatesHistoryLimit)
             {
                 FullStatesHistory.RemoveAt(0);

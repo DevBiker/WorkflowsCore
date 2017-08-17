@@ -17,6 +17,9 @@ namespace WorkflowsCore
 
         private readonly Operation _initializationOperation;
 
+        private readonly TaskCompletionSource<bool> _idTaskCompletionSource =
+            new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
         private readonly TaskCompletionSource<bool> _completedTaskCompletionSource =
             new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
@@ -47,7 +50,11 @@ namespace WorkflowsCore
             _concurrentExclusiveSchedulerPair = Utilities.WorkflowsTaskScheduler == null
                 ? new ConcurrentExclusiveSchedulerPair()
                 : new ConcurrentExclusiveSchedulerPair(Utilities.WorkflowsTaskScheduler);
-            _workflowRepoFactory = workflowRepoFactory ?? (() => new DummyWorkflowStateRepository());
+            _workflowRepoFactory = workflowRepoFactory;
+            if (_workflowRepoFactory == null)
+            {
+                _idTaskCompletionSource.SetResult(true);
+            }
 
             _initializationOperation = new Operation(this);
             _initializationOperation.StartOperation();
@@ -73,6 +80,8 @@ namespace WorkflowsCore
                 {
                     throw new InvalidOperationException();
                 }
+
+                _idTaskCompletionSource.TrySetResult(true);
             }
         }
 
@@ -292,14 +301,15 @@ namespace WorkflowsCore
 
         public void CancelWorkflow() => Cancel();
 
-        public Task<IList<string>> GetAvailableActionsAsync()
+        public Task<IList<string>> GetAvailableActionsAsync(IReadOnlyDictionary<string, object> parameters = null)
         {
+            var namedValues = GetNamedValues(parameters);
             return DoWorkflowTaskAsync(
                 async () =>
                 {
                     using (await this.WaitForReadyAndStartOperation())
                     {
-                        return GetAvailableActions();
+                        return GetAvailableActions(namedValues);
                     }
                 }).Unwrap();
         }
@@ -387,13 +397,14 @@ namespace WorkflowsCore
 
         protected internal bool WasExecuted(string action) => TimesExecuted(action) > 0;
 
-        protected internal virtual bool IsActionAllowed(string action) => true;
+        protected internal virtual bool IsActionAllowed(string action, NamedValues parameters) => true;
 
         protected internal IList<string> GetActionSynonyms(string action) => GetActionDefinition(action).Synonyms;
 
         protected NamedValues GetActionMetadata(string action) => GetActionDefinition(action).Metadata;
 
-        protected void SaveWorkflowData() => _workflowRepoFactory().SaveWorkflowData(this, NextActivationDate);
+        protected void SaveWorkflowData() =>
+            CreateWorkflowRepositoryAndDoAction(r => r.SaveWorkflowData(this, NextActivationDate));
 
         protected virtual void OnInit()
         {
@@ -439,7 +450,8 @@ namespace WorkflowsCore
             IReadOnlyDictionary<string, object> metadata = null,
             string synonym = null,
             IEnumerable<string> synonyms = null,
-            bool isHidden = false)
+            bool isHidden = false,
+            Func<NamedValues, bool> isActionAllowed = null)
         {
             ConfigureActionCore(
                 action,
@@ -451,7 +463,8 @@ namespace WorkflowsCore
                 metadata,
                 synonym,
                 synonyms,
-                isHidden);
+                isHidden,
+                isActionAllowed);
         }
 
         protected void ConfigureAction(
@@ -460,7 +473,8 @@ namespace WorkflowsCore
             IReadOnlyDictionary<string, object> metadata = null,
             string synonym = null,
             IEnumerable<string> synonyms = null,
-            bool isHidden = false)
+            bool isHidden = false,
+            Func<NamedValues, bool> isActionAllowed = null)
         {
             ConfigureActionCore(
                 action,
@@ -472,7 +486,8 @@ namespace WorkflowsCore
                 metadata,
                 synonym,
                 synonyms,
-                isHidden);
+                isHidden,
+                isActionAllowed);
         }
 
         protected void ConfigureAction<T>(
@@ -481,9 +496,10 @@ namespace WorkflowsCore
             IReadOnlyDictionary<string, object> metadata = null,
             string synonym = null,
             IEnumerable<string> synonyms = null,
-            bool isHidden = false)
+            bool isHidden = false,
+            Func<NamedValues, bool> isActionAllowed = null)
         {
-            ConfigureAction(action, _ => actionHandler(), metadata, synonym, synonyms, isHidden);
+            ConfigureAction(action, _ => actionHandler(), metadata, synonym, synonyms, isHidden, isActionAllowed);
         }
 
         protected void ConfigureAction<T>(
@@ -492,7 +508,8 @@ namespace WorkflowsCore
             IReadOnlyDictionary<string, object> metadata = null,
             string synonym = null,
             IEnumerable<string> synonyms = null,
-            bool isHidden = false)
+            bool isHidden = false,
+            Func<NamedValues, bool> isActionAllowed = null)
         {
             ConfigureActionCore(
                 action,
@@ -500,7 +517,8 @@ namespace WorkflowsCore
                 metadata,
                 synonym,
                 synonyms,
-                isHidden);
+                isHidden,
+                isActionAllowed);
         }
 
         protected void ExecuteAction(string action, bool throwNotAllowed = true) =>
@@ -518,6 +536,11 @@ namespace WorkflowsCore
         }
 
         protected bool IsActionHidden(string action) => _actionsDefinitions[action].IsHidden;
+
+        private static NamedValues GetNamedValues(IReadOnlyDictionary<string, object> src) =>
+            src == null ? new NamedValues() : new NamedValues(src);
+
+        private static bool IsActionAllowed(NamedValues parameters) => true;
 
         private Task Run(
             object id,
@@ -537,6 +560,11 @@ namespace WorkflowsCore
                 Metadata.SetTransientData(this, initialWorkflowTransientData);
             }
 
+            if (id != null)
+            {
+                Id = id;
+            }
+
             if (loadedWorkflowData == null)
             {
                 OnCreated();
@@ -544,21 +572,21 @@ namespace WorkflowsCore
             }
             else
             {
-                if (id != null)
-                {
-                    Id = id;
-                }
-
                 Metadata.SetData(this, loadedWorkflowData);
                 OnLoaded();
             }
 
-            beforeWorkflowStarted?.Invoke();
+            return _idTaskCompletionSource.Task.ContinueWith(
+                _ =>
+                {
+                    beforeWorkflowStarted?.Invoke();
 
-            ImportOperation(_initializationOperation);
-            var task = RunAsync();
-            _initializationOperation.Dispose();
-            return task;
+                    ImportOperation(_initializationOperation);
+                    var task = RunAsync();
+                    _initializationOperation.Dispose();
+                    return task;
+                },
+                WorkflowTaskScheduler).Unwrap();
         }
 
         private void ProcessWorkflowCompletion(Task task, Action afterWorkflowFinished)
@@ -618,7 +646,7 @@ namespace WorkflowsCore
                         }
                         else
                         {
-                            _workflowRepoFactory().MarkWorkflowAsCompleted(this);
+                            CreateWorkflowRepositoryAndDoAction(r => r.MarkWorkflowAsCompleted(this));
                         }
 
                         break;
@@ -635,7 +663,8 @@ namespace WorkflowsCore
                         else
                         {
                             exception = new TaskCanceledException("Unexpected cancellation of child activity");
-                            _workflowRepoFactory().MarkWorkflowAsFailed(this, exception);
+                            var exceptionCopy = exception;
+                            CreateWorkflowRepositoryAndDoAction(r => r.MarkWorkflowAsFailed(this, exceptionCopy));
                         }
 
                         break;
@@ -661,13 +690,13 @@ namespace WorkflowsCore
 
             if (!isCancellationRequested && _exception != null)
             {
-                _workflowRepoFactory().MarkWorkflowAsFailed(this, _exception);
+                CreateWorkflowRepositoryAndDoAction(r => r.MarkWorkflowAsFailed(this, _exception));
                 exception = _exception;
                 OnFaulted(_exception);
                 return;
             }
 
-            _workflowRepoFactory().MarkWorkflowAsCanceled(this, _exception);
+            CreateWorkflowRepositoryAndDoAction(r => r.MarkWorkflowAsCanceled(this, _exception));
             canceled = true;
             OnCanceled(_exception);
         }
@@ -683,6 +712,7 @@ namespace WorkflowsCore
                     RunViaWorkflowTaskScheduler(
                         () =>
                         {
+                            _idTaskCompletionSource.TrySetResult(false);
                             _initializationOperation.TryCancel();
                             OperationInProgress?.TryCancel();
                             OperationInProgress = Operation.Canceled;
@@ -741,7 +771,7 @@ namespace WorkflowsCore
         {
             var actionDefinition = GetActionDefinition(action);
 
-            if (!IsActionAllowed(action))
+            if (!IsActionAllowedCore(actionDefinition, parameters))
             {
                 if (throwNotAllowed)
                 {
@@ -776,8 +806,17 @@ namespace WorkflowsCore
             return actionDefinition;
         }
 
-        private IList<string> GetAvailableActions() =>
-            _actions.Where(a => IsActionAllowed(a) && !IsActionHidden(a)).ToList();
+        private bool IsActionAllowedCore(ActionDefinition actionDefinition, NamedValues parameters) =>
+            actionDefinition.IsActionAllowed(parameters) && IsActionAllowed(actionDefinition.Synonyms.First(), parameters);
+
+        private IList<string> GetAvailableActions(NamedValues parameters)
+        {
+            return _actions.Where(a =>
+            {
+                var actionDefinition = GetActionDefinition(a);
+                return IsActionAllowedCore(actionDefinition, parameters) && !actionDefinition.IsHidden;
+            }).ToList();
+        }
 
         private void ConfigureActionCore(
             string action,
@@ -785,8 +824,10 @@ namespace WorkflowsCore
             IReadOnlyDictionary<string, object> metadata,
             string synonym,
             IEnumerable<string> synonyms,
-            bool isHidden)
+            bool isHidden,
+            Func<NamedValues, bool> isActionAllowed)
         {
+            isActionAllowed = isActionAllowed ?? IsActionAllowed;
             var allSynonyms = new List<string> { action };
             if (synonym != null)
             {
@@ -798,6 +839,7 @@ namespace WorkflowsCore
                 action,
                 actionHandler,
                 metadata,
+                isActionAllowed,
                 allSynonyms,
                 isHidden: isHidden);
 
@@ -807,6 +849,7 @@ namespace WorkflowsCore
                     curSynonym,
                     actionHandler,
                     metadata,
+                    isActionAllowed,
                     allSynonyms,
                     true,
                     isHidden);
@@ -817,6 +860,7 @@ namespace WorkflowsCore
             string action,
             Func<NamedValues, object[]> actionHandler,
             IReadOnlyDictionary<string, object> metadata,
+            Func<NamedValues, bool> isActionAllowed,
             IList<string> synonyms,
             bool isSynonym = false,
             bool isHidden = false)
@@ -830,9 +874,10 @@ namespace WorkflowsCore
             _actionsDefinitions[action] = new ActionDefinition
             {
                 Handler = actionHandler,
-                Metadata = new NamedValues(metadata ?? new Dictionary<string, object>()),
+                Metadata = GetNamedValues(metadata),
                 Synonyms = synonyms,
-                IsHidden = isHidden
+                IsHidden = isHidden,
+                IsActionAllowed = isActionAllowed
             };
 
             if (!isSynonym)
@@ -859,6 +904,20 @@ namespace WorkflowsCore
             }
         }
 
+        private void CreateWorkflowRepositoryAndDoAction(Action<IWorkflowStateRepository> action)
+        {
+            if (_workflowRepoFactory == null)
+            {
+                return;
+            }
+
+            var repo = _workflowRepoFactory();
+            using (repo as IDisposable)
+            {
+                action(repo);
+            }
+        }
+
         protected internal class ActionExecutedEventArgs : EventArgs
         {
             public ActionExecutedEventArgs(IEnumerable<string> synonyms, NamedValues parameters)
@@ -881,6 +940,8 @@ namespace WorkflowsCore
             public IList<string> Synonyms { get; set; }
 
             public bool IsHidden { get; set; }
+
+            public Func<NamedValues, bool> IsActionAllowed { get; set; }
         }
 
         private sealed class Operation : IDisposable
@@ -909,10 +970,7 @@ namespace WorkflowsCore
                 _lineNumber = lineNumber;
             }
 
-            private Operation()
-            {
-                TryCancel();
-            }
+            private Operation() => TryCancel();
 
             private Operation(Operation parent, string filePath, int lineNumber)
             {
@@ -978,6 +1036,7 @@ namespace WorkflowsCore
             public void TryCancel()
             {
                 _tcs.TrySetCanceled();
+                _tcsInner?.TrySetCanceled();
                 Parent?.TryCancel();
             }
 
@@ -996,25 +1055,6 @@ namespace WorkflowsCore
             {
                 Interlocked.Exchange(ref _innerOperationInProgress, null);
                 Dispose();
-            }
-        }
-
-        private class DummyWorkflowStateRepository : IWorkflowStateRepository
-        {
-            public void SaveWorkflowData(WorkflowBase workflow, DateTimeOffset? nextActivationDate)
-            {
-            }
-
-            public void MarkWorkflowAsCompleted(WorkflowBase workflow)
-            {
-            }
-
-            public void MarkWorkflowAsFailed(WorkflowBase workflow, Exception exception)
-            {
-            }
-
-            public void MarkWorkflowAsCanceled(WorkflowBase workflow, Exception exception)
-            {
             }
         }
     }

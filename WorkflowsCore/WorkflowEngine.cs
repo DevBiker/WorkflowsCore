@@ -11,7 +11,7 @@ namespace WorkflowsCore
         private readonly IDependencyInjectionContainer _diContainer;
         private readonly Func<IWorkflowRepository> _workflowRepoFactory;
         private readonly HashSet<WorkflowBase> _runningWorkflows = new HashSet<WorkflowBase>();
-        private readonly Dictionary<object, WorkflowBase> _workflowsById = new Dictionary<object, WorkflowBase>();
+        private readonly Dictionary<object, TaskCompletionSource<WorkflowBase>> _workflowsById = new Dictionary<object, TaskCompletionSource<WorkflowBase>>();
         private readonly PreloadWorkflow _preloadWorkflow = new PreloadWorkflow();
         private bool _loadingStarted;
 
@@ -31,6 +31,8 @@ namespace WorkflowsCore
                 }
             }
         }
+
+        public Task PreloadWorkflowsTask => _preloadWorkflow.CompletedTask;
 
         public WorkflowBase CreateWorkflow(string fullTypeName) => CreateWorkflow(fullTypeName, null);
 
@@ -69,30 +71,44 @@ namespace WorkflowsCore
             return _preloadWorkflow.StartedTask;
         }
 
-        public WorkflowBase GetActiveWorkflowById(object id)
+        public Task<WorkflowBase> GetActiveWorkflowByIdAsync(object id)
         {
+            id = id ?? throw new ArgumentNullException(nameof(id));
             lock (_workflowsById)
             {
-                WorkflowBase workflow;
-                if (_workflowsById.TryGetValue(id, out workflow))
+                TaskCompletionSource<WorkflowBase> workflowTcs;
+                if (_workflowsById.TryGetValue(id, out workflowTcs))
                 {
-                    return workflow;
+                    return workflowTcs.Task;
                 }
 
-                var instance = _workflowRepoFactory().GetActiveWorkflowById(id);
-                if (instance == null)
-                {
-                    return null;
-                }
+                workflowTcs = new TaskCompletionSource<WorkflowBase>(TaskContinuationOptions.RunContinuationsAsynchronously);
+                _workflowsById.Add(id, workflowTcs);
 
-                workflow = CreateWorkflowCore(
-                    instance.WorkflowTypeName,
-                    loadedWorkflowData: instance.Data,
-                    id: instance.Id,
-                    loadingOnDemand: true);
+                CreateWorkflowRepositoryAndDoAction(r => r.GetActiveWorkflowByIdAsync(id))
+                    .ContinueWith(t =>
+                    {
+                        if (t.IsFaulted)
+                        {
+                            workflowTcs.SetException(t.Exception.GetBaseException());
+                            return;
+                        }
 
-                _workflowsById.Add(instance.Id, workflow);
-                return workflow;
+                        var instance = t.Result;
+                        if (instance == null)
+                        {
+                            workflowTcs.SetResult(null);
+                        }
+
+                        var workflow = CreateWorkflowCore(
+                            instance.WorkflowTypeName,
+                            loadedWorkflowData: instance.Data,
+                            id: instance.Id,
+                            loadingOnDemand: true);
+                        workflowTcs.SetResult(workflow);
+                    });
+
+                return workflowTcs.Task;
             }
         }
 
@@ -131,7 +147,7 @@ namespace WorkflowsCore
                                     "Workflow should be saved first time with NextActivationDate as null");
                             }
 
-                            _workflowsById.Add(workflow.Id, workflow);
+                            _workflowsById.Add(workflow.Id, CreateTaskCompletionSourceFromWorkflow(workflow));
                         }
                     }
                 },
@@ -158,6 +174,13 @@ namespace WorkflowsCore
             return workflow;
         }
 
+        private TaskCompletionSource<WorkflowBase> CreateTaskCompletionSourceFromWorkflow(WorkflowBase workflow)
+        {
+            var tcs = new TaskCompletionSource<WorkflowBase>(TaskContinuationOptions.RunContinuationsAsynchronously);
+            tcs.SetResult(workflow);
+            return tcs;
+        }
+
         private void PreloadWorkflows(bool checkLoadingStarted, int preloadHours)
         {
             lock (_workflowsById)
@@ -172,21 +195,48 @@ namespace WorkflowsCore
                     _loadingStarted = true;
                 }
 
-                var workflowInstances = _workflowRepoFactory()
-                    .GetActiveWorkflows(
+                CreateWorkflowRepositoryAndDoAction(
+                    r => r.GetActiveWorkflowsAsync(
                         Utilities.SystemClock.Now.AddHours(preloadHours),
-                        RunningWorkflows.Where(w => w.Id != null).Select(w => w.Id));
+                        RunningWorkflows.Where(w => w.Id != null).Select(w => w.Id)))
+                    .ContinueWith(t =>
+                    {
+                        if (t.IsFaulted)
+                        {
+                            _preloadWorkflow.StopWorkflow(t.Exception.GetBaseException());
+                            return;
+                        }
 
-                foreach (var i in workflowInstances)
-                {
-                    var workflow = CreateWorkflowCore(
-                        i.WorkflowTypeName,
-                        loadedWorkflowData: i.Data,
-                        id: i.Id,
-                        loadingOnDemand: true);
+                        var workflowInstances = t.Result;
 
-                    _workflowsById.Add(i.Id, workflow);
-                }
+                        lock (_workflowsById)
+                        {
+                            foreach (var i in workflowInstances)
+                            {
+                                if (_workflowsById.ContainsKey(i.Id))
+                                {
+                                    continue;
+                                }
+
+                                var workflow = CreateWorkflowCore(
+                                    i.WorkflowTypeName,
+                                    loadedWorkflowData: i.Data,
+                                    id: i.Id,
+                                    loadingOnDemand: true);
+
+                                _workflowsById.Add(i.Id, CreateTaskCompletionSourceFromWorkflow(workflow));
+                            }
+                        }
+                    });
+            }
+        }
+
+        private async Task<T> CreateWorkflowRepositoryAndDoAction<T>(Func<IWorkflowRepository, Task<T>> action)
+        {
+            var repo = _workflowRepoFactory();
+            using (repo as IDisposable)
+            {
+                return await action(repo);
             }
         }
 

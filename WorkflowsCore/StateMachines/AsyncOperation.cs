@@ -48,7 +48,7 @@ namespace WorkflowsCore.StateMachines
         {
             get
             {
-                return _handler;
+                return _handler; // TODO: Add error handling for unterminated chains
             }
 
             set

@@ -199,11 +199,11 @@ namespace WorkflowsCore.Tests
             public IList<States> StatesHistory =>
                 GetDataFieldAsync<IList<States>>(nameof(StatesHistory), forceExecution: true).Result;
 
-            public IList<Tuple<States, DateTime, bool>> FullStatesHistory
+            public IList<Tuple<States, DateTimeOffset, bool>> FullStatesHistory
             {
                 get
                 {
-                    return GetDataFieldAsync<IList<Tuple<States, DateTime, bool>>>(
+                    return GetDataFieldAsync<IList<Tuple<States, DateTimeOffset, bool>>>(
                         nameof(FullStatesHistory),
                         forceExecution: true).Result;
                 }

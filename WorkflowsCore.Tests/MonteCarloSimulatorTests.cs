@@ -376,7 +376,7 @@ namespace WorkflowsCore.Tests
 
         [Fact]
         public void IfWorkflowIsFailedThenSimulationShouldStopAndItsSequenceOfEventsShouldBeReported()
-        {
+        { // TODO: Unstable
             _simulator.ConfigureActionExecutionEvent(1.0);
             _simulator.ConfigureActionExecutionEvent(
                 1.0,
@@ -646,7 +646,7 @@ namespace WorkflowsCore.Tests
                 StateChanged += (sender, args) => _stateEventTcs.TrySetResult(true);
             }
 
-            protected override bool IsActionAllowed(string action)
+            protected override bool IsActionAllowed(string action, NamedValues parameters)
             {
                 if (State != States.Due)
                 {
