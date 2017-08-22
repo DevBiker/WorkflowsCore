@@ -120,7 +120,7 @@ namespace WorkflowsCore.Tests
 
             await Workflow.ReadyTask;
 
-            TestingSystemClock.Current.SetCurrentTime(date);
+            TestingSystemClock.Current.Set(date);
 
             var task = await Task.WhenAny(tcsCurState.Task, instance.Task);
             await task;

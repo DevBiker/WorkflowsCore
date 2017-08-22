@@ -227,14 +227,14 @@ namespace WorkflowsCore.Tests
 
             var instance = RunState(_state);
 
-            TestingSystemClock.Current.SetCurrentTime(date);
+            TestingSystemClock.Current.Set(date);
 
             var task = await Task.WhenAny(tcs.Task, instance.Task);
             await task;
 
             tcs = new TaskCompletionSource<bool>();
 
-            TestingSystemClock.Current.SetCurrentTime(date);
+            TestingSystemClock.Current.Set(date);
 
             await tcs.Task;
 
@@ -262,7 +262,7 @@ namespace WorkflowsCore.Tests
 
             await Workflow.ReadyTask;
 
-            TestingSystemClock.Current.SetCurrentTime(date);
+            TestingSystemClock.Current.Set(date);
 
             await instance.Task;
 

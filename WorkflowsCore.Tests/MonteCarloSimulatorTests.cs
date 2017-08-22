@@ -552,7 +552,7 @@ namespace WorkflowsCore.Tests
 
             var t = new WorkflowActionsAvailabilityAwaiter<States>(workflow).Task;
             Assert.False(t.IsCompleted);
-            TestingSystemClock.Current.SetCurrentTime(Globals.SystemClock.Now.AddHours(17));
+            TestingSystemClock.Current.Add(TimeSpan.FromHours(17));
 
             await t;
 

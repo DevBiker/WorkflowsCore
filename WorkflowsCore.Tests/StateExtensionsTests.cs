@@ -34,7 +34,7 @@ namespace WorkflowsCore.Tests
                 () => tcs.Task,
                 () => Workflow.DoWorkflowTaskAsync(w => _stateMachine.Run(w, state.StateId, false).Task));
 
-            TestingSystemClock.Current.SetCurrentTime(date);
+            TestingSystemClock.Current.Set(date);
 
             await t;
 

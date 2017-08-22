@@ -139,7 +139,7 @@ namespace WorkflowsCore.Tests
 
             await Task.Delay(5);
             var t = _workflowRepo.InitGetActiveWorkflowsTask();
-            TestingSystemClock.Current.SetCurrentTime(newTime);
+            TestingSystemClock.Current.Set(newTime);
 
             await t;
 

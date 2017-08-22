@@ -13,7 +13,9 @@ namespace WorkflowsCore.Time
     {
         event EventHandler<DateTimeOffset> TimeAdjusted;
 
-        DateTime SetCurrentTime(DateTime dateTime);
+        DateTime Add(TimeSpan timeSpan);
+
+        DateTime Set(DateTime dateTime);
     }
 
     public class SystemClock : ISystemClock
@@ -35,7 +37,9 @@ namespace WorkflowsCore.Time
 
         public DateTimeOffset UtcNow => Now;
 
-        public DateTime SetCurrentTime(DateTime dateTime)
+        public DateTime Add(TimeSpan timeSpan) => Set(Now + timeSpan);
+
+        public DateTime Set(DateTime dateTime)
         {
             if (dateTime.Kind != DateTimeKind.Local)
             {

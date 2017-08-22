@@ -25,7 +25,7 @@ namespace WorkflowsCore.Tests
                     var date = TestingSystemClock.Current.Now.AddDays(1);
                     var t = _workflow.WaitForDate(date);
                     Assert.False(t.IsCompleted);
-                    TestingSystemClock.Current.SetCurrentTime(date);
+                    TestingSystemClock.Current.Set(date);
                     await t;
                 });
         }

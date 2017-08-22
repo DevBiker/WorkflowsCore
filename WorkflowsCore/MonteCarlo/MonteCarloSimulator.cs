@@ -523,7 +523,7 @@ namespace WorkflowsCore.MonteCarlo
             public async Task<TWorkflowType> DoEvent(TWorkflowType workflow, bool isApplicationRestart)
             {
                 var newTimeEvent = await _getNewTimeEventFunc(workflow, isApplicationRestart);
-                TestingSystemClock.Current.SetCurrentTime(newTimeEvent.NewTime);
+                TestingSystemClock.Current.Set(newTimeEvent.NewTime);
                 Globals.EventMonitor.LogEvent(
                     "World clock is advanced",
                     Globals.SystemClock.Now.ToString(Globals.DefaultDateTimeFormat));

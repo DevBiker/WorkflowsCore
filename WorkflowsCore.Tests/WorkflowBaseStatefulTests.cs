@@ -136,16 +136,16 @@ namespace WorkflowsCore.Tests
                 Assert.Equal(States.Outstanding, _workflow.FullStatesHistory[0].Item1);
                 Assert.Equal(now, _workflow.FullStatesHistory[0].Item2);
 
-                now = TestingSystemClock.Current.SetCurrentTime(now.AddMinutes(1));
+                now = TestingSystemClock.Current.Set(now.AddMinutes(1));
                 _workflow.SetState(States.Outstanding);
                 Assert.Equal(2, _workflow.FullStatesHistory.Count);
                 Assert.Equal(States.Outstanding, _workflow.FullStatesHistory[1].Item1);
                 Assert.Equal(now, _workflow.FullStatesHistory[1].Item2);
 
-                now = TestingSystemClock.Current.SetCurrentTime(now.AddHours(1));
+                now = TestingSystemClock.Current.Set(now.AddHours(1));
                 _workflow.SetState(States.Due);
 
-                now = TestingSystemClock.Current.SetCurrentTime(now.AddMinutes(1));
+                now = TestingSystemClock.Current.Set(now.AddMinutes(1));
                 _workflow.SetState(States.Contacted);
                 Assert.Equal(4, _workflow.FullStatesHistory.Count);
                 Assert.Equal(States.Contacted, _workflow.FullStatesHistory[3].Item1);
