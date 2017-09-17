@@ -320,12 +320,9 @@ namespace WorkflowsCore.Tests
             }
         }
 
-        public class WaitForActionNoStatesTests : BaseWorkflowTest<TestWorkflow>
+        public class WaitForActionTests : BaseWorkflowTest<TestWorkflow>
         {
-            public WaitForActionNoStatesTests()
-            {
-                Workflow = new TestWorkflow(doInit: false);
-            }
+            public WaitForActionTests() => Workflow = new TestWorkflow(doInit: false);
 
             [Fact]
             public async Task WaitForActionShouldWaitUntilSpecifiedActionExecuted()
@@ -390,6 +387,39 @@ namespace WorkflowsCore.Tests
                         operation.Dispose();
                         await actionTask;
                         Assert.Equal(TaskStatus.RanToCompletion, readyTask.Status);
+                    }).Unwrap();
+
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
+            public async Task MultipleWaitForActionsWithExportOperationShouldExecuteSequentially()
+            {
+                async Task WaitForAction(int delay)
+                {
+                    var parameters = await Workflow.WaitForAction("Contacted", exportOperation: true);
+                    using (parameters.GetDataField<IDisposable>("ActionOperation"))
+                    {
+                        await Task.Delay(delay);
+                    }
+                }
+
+                StartWorkflow();
+                await Workflow.DoWorkflowTaskAsync(
+                    async w =>
+                    {
+                        var t1 = WaitForAction(100);
+                        var t2 = WaitForAction(1);
+                        await Workflow.ExecuteActionAsync("Contacted");
+                        await t1;
+                        await t2;
+
+                        // Try in another order
+                        t1 = WaitForAction(1);
+                        t2 = WaitForAction(100);
+                        await Workflow.ExecuteActionAsync("Contacted");
+                        await t1;
+                        await t2;
                     }).Unwrap();
 
                 await CancelWorkflowAsync();

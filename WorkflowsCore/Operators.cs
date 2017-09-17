@@ -129,26 +129,53 @@ namespace WorkflowsCore
                 // ReSharper disable once AccessToModifiedClosure
                 workflow.ActionExecuted -= handler;
 
-                IDisposable operation = null;
-                if (exportOperation)
+                if (!exportOperation)
                 {
-                    workflow.CreateOperation();
-                    operation = workflow.TryStartOperation();
-                    if (operation == null)
+                    if (tcs.TrySetResult(args.Parameters))
                     {
-                        throw new InvalidOperationException();
+                        registration.Dispose();
                     }
-
-                    args.Parameters.SetDataField("ActionOperation", operation);
-                }
-
-                if (tcs.TrySetResult(args.Parameters))
-                {
-                    registration.Dispose();
                 }
                 else
                 {
-                    operation?.Dispose();
+                    // This will create inner operation and wait for completion of other sibling operations
+                    // when there are multiple WaitForAction() calls with export operation and awaiting the same action
+                    workflow.WaitForReadyAndStartOperation()
+                        .ContinueWith(
+                            operationTask =>
+                            {
+                                if (operationTask.IsFaulted)
+                                {
+                                    if (tcs.TrySetException(operationTask.Exception.GetBaseException()))
+                                    {
+                                        registration.Dispose();
+                                    }
+
+                                    return;
+                                }
+                                else if (operationTask.IsCanceled)
+                                {
+                                    if (tcs.TrySetCanceled())
+                                    {
+                                        registration.Dispose();
+                                    }
+
+                                    return;
+                                }
+
+                                var operation = operationTask.Result;
+                                args.Parameters.SetDataField("ActionOperation", operation);
+                                if (tcs.TrySetResult(args.Parameters))
+                                {
+                                    registration.Dispose();
+                                }
+                                else
+                                {
+                                    operation.Dispose();
+                                }
+                            },
+                            TaskContinuationOptions.ExecuteSynchronously);
+                    workflow.ResetOperation();
                 }
             };
 
