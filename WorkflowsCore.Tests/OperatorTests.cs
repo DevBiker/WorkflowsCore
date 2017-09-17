@@ -396,6 +396,39 @@ namespace WorkflowsCore.Tests
             }
 
             [Fact]
+            public async Task MultipleWaitForActionsWithExportOperationShouldExecuteSequentially()
+            {
+                Func<int, Task> waitForAction = async delay =>
+                {
+                    var parameters = await Workflow.WaitForAction("Contacted", exportOperation: true);
+                    using (parameters.GetDataField<IDisposable>("ActionOperation"))
+                    {
+                        await Task.Delay(delay);
+                    }
+                };
+
+                StartWorkflow();
+                await Workflow.DoWorkflowTaskAsync(
+                    async w =>
+                    {
+                        var t1 = waitForAction(100);
+                        var t2 = waitForAction(1);
+                        await Workflow.ExecuteActionAsync("Contacted");
+                        await t1;
+                        await t2;
+
+                        // Try in another order
+                        t1 = waitForAction(1);
+                        t2 = waitForAction(100);
+                        await Workflow.ExecuteActionAsync("Contacted");
+                        await t1;
+                        await t2;
+                    }).Unwrap();
+
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
             public async Task WaitForActionWithCheckWasExecutedShouldReturnImmediatelyIfActionWasExecutedBefore()
             {
                 StartWorkflow();
