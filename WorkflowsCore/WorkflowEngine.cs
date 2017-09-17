@@ -56,9 +56,9 @@ namespace WorkflowsCore
 
         public Task LoadAndExecuteActiveWorkflowsAsync() => LoadAndExecuteActiveWorkflowsAsync(6);
 
-        public Task LoadAndExecuteActiveWorkflowsAsync(int preloadHours)
+        public async Task LoadAndExecuteActiveWorkflowsAsync(int preloadHours)
         {
-            PreloadWorkflows(true, preloadHours);
+            await PreloadWorkflows(true, preloadHours);
 
             _preloadWorkflow.StartWorkflow(
                 initialWorkflowTransientData:
@@ -68,7 +68,7 @@ namespace WorkflowsCore
                         [nameof(PreloadWorkflow.WorkflowEngine)] = this
                     });
 
-            return _preloadWorkflow.StartedTask;
+            await _preloadWorkflow.StartedTask;
         }
 
         public Task<WorkflowBase> GetActiveWorkflowByIdAsync(object id)
@@ -181,7 +181,7 @@ namespace WorkflowsCore
             return tcs;
         }
 
-        private void PreloadWorkflows(bool checkLoadingStarted, int preloadHours)
+        private Task PreloadWorkflows(bool checkLoadingStarted, int preloadHours)
         {
             lock (_workflowsById)
             {
@@ -195,7 +195,7 @@ namespace WorkflowsCore
                     _loadingStarted = true;
                 }
 
-                CreateWorkflowRepositoryAndDoAction(
+                return CreateWorkflowRepositoryAndDoAction(
                     r => r.GetActiveWorkflowsAsync(
                         Utilities.SystemClock.Now.AddHours(preloadHours),
                         RunningWorkflows.Where(w => w.Id != null).Select(w => w.Id)))
@@ -256,7 +256,7 @@ namespace WorkflowsCore
                 while (true)
                 {
                     await this.WaitForDate(Utilities.SystemClock.Now.AddHours(PreloadHours).AddMinutes(-30));
-                    WorkflowEngine.PreloadWorkflows(false, PreloadHours);
+                    await WorkflowEngine.PreloadWorkflows(false, PreloadHours);
                 }
             }
         }

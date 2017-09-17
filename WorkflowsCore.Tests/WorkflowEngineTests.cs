@@ -167,7 +167,6 @@ namespace WorkflowsCore.Tests
             await _workflowEngine.LoadAndExecuteActiveWorkflowsAsync(4);
             Assert.Null(_workflowRepo.Exception);
 
-            // TODO: Tests are unstable, it is needed to await when workflows are actually loaded
             var runningWorkflows = _workflowEngine.RunningWorkflows.Cast<TestWorkflowWithLoad>().ToList();
             await Task.WhenAll(runningWorkflows.Select(CancelWorkflowAsync));
 
