@@ -145,7 +145,7 @@ namespace WorkflowsCore.Tests
 
             var workflow = await _workflowEngine.GetActiveWorkflowByIdAsync(2);
             Assert.Null(_workflowRepo.Exception);
-            Assert.NotNull(workflow);
+            Assert.NotNull(workflow); // TODO: unstable
 
             var runningWorkflows = _workflowEngine.RunningWorkflows.Cast<TestWorkflowWithLoad>().ToList();
             Assert.Equal(2, runningWorkflows.Count);
