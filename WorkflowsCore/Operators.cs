@@ -175,7 +175,7 @@ namespace WorkflowsCore
                                 }
                             },
                             TaskContinuationOptions.ExecuteSynchronously);
-                    workflow.ResetOperation();
+                    workflow.ResetOperationToParent();
                 }
             };
 

@@ -398,31 +398,49 @@ namespace WorkflowsCore.Tests
             [Fact]
             public async Task MultipleWaitForActionsWithExportOperationShouldExecuteSequentially()
             {
-                Func<int, Task> waitForAction = async delay =>
+                Func<Task, Task> waitForAction = async subTask =>
                 {
                     var parameters = await Workflow.WaitForAction("Contacted", exportOperation: true);
                     using (parameters.GetDataField<IDisposable>("ActionOperation"))
                     {
-                        await Task.Delay(delay);
+                        await subTask;
                     }
+                };
+
+                Func<TaskCompletionSource<bool>, Task, TaskCompletionSource<bool>, Task, Task, Task> assertParentOperationCompletedAfterChildren = async (tcs1, t1, tcs2, t2, t3) =>
+                {
+                    await Task.Delay(1);
+                    tcs1.SetResult(true);
+                    await Task.Delay(1);
+                    Assert.NotEqual(TaskStatus.RanToCompletion, t3.Status);
+                    await Task.Delay(1);
+                    Assert.NotEqual(TaskStatus.RanToCompletion, t3.Status);
+                    tcs2.SetResult(true);
+                    await Task.Delay(1);
+                    Assert.Equal(TaskStatus.RanToCompletion, t3.Status);
+                    await t1;
+                    await t2;
+                    await t3;
                 };
 
                 StartWorkflow();
                 await Workflow.DoWorkflowTaskAsync(
                     async w =>
                     {
-                        var t1 = waitForAction(100);
-                        var t2 = waitForAction(1);
-                        await Workflow.ExecuteActionAsync("Contacted");
-                        await t1;
-                        await t2;
+                        var tcs1 = new TaskCompletionSource<bool>();
+                        var t1 = waitForAction(tcs1.Task);
+                        var tcs2 = new TaskCompletionSource<bool>();
+                        var t2 = waitForAction(tcs2.Task);
+                        var t3 = Workflow.ExecuteActionAsync("Contacted");
+                        await assertParentOperationCompletedAfterChildren(tcs1, t1, tcs2, t2, t3);
 
                         // Try in another order
-                        t1 = waitForAction(1);
-                        t2 = waitForAction(100);
-                        await Workflow.ExecuteActionAsync("Contacted");
-                        await t1;
-                        await t2;
+                        tcs1 = new TaskCompletionSource<bool>();
+                        t1 = waitForAction(tcs1.Task);
+                        tcs2 = new TaskCompletionSource<bool>();
+                        t2 = waitForAction(tcs2.Task);
+                        t3 = Workflow.ExecuteActionAsync("Contacted");
+                        await assertParentOperationCompletedAfterChildren(tcs2, t2, tcs1, t1, t3);
                     }).Unwrap();
 
                 await CancelWorkflowAsync();
