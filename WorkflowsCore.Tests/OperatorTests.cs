@@ -829,6 +829,66 @@ namespace WorkflowsCore.Tests
             }
         }
 
+        public class WaitForEventTests : BaseWorkflowTest<TestWorkflow>
+        {
+            public WaitForEventTests() => Workflow = new TestWorkflow(doInit: false);
+
+            [Fact]
+            public async Task WaitForEventShouldWaitUntilEventHappens()
+            {
+                StartWorkflow();
+                await Workflow.DoWorkflowTaskAsync(
+                    async w =>
+                    {
+                        var t = Workflow.WaitForEvent(e => e.EventName == WorkflowBase.ActionExecutedEvent && e.Parameters["Action"] == "Contacted");
+                        Assert.NotEqual(TaskStatus.RanToCompletion, t.Status);
+                        await Workflow.ExecuteActionAsync("Contacted");
+                        await t;
+                    }).Unwrap();
+
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
+            public async Task WaitForEventShouldBeCanceledIfWorkflowIsCanceled()
+            {
+                StartWorkflow();
+
+                Task canceledTask = null;
+
+                var ex = await Record.ExceptionAsync(
+                    () => Workflow.DoWorkflowTaskAsync(
+                        async w =>
+                        {
+                            var t = Workflow.WaitForEvent(e => e.EventName == WorkflowBase.ActionExecutedEvent && e.Parameters["Action"] == "Contacted");
+                            Assert.NotEqual(TaskStatus.Canceled, t.Status);
+                            canceledTask = CancelWorkflowAsync();
+                            await t;
+                        }).Unwrap());
+
+                Assert.IsType<TaskCanceledException>(ex);
+                await canceledTask;
+            }
+
+            [Fact]
+            public async Task WaitForEventShouldHonorIgnorePastEventsOption()
+            {
+                StartWorkflow();
+                await Workflow.ExecuteActionAsync("Contacted");
+                await Workflow.DoWorkflowTaskAsync(
+                    w =>
+                    {
+                        var t1 = Workflow.WaitForEvent(e => e.EventName == WorkflowBase.ActionExecutedEvent && e.Parameters["Action"] == "Contacted", ignorePastEvents: false);
+                        Assert.Equal(TaskStatus.RanToCompletion, t1.Status);
+
+                        var t2 = Workflow.WaitForEvent(e => e.EventName == WorkflowBase.ActionExecutedEvent && e.Parameters["Action"] == "Contacted", ignorePastEvents: true);
+                        Assert.NotEqual(TaskStatus.RanToCompletion, t2.Status);
+                    });
+
+                await CancelWorkflowAsync();
+            }
+        }
+
         public sealed class TestWorkflow : WorkflowBase
         {
             public TestWorkflow(bool doInit = true)

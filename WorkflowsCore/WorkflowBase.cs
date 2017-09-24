@@ -11,6 +11,13 @@ namespace WorkflowsCore
 {
     public abstract class WorkflowBase
     {
+        public const string WorkflowCompletedEvent = "WorkflowCompleted";
+        public const string WorkflowFaultedEvent = "WorkflowFaulted";
+        public const string WorkflowCanceledEvent = "WorkflowCanceled";
+        public const string CancellationRequestedEvent = "CancellationRequested";
+        public const string NextActivationDateChangedEvent = "NextActivationDateChanged";
+        public const string ActionExecutedEvent = "ActionExecuted";
+
         private readonly Func<IWorkflowStateRepository> _workflowRepoFactory;
 
         private readonly Lazy<IWorkflowMetadata> _metadata;
@@ -31,19 +38,22 @@ namespace WorkflowsCore
 
         private readonly ActivationDatesManager _activationDatesManager = new ActivationDatesManager();
 
+        private readonly int _eventLogLimit;
+
         private object _id;
         private Exception _exception;
         private bool _wasStared;
         private bool _isCancellationRequested;
         private volatile Operation _operationInProgress;
 
-        protected WorkflowBase()
-            : this(null)
+        protected WorkflowBase(int eventLogLimit = 100)
+            : this(null, eventLogLimit)
         {
         }
 
-        protected WorkflowBase(Func<IWorkflowStateRepository> workflowRepoFactory)
+        protected WorkflowBase(Func<IWorkflowStateRepository> workflowRepoFactory, int eventLogLimit = 100)
         {
+            _eventLogLimit = eventLogLimit;
             _metadata = new Lazy<IWorkflowMetadata>(
                 () => Utilities.WorkflowMetadataCache.GetWorkflowMetadata(GetType()),
                 LazyThreadSafetyMode.PublicationOnly);
@@ -63,6 +73,8 @@ namespace WorkflowsCore
             CancellationToken = CancellationTokenSource.Token;
             _activationDatesManager.NextActivationDateChanged += OnNextActivationDateChanged;
         }
+
+        internal event EventHandler<EventLoggedEventArgs> EventLogged;
 
         protected internal event EventHandler<ActionExecutedEventArgs> ActionExecuted;
 
@@ -123,6 +135,12 @@ namespace WorkflowsCore
 
         [DataField]
         private IDictionary<string, int> ActionStats { get; set; }
+
+        /// <summary>
+        /// It is stored for diagnosing purposes only
+        /// </summary>
+        [DataField]
+        private IList<Event> EventLog { get; set; } = new List<Event>();
 
         public void StartWorkflow(
             object id = null,
@@ -280,7 +298,7 @@ namespace WorkflowsCore
                 {
                     using (var operation = await this.WaitForReadyAndStartOperation())
                     {
-                        ActionResult = default(T);
+                        ActionResult = default(T); // TODO: Confusing NRE if ActionResult is null for non-nullable types
                         var res = ExecuteActionCore(action, parameters, throwNotAllowed);
                         await operation.WaitForAllInnerOperationsCompletion();
                         SaveWorkflowData();
@@ -354,6 +372,8 @@ namespace WorkflowsCore
             EnsureOperationExists();
             CurrentOperation.Value.Parent?.OnInnerOperationCanceled();
         }
+
+        internal Event FindLatestEvent(Func<Event, bool> eventCondition) => EventLog.LastOrDefault(eventCondition);
 
         protected internal static Task WaitForAllInnerOperationsCompletion(IDisposable operation) =>
             ((Operation)operation).WaitForAllInnerOperationsCompletion();
@@ -539,6 +559,30 @@ namespace WorkflowsCore
 
         protected bool IsActionHidden(string action) => _actionsDefinitions[action].IsHidden;
 
+        protected void LogEvent(string eventName, IReadOnlyDictionary<string, object> parameters = null) =>
+            LogEvent(eventName, parameters?.ToDictionary(p => p.Key, p => ConvertEventParameter(p.Key, p.Value)));
+
+        protected void LogEvent(string eventName, Dictionary<string, string> parameters)
+        {
+            var shouldBeLogged = OnLogEvent(eventName, parameters);
+            var eventInstance = new Event(eventName, parameters);
+            EventLogged?.Invoke(this, new EventLoggedEventArgs(eventInstance));
+            if (!shouldBeLogged)
+            {
+                return;
+            }
+
+            EventLog.Add(eventInstance);
+            while (EventLog.Count > _eventLogLimit)
+            {
+                EventLog.RemoveAt(0);
+            }
+        }
+
+        protected virtual bool OnLogEvent(string eventName, IDictionary<string, string> parameters) => true;
+
+        protected virtual string ConvertEventParameter(string parameterName, object value) => value?.ToString();
+
         private static NamedValues GetNamedValues(IReadOnlyDictionary<string, object> src) =>
             src == null ? new NamedValues() : new NamedValues(src);
 
@@ -648,6 +692,7 @@ namespace WorkflowsCore
                         }
                         else
                         {
+                            LogEvent(WorkflowCompletedEvent);
                             CreateWorkflowRepositoryAndDoAction(r => r.MarkWorkflowAsCompleted(this));
                         }
 
@@ -666,6 +711,7 @@ namespace WorkflowsCore
                         {
                             exception = new TaskCanceledException("Unexpected cancellation of child activity");
                             var exceptionCopy = exception;
+                            LogEvent(WorkflowFaultedEvent, new Dictionary<string, object> { ["Exception"] = exceptionCopy });
                             CreateWorkflowRepositoryAndDoAction(r => r.MarkWorkflowAsFailed(this, exceptionCopy));
                         }
 
@@ -692,12 +738,14 @@ namespace WorkflowsCore
 
             if (!isCancellationRequested && _exception != null)
             {
+                LogEvent(WorkflowFaultedEvent, new Dictionary<string, object> { ["Exception"] = _exception });
                 CreateWorkflowRepositoryAndDoAction(r => r.MarkWorkflowAsFailed(this, _exception));
                 exception = _exception;
                 OnFaulted(_exception);
                 return;
             }
 
+            LogEvent(WorkflowCanceledEvent, new Dictionary<string, object> { ["Exception"] = _exception });
             CreateWorkflowRepositoryAndDoAction(r => r.MarkWorkflowAsCanceled(this, _exception));
             canceled = true;
             OnCanceled(_exception);
@@ -714,6 +762,7 @@ namespace WorkflowsCore
                     RunViaWorkflowTaskScheduler(
                         () =>
                         {
+                            LogEvent(CancellationRequestedEvent);
                             _idTaskCompletionSource.TrySetResult(false);
                             _initializationOperation.TryCancel();
                             OperationInProgress?.TryCancel();
@@ -760,6 +809,7 @@ namespace WorkflowsCore
                 ActionExecuted?.Invoke(
                     this,
                     new ActionExecutedEventArgs(GetActionSynonyms(action), namedValues));
+                LogEvent(ActionExecutedEvent, namedValues.Data);
             }
 
             return result;
@@ -895,6 +945,11 @@ namespace WorkflowsCore
                 return;
             }
 
+            var parameters = new Dictionary<string, object>
+            {
+                [nameof(NextActivationDate)] = !NextActivationDate.HasValue ? null : NextActivationDate.Value.ToString()
+            };
+            LogEvent(NextActivationDateChangedEvent, parameters);
             SaveWorkflowData();
         }
 
@@ -918,6 +973,14 @@ namespace WorkflowsCore
             {
                 action(repo);
             }
+        }
+
+        internal class EventLoggedEventArgs : EventArgs
+        {
+            public EventLoggedEventArgs(Event eventInstance) =>
+                Event = eventInstance ?? throw new ArgumentNullException(nameof(eventInstance));
+
+            public Event Event { get; }
         }
 
         protected internal class ActionExecutedEventArgs : EventArgs

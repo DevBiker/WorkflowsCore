@@ -46,7 +46,7 @@ namespace WorkflowsCore.Tests
             }
 
             [Fact]
-            public void SetStateShouldKeepOnlyLastTwoStates()
+            public void SetStateShouldKeepOnlyLastTwoStatesInStatesHistory()
             {
                 _workflow.SetState(States.Outstanding);
                 _workflow.SetState(States.Due);
@@ -55,16 +55,13 @@ namespace WorkflowsCore.Tests
             }
 
             [Fact]
-            public void InFullStatesHistoryShouldBeStoredSpecifiedNumberOfItemAtMaximum()
+            public void SetStateShouldAddStateToEventLog()
             {
                 _workflow.SetState(States.Outstanding);
+                Assert.Collection(_workflow.EventLog, e => Assert.Equal(States.Outstanding.ToString(), e.Parameters["State"]));
+
                 _workflow.SetState(States.Due);
-                _workflow.SetState(States.Outstanding);
-                _workflow.SetState(States.Due);
-                _workflow.SetState(States.Contacted);
-                Assert.Equal(4, _workflow.FullStatesHistory.Count);
-                Assert.Equal(States.Due, _workflow.FullStatesHistory[0].Item1);
-                Assert.Equal(States.Contacted, _workflow.FullStatesHistory[3].Item1);
+                Assert.Collection(_workflow.EventLog, e => { }, e => Assert.Equal(States.Due.ToString(), e.Parameters["State"]));
             }
 
             [Fact]
@@ -118,41 +115,6 @@ namespace WorkflowsCore.Tests
             }
         }
 
-        public class TestingSystemClockTests
-        {
-            private readonly TestWorkflow _workflow = new TestWorkflow();
-
-            public TestingSystemClockTests()
-            {
-                Utilities.SystemClock = new TestingSystemClock();
-            }
-
-            [Fact]
-            public void SetStateShouldAddStateToFullStatesHistory()
-            {
-                var now = TestingSystemClock.Current.Now;
-                _workflow.SetState(States.Outstanding);
-                Assert.Equal(1, _workflow.FullStatesHistory.Count);
-                Assert.Equal(States.Outstanding, _workflow.FullStatesHistory[0].Item1);
-                Assert.Equal(now, _workflow.FullStatesHistory[0].Item2);
-
-                now = TestingSystemClock.Current.Set(now.AddMinutes(1));
-                _workflow.SetState(States.Outstanding);
-                Assert.Equal(2, _workflow.FullStatesHistory.Count);
-                Assert.Equal(States.Outstanding, _workflow.FullStatesHistory[1].Item1);
-                Assert.Equal(now, _workflow.FullStatesHistory[1].Item2);
-
-                now = TestingSystemClock.Current.Set(now.AddHours(1));
-                _workflow.SetState(States.Due);
-
-                now = TestingSystemClock.Current.Set(now.AddMinutes(1));
-                _workflow.SetState(States.Contacted);
-                Assert.Equal(4, _workflow.FullStatesHistory.Count);
-                Assert.Equal(States.Contacted, _workflow.FullStatesHistory[3].Item1);
-                Assert.Equal(now, _workflow.FullStatesHistory[3].Item2);
-            }
-        }
-
         public class WorkflowDataTests
         {
             private readonly WorkflowRepository _workflowRepo;
@@ -199,15 +161,7 @@ namespace WorkflowsCore.Tests
             public IList<States> StatesHistory =>
                 GetDataFieldAsync<IList<States>>(nameof(StatesHistory), forceExecution: true).Result;
 
-            public IList<Tuple<States, DateTimeOffset, bool>> FullStatesHistory
-            {
-                get
-                {
-                    return GetDataFieldAsync<IList<Tuple<States, DateTimeOffset, bool>>>(
-                        nameof(FullStatesHistory),
-                        forceExecution: true).Result;
-                }
-            }
+            public IList<Event> EventLog => GetDataFieldAsync<IList<Event>>(nameof(EventLog), forceExecution: true).Result;
 
             public new bool IsLoaded => base.IsLoaded;
 

@@ -122,4 +122,20 @@ namespace WorkflowsCore
 
         public IReadOnlyDictionary<string, object> Data { get; private set; }
     }
+
+    public class Event
+    {
+        public Event(string eventName, IReadOnlyDictionary<string, string> parameters)
+        {
+            EventName = eventName ?? throw new ArgumentNullException(nameof(eventName));
+            CreatedOn = Utilities.SystemClock.UtcNow;
+            Parameters = parameters;
+        }
+
+        public string EventName { get; private set; }
+
+        public DateTimeOffset CreatedOn { get; private set; }
+
+        public IReadOnlyDictionary<string, string> Parameters { get; private set; }
+    }
 }

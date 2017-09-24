@@ -9,19 +9,22 @@ namespace WorkflowsCore
 {
     public abstract class StateMachineWorkflow<TState, TInternalState> : WorkflowBase<TState>
     {
+        public const string InnerInternalStateChangedEvent = "InnerInternalStateChanged";
+        public const string InnerInternalStateRestoredEvent = "InnerInternalStateRestored";
+
         private readonly TaskCompletionSource<bool> _completeWorkflowTcs = new TaskCompletionSource<bool>();
         private StateId<TState, TInternalState> _initialState;
         private StateMachine<TState, TInternalState>.StateMachineInstance _instance;
 
-        protected StateMachineWorkflow(int fullStatesHistoryLimit = 100)
-            : base(fullStatesHistoryLimit)
+        protected StateMachineWorkflow(int eventLogLimit = 100)
+            : base(eventLogLimit)
         {
         }
 
         protected StateMachineWorkflow(
             Func<IWorkflowStateRepository> workflowRepoFactory,
-            int fullStatesHistoryLimit = 100)
-            : base(workflowRepoFactory, fullStatesHistoryLimit)
+            int eventLogLimit = 100)
+            : base(workflowRepoFactory, eventLogLimit)
         {
         }
 
@@ -70,13 +73,19 @@ namespace WorkflowsCore
             if (!stateTransition.State.StateId.IsInternalState)
             {
                 NonInternalAncestorStateInstance = stateTransition.StateInstance;
-                InternalState = new TInternalState[0];
+                if (InternalState.Any())
+                {
+                    InternalState = new TInternalState[0];
+                    LogInnerInternalStateChanged(null, stateTransition.IsRestoringState);
+                }
+
                 SetState((TState)stateTransition.State.StateId, stateTransition.IsRestoringState);
             }
             else
             {
                 var internalState = (TInternalState)stateTransition.State.StateId;
                 InternalState = new[] { internalState };
+                LogInnerInternalStateChanged(internalState, stateTransition.IsRestoringState);
                 var internalAncestor = stateTransition.StateInstance.GetNonInternalAncestor();
 
                 if (internalAncestor == null)
@@ -102,19 +111,26 @@ namespace WorkflowsCore
             _instance = StateMachine.Run(this, _initialState, IsLoaded, OnStateChanged);
             return _instance.Task;
         }
+
+        private void LogInnerInternalStateChanged(StateId<TState, TInternalState>? stateId, bool isRestoringState)
+        {
+            LogEvent(
+                !isRestoringState ? InnerInternalStateChangedEvent : InnerInternalStateRestoredEvent,
+                new Dictionary<string, object> { ["State"] = !stateId.HasValue ? (object)null : stateId.Value.InternalState });
+        }
     }
 
     public abstract class StateMachineWorkflow<TState> : StateMachineWorkflow<TState, string>
     {
-        protected StateMachineWorkflow(int fullStatesHistoryLimit = 100)
-            : base(fullStatesHistoryLimit)
+        protected StateMachineWorkflow(int eventLogLimit = 100)
+            : base(eventLogLimit)
         {
         }
 
         protected StateMachineWorkflow(
             Func<IWorkflowStateRepository> workflowRepoFactory,
-            int fullStatesHistoryLimit = 100)
-            : base(workflowRepoFactory, fullStatesHistoryLimit)
+            int eventLogLimit = 100)
+            : base(workflowRepoFactory, eventLogLimit)
         {
         }
     }

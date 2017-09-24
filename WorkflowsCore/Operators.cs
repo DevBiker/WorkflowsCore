@@ -346,6 +346,72 @@ namespace WorkflowsCore
             }
         }
 
+        public static async Task<Event> WaitForEvent(this WorkflowBase workflow, Func<Event, bool> eventCondition, bool ignorePastEvents = false)
+        {
+            if (ignorePastEvents)
+            {
+                return await WaitForEventCore(workflow, eventCondition);
+            }
+
+            async Task<Event> FindLatestEventOrWaitForever()
+            {
+                var res = await workflow.RunViaWorkflowTaskScheduler(w => w.FindLatestEvent(eventCondition), forceExecution: true);
+                if (res == null)
+                {
+                    await Task.Delay(Timeout.Infinite, Utilities.CurrentCancellationToken);
+                }
+
+                return res;
+            }
+
+            Task<Event> t1 = null;
+            Task<Event> t2 = null;
+            var index = await workflow.WaitForAny(
+                () => t1 = WaitForEventCore(workflow, eventCondition),
+                () => t2 = FindLatestEventOrWaitForever());
+            return await (index == 0 ? t1 : t2);
+        }
+
+        private static Task<Event> WaitForEventCore(this WorkflowBase workflow, Func<Event, bool> eventCondition)
+        {
+            var tcs = new TaskCompletionSource<Event>();
+
+            var currentCancellationToken = Utilities.CurrentCancellationToken;
+            if (currentCancellationToken.IsCancellationRequested)
+            {
+                tcs.SetCanceled();
+                return tcs.Task;
+            }
+
+            EventHandler<WorkflowBase.EventLoggedEventArgs> handler = null;
+            var registration = currentCancellationToken.Register(
+                () =>
+                {
+                    workflow.EventLogged -= handler;
+                    tcs.TrySetCanceled();
+                },
+                false);
+            handler = (o, args) =>
+            {
+                if (currentCancellationToken.IsCancellationRequested)
+                {
+                    return;
+                }
+
+                if (eventCondition(args.Event))
+                {
+                    workflow.EventLogged -= handler;
+                    if (tcs.TrySetResult(args.Event))
+                    {
+                        registration.Dispose();
+                    }
+                }
+            };
+
+            workflow.EventLogged += handler;
+            return tcs.Task;
+        }
+
         private static void WaitAnyCore(
             IList<Task> tasks,
             TaskCompletionSource<int> tcs,

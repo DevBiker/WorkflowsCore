@@ -4,6 +4,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using WorkflowsCore.Time;
 using Xunit;
 
 namespace WorkflowsCore.Tests
@@ -343,12 +344,49 @@ namespace WorkflowsCore.Tests
             }
         }
 
+        public class EventLogTests
+        {
+            private readonly TestWorkflow _workflow = new TestWorkflow(doInit: true);
+
+            public EventLogTests() => Utilities.SystemClock = new TestingSystemClock();
+
+            [Fact]
+            public void InEventLogCanBeStoredSpecifiedNumberOfItemsAtMaximum()
+            {
+                var now = TestingSystemClock.Current.Now;
+                _workflow.LogEvent("Event1");
+                _workflow.LogEvent("Event2");
+                var parameters = new Dictionary<string, object> { ["Test"] = 123 };
+                TestingSystemClock.Current.Add(TimeSpan.FromHours(3));
+                _workflow.LogEvent("Event3", parameters);
+                _workflow.LogEvent("Event4");
+                Assert.Collection(
+                    _workflow.EventLog,
+                    e => Assert.Equal("Event2", e.EventName),
+                    e =>
+                    {
+                        Assert.Equal("Event3", e.EventName);
+                        Assert.Equal(now + TimeSpan.FromHours(3), e.CreatedOn);
+                        Assert.Collection(e.Parameters, p =>
+                        {
+                            Assert.Equal("Test", p.Key);
+                            Assert.Equal("123", p.Value);
+                        });
+                    },
+                    e => Assert.Equal("Event4", e.EventName));
+            }
+
+            [Fact]
+            public void IfOnLogEventReturnsFalseThenEventShouldNotBeLogged()
+            {
+                _workflow.LogEvent("Event5");
+                Assert.Empty(_workflow.EventLog);
+            }
+        }
+
         public class DoWorkflowTaskTests : BaseWorkflowTest<TestWorkflow>
         {
-            public DoWorkflowTaskTests()
-            {
-                Workflow = new TestWorkflow();
-            }
+            public DoWorkflowTaskTests() => Workflow = new TestWorkflow();
 
             [Fact]
             public async Task DoWorkflowTaskShouldRestoreWorkflowCancellationToken()
@@ -508,7 +546,7 @@ namespace WorkflowsCore.Tests
             }
 
             [Fact]
-            public async Task ConfiguredActionHandlerShouldBeInvokedWithPassedParameters()
+            public async Task ConfiguredActionHandlerShouldBeInvokedWithPassedParametersAndLogged()
             {
                 NamedValues invocationParameters = null;
                 Workflow.ConfigureAction(
@@ -526,6 +564,12 @@ namespace WorkflowsCore.Tests
 
                 parameters["Action"] = "Action 1";
                 Assert.Equal(parameters, invocationParameters.Data);
+
+                var lastEvent = Workflow.EventLog.Last();
+                Assert.Equal(WorkflowBase.ActionExecutedEvent, lastEvent.EventName);
+                Assert.Equal("Action 1", lastEvent.Parameters["Action"]);
+                Assert.Equal("1", lastEvent.Parameters["Id"]);
+
                 await CancelWorkflowAsync();
             }
 
@@ -825,6 +869,7 @@ namespace WorkflowsCore.Tests
                 await WaitUntilWorkflowCompleted();
 
                 Assert.Equal(1, _workflowRepo.NumberOfCompletedWorkflows);
+                Assert.Equal(WorkflowBase.WorkflowCompletedEvent, Workflow.EventLog.Last().EventName);
                 await AssertWorkflowCancellationTokenCanceled();
             }
 
@@ -838,6 +883,9 @@ namespace WorkflowsCore.Tests
 
                 Assert.Equal(1, _workflowRepo.NumberOfFailedWorkflows);
                 Assert.True(Workflow.OnFaultedWasCalled);
+                var lastEvent = Workflow.EventLog.Last();
+                Assert.Equal(WorkflowBase.WorkflowFaultedEvent, lastEvent.EventName);
+                Assert.NotNull(lastEvent.Parameters?["Exception"]);
                 await AssertWorkflowCancellationTokenCanceled();
             }
 
@@ -943,6 +991,7 @@ namespace WorkflowsCore.Tests
 
                 Assert.Equal(1, _workflowRepo.NumberOfCanceledWorkflows);
                 Assert.True(Workflow.OnCanceledWasCalled);
+                Assert.Equal(WorkflowBase.WorkflowCanceledEvent, Workflow.EventLog.Last().EventName);
                 await AssertWorkflowCancellationTokenCanceled();
             }
 
@@ -992,8 +1041,9 @@ namespace WorkflowsCore.Tests
                 bool badCancellation = false,
                 bool failCancellation = false,
                 bool allowOnFaulted = false,
-                bool delayInitialization = false)
-                : base(workflowRepoFactory)
+                bool delayInitialization = false,
+                bool doInit = false)
+                : base(workflowRepoFactory, 3)
             {
                 _canceledChild = canceledChild;
                 _allowOnCanceled = allowOnCanceled && !allowOnFaulted;
@@ -1002,6 +1052,10 @@ namespace WorkflowsCore.Tests
                 _timeout = fail ? -2 : (!doNotComplete ? 1 : Timeout.Infinite);
                 _allowOnFaulted = allowOnFaulted;
                 _delayInitialization = delayInitialization;
+                if (doInit)
+                {
+                    OnInit();
+                }
             }
 
             public bool ActionsAllowed { get; set; } = true;
@@ -1025,6 +1079,8 @@ namespace WorkflowsCore.Tests
                 get { return base.ActionResult; }
                 set { base.ActionResult = value; }
             }
+
+            public IList<Event> EventLog => GetDataFieldAsync<IList<Event>>(nameof(EventLog), forceExecution: true).Result;
 
             public void SetInitializationCompleted() => _initializationOperation.Dispose();
 
@@ -1075,6 +1131,9 @@ namespace WorkflowsCore.Tests
             public new void ImportOperation(IDisposable operation) => base.ImportOperation(operation);
 
             public void CompleteLongWork() => _badCancellationTcs.SetResult(true);
+
+            public new void LogEvent(string eventName, IReadOnlyDictionary<string, object> parameters = null) =>
+                base.LogEvent(eventName, parameters);
 
             protected override async Task RunAsync()
             {
@@ -1127,6 +1186,8 @@ namespace WorkflowsCore.Tests
                 base.OnFaulted(exception);
                 OnFaultedWasCalled = true;
             }
+
+            protected override bool OnLogEvent(string eventName, IDictionary<string, string> parameters) => eventName != "Event5";
         }
 
         private class WorkflowRepository : IWorkflowStateRepository

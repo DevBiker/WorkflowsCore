@@ -79,6 +79,10 @@ namespace WorkflowsCore.Tests
             Assert.Equal(States.State2, Workflow.State);
             Assert.Equal(InternalStates.State2Hidden, Workflow.InternalState.Single());
 
+            var lastEvent = Workflow.EventLog[Workflow.EventLog.Count - 2];
+            Assert.Equal(StateMachineWorkflow<States, InternalStates>.InnerInternalStateChangedEvent, lastEvent.EventName);
+            Assert.Equal(InternalStates.State2Hidden.ToString(), lastEvent.Parameters["State"]);
+
             await CancelWorkflowAsync();
         }
 
@@ -99,11 +103,19 @@ namespace WorkflowsCore.Tests
             Assert.True(Workflow.IsLoaded);
             Assert.False(Workflow.WasIn(States.State2));
 
+            var lastEvent = Workflow.EventLog[Workflow.EventLog.Count - 2];
+            Assert.Equal(StateMachineWorkflow<States, InternalStates>.InnerInternalStateRestoredEvent, lastEvent.EventName);
+            Assert.Equal(InternalStates.State2Hidden.ToString(), lastEvent.Parameters["State"]);
+
             await Workflow.ExecuteActionAsync(TestWorkflow.Action2);
             await Workflow.ReadyTask;
 
             Assert.Equal(States.State1, Workflow.State);
             Assert.False(Workflow.InternalState.Any());
+
+            lastEvent = Workflow.EventLog[Workflow.EventLog.Count - 2];
+            Assert.Equal(StateMachineWorkflow<States, InternalStates>.InnerInternalStateChangedEvent, lastEvent.EventName);
+            Assert.Null(lastEvent.Parameters["State"]);
 
             await CancelWorkflowAsync();
         }
@@ -130,6 +142,8 @@ namespace WorkflowsCore.Tests
             public new States State => base.State;
 
             public new IList<InternalStates> InternalState => base.InternalState;
+
+            public IList<Event> EventLog => GetDataFieldAsync<IList<Event>>(nameof(EventLog), forceExecution: true).Result;
 
             public new bool IsLoaded => base.IsLoaded;
 

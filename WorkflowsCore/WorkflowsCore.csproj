@@ -2,12 +2,12 @@
   <PropertyGroup>
     <TargetFramework>netstandard1.3</TargetFramework>
     <PackageId>WorkflowsCore</PackageId>
-    <PackageVersion>0.10.4</PackageVersion>
+    <PackageVersion>0.10.6</PackageVersion>
     <Title>WorkflowsCore Workflow Engine</Title>
     <Authors>Eugene Shalyuk</Authors>
     <Description>Lightweight workflow engine</Description>
     <PackageTags>workflow-engine workflow state-machine</PackageTags>
-    <PackageProjectUrl>https://github.com/eugene-sea/WorkflowsCore</PackageProjectUrl>
+    <PackageProjectUrl>https://github.com/Door3Dev/WorkflowsCore</PackageProjectUrl>
     <CodeAnalysisRuleSet>..\RuleSet.ruleset</CodeAnalysisRuleSet>
   </PropertyGroup>
   <ItemGroup>

@@ -7,18 +7,17 @@ namespace WorkflowsCore
 {
     public abstract class WorkflowBase<TState> : WorkflowBase
     {
-        private readonly int _fullStatesHistoryLimit;
+        public const string StateChangedEvent = "StateChanged";
+        public const string StateRestoredEvent = "StateRestored";
 
-        protected WorkflowBase(int fullStatesHistoryLimit = 100)
-            : base(null)
+        protected WorkflowBase(int eventLogLimit = 100)
+            : base(null, eventLogLimit)
         {
-            _fullStatesHistoryLimit = fullStatesHistoryLimit;
         }
 
-        protected WorkflowBase(Func<IWorkflowStateRepository> workflowRepoFactory, int fullStatesHistoryLimit = 100)
-            : base(workflowRepoFactory)
+        protected WorkflowBase(Func<IWorkflowStateRepository> workflowRepoFactory, int eventLogLimit = 100)
+            : base(workflowRepoFactory, eventLogLimit)
         {
-            _fullStatesHistoryLimit = fullStatesHistoryLimit;
         }
 
         protected internal event EventHandler<StateChangedEventArgs> StateChanged;
@@ -40,12 +39,6 @@ namespace WorkflowsCore
         [DataField]
         private IDictionary<TState, int> StatesStats { get; set; }
 
-        /// <summary>
-        /// It is stored for diagnosing purposes only
-        /// </summary>
-        [DataField]
-        private IList<Tuple<TState, DateTimeOffset, bool>> FullStatesHistory { get; set; }
-
         public Task<TState> GetStateAsync() => DoWorkflowTaskAsync(() => State);
 
         protected internal bool WasIn(TState state) => TimesIn(state) > 0;
@@ -56,7 +49,6 @@ namespace WorkflowsCore
         {
             base.OnInit();
             StatesHistory = new List<TState>();
-            FullStatesHistory = new List<Tuple<TState, DateTimeOffset, bool>>();
             StatesStats = new Dictionary<TState, int>();
             OnStatesInit();
         }
@@ -74,13 +66,13 @@ namespace WorkflowsCore
 
         protected void SetState(TState state, bool isStateRestored = false)
         {
-            UpdateFullStatesHistory(state, isStateRestored);
-
             if (isStateRestored)
             {
+                LogEvent(StateRestoredEvent, new Dictionary<string, object> { ["State"] = state });
                 return;
             }
 
+            LogEvent(StateChangedEvent, new Dictionary<string, object> { ["State"] = state });
             UpdateStatesStats(state);
             UpdateStatesHistory(state);
             SaveWorkflowData();
@@ -91,15 +83,6 @@ namespace WorkflowsCore
         { // TODO: Add ability to clear stats
             int stats;
             return !StatesStats.TryGetValue(state, out stats) ? 0 : stats;
-        }
-
-        private void UpdateFullStatesHistory(TState state, bool isStateRestored)
-        {
-            FullStatesHistory.Add(Tuple.Create(state, SystemClock.UtcNow, isStateRestored));
-            while (FullStatesHistory.Count > _fullStatesHistoryLimit)
-            {
-                FullStatesHistory.RemoveAt(0);
-            }
         }
 
         private void UpdateStatesStats(TState state)
