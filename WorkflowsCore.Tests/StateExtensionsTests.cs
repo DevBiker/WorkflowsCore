@@ -22,7 +22,7 @@ namespace WorkflowsCore.Tests
         public async Task OnDateShouldExecuteChainOnSpecifiedDate()
         {
             var date = DateTime.Now.AddDays(3);
-            var tcs = new TaskCompletionSource<DateTime>();
+            var tcs = new TaskCompletionSource<DateTimeOffset>();
             var state = _stateMachine.ConfigureState(States.State1).OnDate(() => date).Do(d => tcs.SetResult(d));
 
             Utilities.SystemClock = new TestingSystemClock();

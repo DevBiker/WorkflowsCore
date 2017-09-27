@@ -16,9 +16,9 @@ namespace WorkflowsCore.MonteCarlo
         void Cancel();
     }
 
-    public struct WorldClockAdvancingEvent
+    public struct SystemClockAdvancingEvent
     {
-        public WorldClockAdvancingEvent(DateTime newTime, Task timeChangeProcessed = null)
+        public SystemClockAdvancingEvent(DateTime newTime, Task timeChangeProcessed = null)
         {
             NewTime = newTime;
             TimeChangeProcessed = timeChangeProcessed ?? Task.CompletedTask;
@@ -88,17 +88,17 @@ namespace WorkflowsCore.MonteCarlo
 
         public void ConfigureApplicationRestartEvent(double probabilityWeight)
         {
-            if (_eventsDefinitions.Any(e => e is ApplicationRestartEventDefintion))
+            if (_eventsDefinitions.Any(e => e is ApplicationRestartEventDefinition))
             {
                 throw new InvalidOperationException();
             }
 
-            var worldClockAdvancingEventDefinition =
-                _eventsDefinitions.OfType<WorldClockAdvancingEventDefinition>().First();
+            var systemClockAdvancingEventDefinition =
+                _eventsDefinitions.OfType<SystemClockAdvancingEventDefinition>().First();
             _eventsDefinitions.Add(
-                new ApplicationRestartEventDefintion(
+                new ApplicationRestartEventDefinition(
                     probabilityWeight,
-                    worldClockAdvancingEventDefinition,
+                    systemClockAdvancingEventDefinition,
                     _workflowFactory));
         }
 
@@ -130,16 +130,16 @@ namespace WorkflowsCore.MonteCarlo
             actionExecutionEvent.AddAction(probabilityWeight, actionName, (w, _) => actionEventHandler(w));
         }
 
-        public void ConfigureWorldClockAdvancingEvent(
+        public void ConfigureSystemClockAdvancingEvent(
             double probabilityWeight,
-            Func<TWorkflowType, bool, Task<WorldClockAdvancingEvent>> getNewTimeEventFunc)
+            Func<TWorkflowType, bool, Task<SystemClockAdvancingEvent>> getNewTimeEventFunc)
         {
-            if (_eventsDefinitions.Any(e => e is WorldClockAdvancingEventDefinition))
+            if (_eventsDefinitions.Any(e => e is SystemClockAdvancingEventDefinition))
             {
                 throw new InvalidOperationException();
             }
 
-            _eventsDefinitions.Add(new WorldClockAdvancingEventDefinition(probabilityWeight, getNewTimeEventFunc));
+            _eventsDefinitions.Add(new SystemClockAdvancingEventDefinition(probabilityWeight, getNewTimeEventFunc));
         }
 
         public void ConfigureCustomEvent(
@@ -302,7 +302,7 @@ namespace WorkflowsCore.MonteCarlo
                 if (
                     !string.Equals(
                         ex.Message,
-                        ApplicationRestartEventDefintion.WorkflowWasStoppedDueToApplicationShutdown,
+                        ApplicationRestartEventDefinition.WorkflowWasStoppedDueToApplicationShutdown,
                         StringComparison.Ordinal))
                 {
                     Globals.EventMonitor.LogEvent(ex.Message);
@@ -506,13 +506,13 @@ namespace WorkflowsCore.MonteCarlo
             protected bool GetIsAvailableCore(bool isPrimaryPartition) => !_isSequential || isPrimaryPartition;
         }
 
-        private class WorldClockAdvancingEventDefinition : EventDefinition
+        private class SystemClockAdvancingEventDefinition : EventDefinition
         {
-            private readonly Func<TWorkflowType, bool, Task<WorldClockAdvancingEvent>> _getNewTimeEventFunc;
+            private readonly Func<TWorkflowType, bool, Task<SystemClockAdvancingEvent>> _getNewTimeEventFunc;
 
-            public WorldClockAdvancingEventDefinition(
+            public SystemClockAdvancingEventDefinition(
                 double probabilityWeight,
-                Func<TWorkflowType, bool, Task<WorldClockAdvancingEvent>> getNewTimeEventFunc)
+                Func<TWorkflowType, bool, Task<SystemClockAdvancingEvent>> getNewTimeEventFunc)
                 : base(probabilityWeight)
             {
                 _getNewTimeEventFunc = getNewTimeEventFunc;
@@ -525,7 +525,7 @@ namespace WorkflowsCore.MonteCarlo
                 var newTimeEvent = await _getNewTimeEventFunc(workflow, isApplicationRestart);
                 TestingSystemClock.Current.Set(newTimeEvent.NewTime);
                 Globals.EventMonitor.LogEvent(
-                    "World clock is advanced",
+                    "System clock is advanced",
                     Globals.SystemClock.Now.ToString(Globals.DefaultDateTimeFormat));
                 await newTimeEvent.TimeChangeProcessed;
                 return workflow;
@@ -563,22 +563,22 @@ namespace WorkflowsCore.MonteCarlo
             }
         }
 
-        private class ApplicationRestartEventDefintion : EventDefinition
+        private class ApplicationRestartEventDefinition : EventDefinition
         {
             public const string WorkflowWasStoppedDueToApplicationShutdown =
                 "Workflow was stopped due to application shutdown";
 
-            private readonly WorldClockAdvancingEventDefinition _worldClockAdvancingEventDefinition;
+            private readonly SystemClockAdvancingEventDefinition _systemClockAdvancingEventDefinition;
             private readonly Func<TWorkflowType> _workflowFactory;
 
             // TODO: Add ability to change something additionally to time
-            public ApplicationRestartEventDefintion(
+            public ApplicationRestartEventDefinition(
                 double probabilityWeight,
-                WorldClockAdvancingEventDefinition worldClockAdvancingEventDefinition,
+                SystemClockAdvancingEventDefinition systemClockAdvancingEventDefinition,
                 Func<TWorkflowType> workflowFactory)
                 : base(probabilityWeight)
             {
-                _worldClockAdvancingEventDefinition = worldClockAdvancingEventDefinition;
+                _systemClockAdvancingEventDefinition = systemClockAdvancingEventDefinition;
                 _workflowFactory = workflowFactory;
             }
 
@@ -599,7 +599,7 @@ namespace WorkflowsCore.MonteCarlo
                     Globals.EventMonitor.LogEvent(ex.Message);
                 }
 
-                await _worldClockAdvancingEventDefinition.DoEvent(workflow, true);
+                await _systemClockAdvancingEventDefinition.DoEvent(workflow, true);
                 var statesHistory =
                     await workflow.TryGetDataFieldAsync<IEnumerable>("StatesHistory", forceExecution: true) ??
                         Enumerable.Empty<object>();

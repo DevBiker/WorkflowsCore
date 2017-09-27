@@ -947,7 +947,7 @@ namespace WorkflowsCore
 
             var parameters = new Dictionary<string, object>
             {
-                [nameof(NextActivationDate)] = !NextActivationDate.HasValue ? null : NextActivationDate.Value.ToString()
+                [nameof(NextActivationDate)] = NextActivationDate?.ToString()
             };
             LogEvent(NextActivationDateChangedEvent, parameters);
             SaveWorkflowData();

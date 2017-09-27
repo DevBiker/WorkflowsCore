@@ -34,12 +34,12 @@ namespace WorkflowsCore.Tests
         public void SimulationShouldSelectRandomEventBasedOnConfiguredEvents()
         {
             var numberOfClockEvents = 0;
-            _simulator.ConfigureWorldClockAdvancingEvent(
+            _simulator.ConfigureSystemClockAdvancingEvent(
                 1.0,
                 (w, _) =>
                 {
                     Interlocked.Increment(ref numberOfClockEvents);
-                    return Task.FromResult(new WorldClockAdvancingEvent(Globals.SystemClock.Now.AddHours(1)));
+                    return Task.FromResult(new SystemClockAdvancingEvent(Globals.SystemClock.Now.AddHours(1)));
                 });
 
             var numberOfCustomEvents = 0;
@@ -70,9 +70,9 @@ namespace WorkflowsCore.Tests
         [Fact]
         public void EventConfigurationShouldNotAllowZeroProbabilityWeight()
         {
-            _simulator.ConfigureWorldClockAdvancingEvent(
+            _simulator.ConfigureSystemClockAdvancingEvent(
                 1.0,
-                (w, _) => Task.FromResult(new WorldClockAdvancingEvent(Globals.SystemClock.Now.AddHours(1))));
+                (w, _) => Task.FromResult(new SystemClockAdvancingEvent(Globals.SystemClock.Now.AddHours(1))));
             var ex = Record.Exception(() => _simulator.ConfigureApplicationRestartEvent(0.0));
 
             Assert.IsType<ArgumentOutOfRangeException>(ex);
@@ -89,9 +89,9 @@ namespace WorkflowsCore.Tests
         [Fact]
         public void ApplicationRestartEventCannotBeConfiguredTwice()
         {
-            _simulator.ConfigureWorldClockAdvancingEvent(
+            _simulator.ConfigureSystemClockAdvancingEvent(
                 1.0,
-                (w, _) => Task.FromResult(new WorldClockAdvancingEvent(Globals.SystemClock.Now.AddHours(1))));
+                (w, _) => Task.FromResult(new SystemClockAdvancingEvent(Globals.SystemClock.Now.AddHours(1))));
             _simulator.ConfigureApplicationRestartEvent(1.0);
             var ex = Record.Exception(() => _simulator.ConfigureApplicationRestartEvent(2.0));
 
@@ -99,7 +99,7 @@ namespace WorkflowsCore.Tests
         }
 
         [Fact]
-        public void ApplicationRestartEventCannotBeConfiguredIfWorldClockAdvancingEventIsConfigured()
+        public void ApplicationRestartEventCannotBeConfiguredIfSystemClockAdvancingEventIsConfigured()
         {
             var ex = Record.Exception(() => _simulator.ConfigureApplicationRestartEvent(1.0));
 
@@ -145,15 +145,15 @@ namespace WorkflowsCore.Tests
         }
 
         [Fact]
-        public void WorldClockAdvancingEventCannotBeConfiguredTwice()
+        public void SystemClockAdvancingEventCannotBeConfiguredTwice()
         {
-            _simulator.ConfigureWorldClockAdvancingEvent(
+            _simulator.ConfigureSystemClockAdvancingEvent(
                 1.0,
-                (w, _) => Task.FromResult(new WorldClockAdvancingEvent(DateTime.MaxValue)));
+                (w, _) => Task.FromResult(new SystemClockAdvancingEvent(DateTime.MaxValue)));
             var ex = Record.Exception(
-                () => _simulator.ConfigureWorldClockAdvancingEvent(
+                () => _simulator.ConfigureSystemClockAdvancingEvent(
                     2.0,
-                    (w, _) => Task.FromResult(new WorldClockAdvancingEvent(DateTime.MaxValue))));
+                    (w, _) => Task.FromResult(new SystemClockAdvancingEvent(DateTime.MaxValue))));
 
             Assert.IsType<InvalidOperationException>(ex);
         }
@@ -189,16 +189,16 @@ namespace WorkflowsCore.Tests
         }
 
         [Fact]
-        public void WorldClockAdvancingEventShouldUpdateWorldClockAndThenWaitForSpecifiedTask()
+        public void SystemClockAdvancingEventShouldUpdateSystemClockAndThenWaitForSpecifiedTask()
         {
             Task t = null;
-            _simulator.ConfigureWorldClockAdvancingEvent(
+            _simulator.ConfigureSystemClockAdvancingEvent(
                 1.0,
                 (w, isAppRestart) =>
                 {
                     Assert.False(isAppRestart);
                     return Task.FromResult(
-                        new WorldClockAdvancingEvent(
+                        new SystemClockAdvancingEvent(
                             Globals.SystemClock.Now.AddHours(1).AddMinutes(23),
                             t = Task.Delay(100)));
                 });
@@ -214,7 +214,7 @@ namespace WorkflowsCore.Tests
                     Assert.Equal(newTime, Globals.SystemClock.Now);
                     var events = Globals.EventMonitor.GetEvents();
                     Assert.Equal(3, events.Count);
-                    Assert.Equal("World clock is advanced", events[0].Name);
+                    Assert.Equal("System clock is advanced", events[0].Name);
                     Assert.Equal(newTime.ToString("yyyy-MM-dd HH:mm:ss"), events[0].Parameters);
                 });
         }
@@ -222,9 +222,9 @@ namespace WorkflowsCore.Tests
         [Fact]
         public void CustomEventShouldNotBeExecutedIfNotAvailable()
         {
-            _simulator.ConfigureWorldClockAdvancingEvent(
+            _simulator.ConfigureSystemClockAdvancingEvent(
                 1.0,
-                (w, _) => Task.FromResult(new WorldClockAdvancingEvent(Globals.SystemClock.Now.AddHours(1))));
+                (w, _) => Task.FromResult(new SystemClockAdvancingEvent(Globals.SystemClock.Now.AddHours(1))));
             _simulator.ConfigureCustomEvent(
                 100.0,
                 w => Task.FromException(new Exception()),
@@ -323,11 +323,11 @@ namespace WorkflowsCore.Tests
         }
 
         [Fact]
-        public void ApplicationRestartEventShouldStopWorkflowAdvanceWorldClockAndRerunWorkflow()
+        public void ApplicationRestartEventShouldStopWorkflowAdvanceSystemClockAndRerunWorkflow()
         {
             var clockAdvanced = false;
             WorkflowBase oldWorkflow = null;
-            _simulator.ConfigureWorldClockAdvancingEvent(
+            _simulator.ConfigureSystemClockAdvancingEvent(
                 0.1,
                 (w, isAppRestart) =>
                 {
@@ -338,7 +338,7 @@ namespace WorkflowsCore.Tests
                     Assert.Equal(1, w.TestId);
                     Assert.Equal(2, w.TransientTestId);
                     return Task.FromResult(
-                        new WorldClockAdvancingEvent(Globals.SystemClock.Now.AddHours(1).AddMinutes(23)));
+                        new SystemClockAdvancingEvent(Globals.SystemClock.Now.AddHours(1).AddMinutes(23)));
                 });
             var customEventCalled = false;
             _simulator.ConfigureCustomEvent(
@@ -367,7 +367,7 @@ namespace WorkflowsCore.Tests
                     Assert.Equal(22, events.Count);
                     Assert.Equal("Application is shutdown", events[0].Name);
                     Assert.Equal("Workflow was stopped due to application shutdown", events[1].Name);
-                    Assert.Equal("World clock is advanced", events[2].Name);
+                    Assert.Equal("System clock is advanced", events[2].Name);
                     Assert.Equal("Application is started", events[3].Name);
                 });
             Assert.True(clockAdvanced);
@@ -584,10 +584,10 @@ namespace WorkflowsCore.Tests
                     () => _lastWorkflow = new TestWorkflow(),
                     maxConcurrentEvents: 2);
 
-            _simulator.ConfigureWorldClockAdvancingEvent(
+            _simulator.ConfigureSystemClockAdvancingEvent(
                 0.01,
                 (w, isAppRestart) =>
-                    Task.FromResult(new WorldClockAdvancingEvent(Globals.SystemClock.Now.AddHours(1))));
+                    Task.FromResult(new SystemClockAdvancingEvent(Globals.SystemClock.Now.AddHours(1))));
 
             _simulator.ConfigureActionExecutionEvent(1.0);
             _simulator.ConfigureActionExecutionEvent(

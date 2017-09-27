@@ -45,9 +45,9 @@ namespace WorkflowsCore.StateMachines
             }
         }
 
-        public static AsyncOperation<TState, TInternalState, DateTime> OnDate<TState, TInternalState>(
+        public static AsyncOperation<TState, TInternalState, DateTimeOffset> OnDate<TState, TInternalState>(
             this State<TState, TInternalState> state,
-            Func<Task<DateTime>> dateTaskFactory,
+            Func<Task<DateTimeOffset>> dateTaskFactory,
             string description = null,
             Func<WorkflowBase, Task<bool>> bypassDatesFunc = null,
             bool isHidden = false)
@@ -65,9 +65,9 @@ namespace WorkflowsCore.StateMachines
                 isHidden: isHidden);
         }
 
-        public static AsyncOperation<TState, TInternalState, DateTime> OnDate<TState, TInternalState>(
+        public static AsyncOperation<TState, TInternalState, DateTimeOffset> OnDate<TState, TInternalState>(
             this State<TState, TInternalState> state,
-            Func<DateTime> dateFactory,
+            Func<DateTimeOffset> dateFactory,
             string description = null,
             Func<WorkflowBase, Task<bool>> bypassDatesFunc = null,
             bool isHidden = false)

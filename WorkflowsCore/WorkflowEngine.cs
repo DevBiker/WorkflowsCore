@@ -140,7 +140,7 @@ namespace WorkflowsCore
                     {
                         lock (_workflowsById)
                         {
-                            if (workflow.Metadata.GetTransientDataField<DateTime?>(workflow, "NextActivationDate") !=
+                            if (workflow.Metadata.GetTransientDataField<DateTimeOffset?>(workflow, "NextActivationDate") !=
                                 null)
                             {
                                 throw new InvalidOperationException(
