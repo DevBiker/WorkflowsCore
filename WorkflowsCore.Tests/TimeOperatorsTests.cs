@@ -47,7 +47,7 @@ namespace WorkflowsCore.Tests
             var ex = await Record.ExceptionAsync(
                 () => Utilities.SetCurrentCancellationTokenTemporarily(
                     new CancellationTokenSource(10).Token,
-                    () => _workflow.WaitForDate(DateTime.MaxValue)));
+                    () => _workflow.WaitForDate(DateTimeOffset.MaxValue)));
 
             Assert.IsType<TaskCanceledException>(ex);
         }

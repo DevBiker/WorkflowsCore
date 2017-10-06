@@ -11,7 +11,7 @@ namespace WorkflowsCore.Tests
         [Fact]
         public void NextActivationDateShouldIgnoreMaxValue()
         {
-            _manager.AddActivationDate(CancellationToken.None, DateTime.MaxValue);
+            _manager.AddActivationDate(CancellationToken.None, DateTime.MaxValue.ToUniversalTime());
             Assert.Null(_manager.NextActivationDate);
 
             _manager.AddActivationDate(CancellationToken.None, DateTimeOffset.MaxValue);

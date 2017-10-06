@@ -149,11 +149,11 @@ namespace WorkflowsCore.Tests
         {
             _simulator.ConfigureSystemClockAdvancingEvent(
                 1.0,
-                (w, _) => Task.FromResult(new SystemClockAdvancingEvent(DateTime.MaxValue)));
+                (w, _) => Task.FromResult(new SystemClockAdvancingEvent(DateTime.Now)));
             var ex = Record.Exception(
                 () => _simulator.ConfigureSystemClockAdvancingEvent(
                     2.0,
-                    (w, _) => Task.FromResult(new SystemClockAdvancingEvent(DateTime.MaxValue))));
+                    (w, _) => Task.FromResult(new SystemClockAdvancingEvent(DateTime.Now))));
 
             Assert.IsType<InvalidOperationException>(ex);
         }

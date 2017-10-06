@@ -330,7 +330,7 @@ namespace WorkflowsCore.StateMachines
 
                         transition.CompleteTransition(this);
                         var task = await System.Threading.Tasks.Task.WhenAny(
-                            Workflow.WaitForDate(DateTime.MaxValue),
+                            Workflow.WaitForDate(DateTimeOffset.MaxValue),
                             _stateTransitionTaskCompletionSource.Task);
 
                         if (task == _stateTransitionTaskCompletionSource.Task)

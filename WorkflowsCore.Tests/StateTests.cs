@@ -573,7 +573,7 @@ namespace WorkflowsCore.Tests
                 {
                     if (operation != null)
                     {
-                        await Workflow.WaitForDate(DateTime.MaxValue);
+                        await Workflow.WaitForDate(DateTimeOffset.MaxValue);
                         return 1;
                     }
 
@@ -623,7 +623,7 @@ namespace WorkflowsCore.Tests
                 {
                     if (operation != null)
                     {
-                        await Workflow.WaitForDate(DateTime.MaxValue);
+                        await Workflow.WaitForDate(DateTimeOffset.MaxValue);
                         return;
                     }
 

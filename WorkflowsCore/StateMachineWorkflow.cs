@@ -62,7 +62,7 @@ namespace WorkflowsCore
             }
 
             return this.WaitForAny(
-                () => Task.WhenAny(_completeWorkflowTcs.Task, this.WaitForDate(DateTime.MaxValue)),
+                () => Task.WhenAny(_completeWorkflowTcs.Task, this.WaitForDate(DateTimeOffset.MaxValue)),
                 RunStateMachine);
         }
 

@@ -43,14 +43,14 @@ namespace WorkflowsCore.Time
         {
             if (dateTime.Kind != DateTimeKind.Local)
             {
-                throw new ArgumentOutOfRangeException(nameof(dateTime));
+                throw new ArgumentOutOfRangeException(nameof(dateTime), "It should have Kind as DateTimeKind.Local");
             }
 
             lock (_lock)
             {
                 if (dateTime < Now)
                 {
-                    throw new ArgumentOutOfRangeException(nameof(dateTime));
+                    throw new ArgumentOutOfRangeException(nameof(dateTime), "Cannot set clock to past");
                 }
 
                 if (dateTime == Now)
