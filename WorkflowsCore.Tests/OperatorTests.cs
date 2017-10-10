@@ -889,7 +889,149 @@ namespace WorkflowsCore.Tests
             }
         }
 
-        public sealed class TestWorkflow : WorkflowBase
+        public class UnwrapTests : BaseWorkflowTest<TestWorkflowWithFailingAction>
+        {
+            public UnwrapTests() => Workflow = new TestWorkflowWithFailingAction();
+
+            [Fact]
+            public async Task UnwrapShouldReturnResultOnTargetTaskSuccess()
+            {
+                StartWorkflow();
+
+                var res = await Workflow.ExecuteActionAsync<int>("Contacted").Unwrap(Workflow);
+
+                Assert.Equal(1, res);
+
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
+            public async Task UnwrapShouldRethrowExceptionOnTargetTaskException()
+            {
+                StartWorkflow();
+
+                var ex = await Record.ExceptionAsync(() => Workflow.ExecuteActionAsync<int>("BadAction").Unwrap(Workflow));
+
+                Assert.IsType<ArgumentOutOfRangeException>(ex);
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
+            public async Task UnwrapShouldRethrowWorkflowCompletedTaskExceptionOnTargetTaskCancellation()
+            {
+                StartWorkflow();
+
+                var ex = await Record.ExceptionAsync(() => Workflow.ExecuteActionAsync<int>("FailingAction").Unwrap(Workflow));
+
+                Assert.IsType<NotSupportedException>(ex);
+            }
+
+            [Fact]
+            public async Task UnwrapShouldThrowIoeOnTargetTaskCancellationIfWorkflowIsNotInCancellation()
+            {
+                StartWorkflow();
+
+                var ex = await Record.ExceptionAsync(() => Workflow.ExecuteActionAsync<int>("CancelingAction").Unwrap(Workflow));
+
+                Assert.IsType<InvalidOperationException>(ex);
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
+            public async Task UnwrapShouldReturnCanceledTaskOnTargetTaskCancellationIfWorkflowIsCanceled()
+            {
+                StartWorkflow();
+                await Workflow.StartedTask;
+                await CancelWorkflowAsync();
+
+                var ex = await Record.ExceptionAsync(() => Workflow.ExecuteActionAsync<int>("Contacted").Unwrap(Workflow));
+
+                Assert.IsType<TaskCanceledException>(ex);
+            }
+
+            [Fact]
+            public async Task UnwrapShouldReturnCanceledTaskOnTargetTaskCancellationIfWorkflowIsCompleted()
+            {
+                StartWorkflow();
+
+                var ex = await Record.ExceptionAsync(() => Workflow.ExecuteActionAsync<int>("CompleteAction").Unwrap(Workflow));
+
+                Assert.IsType<TaskCanceledException>(ex);
+                await WaitUntilWorkflowCompleted();
+            }
+        }
+
+        public class Unwrap2Tests : BaseWorkflowTest<TestWorkflowWithFailingAction>
+        {
+            public Unwrap2Tests() => Workflow = new TestWorkflowWithFailingAction();
+
+            [Fact]
+            public async Task UnwrapShouldReturnResultOnTargetTaskSuccess()
+            {
+                StartWorkflow();
+
+                await Workflow.ExecuteActionAsync("Contacted").Unwrap(Workflow);
+
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
+            public async Task UnwrapShouldRethrowExceptionOnTargetTaskException()
+            {
+                StartWorkflow();
+
+                var ex = await Record.ExceptionAsync(() => Workflow.ExecuteActionAsync("BadAction").Unwrap(Workflow));
+
+                Assert.IsType<ArgumentOutOfRangeException>(ex);
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
+            public async Task UnwrapShouldRethrowWorkflowCompletedTaskExceptionOnTargetTaskCancellation()
+            {
+                StartWorkflow();
+
+                var ex = await Record.ExceptionAsync(() => Workflow.ExecuteActionAsync("FailingAction").Unwrap(Workflow));
+
+                Assert.IsType<NotSupportedException>(ex);
+            }
+
+            [Fact]
+            public async Task UnwrapShouldThrowIoeOnTargetTaskCancellationIfWorkflowIsNotInCancellation()
+            {
+                StartWorkflow();
+
+                var ex = await Record.ExceptionAsync(() => Workflow.ExecuteActionAsync("CancelingAction").Unwrap(Workflow));
+
+                Assert.IsType<InvalidOperationException>(ex);
+                await CancelWorkflowAsync();
+            }
+
+            [Fact]
+            public async Task UnwrapShouldReturnCanceledTaskOnTargetTaskCancellationIfWorkflowIsCanceled()
+            {
+                StartWorkflow();
+                await Workflow.StartedTask;
+                await CancelWorkflowAsync();
+
+                var ex = await Record.ExceptionAsync(() => Workflow.ExecuteActionAsync("Contacted").Unwrap(Workflow));
+
+                Assert.IsType<TaskCanceledException>(ex);
+            }
+
+            [Fact]
+            public async Task UnwrapShouldReturnCanceledTaskOnTargetTaskCancellationIfWorkflowIsCompleted()
+            {
+                StartWorkflow();
+
+                var ex = await Record.ExceptionAsync(() => Workflow.ExecuteActionAsync("CompleteAction").Unwrap(Workflow));
+
+                Assert.IsType<TaskCanceledException>(ex);
+                await WaitUntilWorkflowCompleted();
+            }
+        }
+
+        public class TestWorkflow : WorkflowBase
         {
             public TestWorkflow(bool doInit = true)
                 : base(null)
@@ -917,11 +1059,39 @@ namespace WorkflowsCore.Tests
                     {
                         Action = "Contacted";
                         Parameters = p;
+                        ActionResult = 1;
                     },
                     synonyms: new[] { "Contacted 2" });
             }
 
             protected override Task RunAsync() => Task.Delay(Timeout.Infinite, Utilities.CurrentCancellationToken);
+        }
+
+        public sealed class TestWorkflowWithFailingAction : TestWorkflow
+        {
+            public TestWorkflowWithFailingAction()
+                : base(doInit: false)
+            {
+            }
+
+            protected override void OnActionsInit()
+            {
+                base.OnActionsInit();
+                ConfigureAction("FailingAction");
+                ConfigureAction("CancelingAction", () => throw new TaskCanceledException());
+                ConfigureAction("CompleteAction");
+            }
+
+            protected override async Task RunAsync()
+            {
+                await this.WaitForAny(
+                    () => this.WaitForAction("CompleteAction", exportOperation: true),
+                    async () =>
+                    {
+                        await this.WaitForAction("FailingAction", exportOperation: true);
+                        throw new NotSupportedException();
+                    });
+            }
         }
 
         public sealed class TestWorkflowWithState : WorkflowBase<States>
@@ -953,10 +1123,7 @@ namespace WorkflowsCore.Tests
                     });
             }
 
-            protected override Task RunAsync()
-            {
-                throw new NotImplementedException();
-            }
+            protected override Task RunAsync() => throw new NotImplementedException();
 
             protected override void OnStatesInit()
             {

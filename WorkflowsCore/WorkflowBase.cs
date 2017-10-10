@@ -109,6 +109,8 @@ namespace WorkflowsCore
 
         internal NamedValues TransientData { get; } = new NamedValues();
 
+        internal bool IsCancellationRequested => CancellationTokenSource.IsCancellationRequested;
+
         protected static ISystemClock SystemClock => Utilities.SystemClock;
 
         [DataField(IsTransient = true)]

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.CompilerServices;
+using System.Runtime.ExceptionServices;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -105,16 +106,18 @@ namespace WorkflowsCore
                 return tcs.Task;
             }
 
-            EventHandler<WorkflowBase.ActionExecutedEventArgs> handler = null;
             var registration = currentCancellationToken.Register(
                 () =>
                 {
-                    // ReSharper disable once AccessToModifiedClosure
-                    workflow.ActionExecuted -= handler;
+                    workflow.ActionExecuted -= OnActionExecuted;
                     tcs.TrySetCanceled();
                 },
                 false);
-            handler = (o, args) =>
+
+            workflow.ActionExecuted += OnActionExecuted;
+            return tcs.Task;
+
+            void OnActionExecuted(object sender, WorkflowBase.ActionExecutedEventArgs args)
             {
                 if (currentCancellationToken.IsCancellationRequested)
                 {
@@ -126,8 +129,7 @@ namespace WorkflowsCore
                     return;
                 }
 
-                // ReSharper disable once AccessToModifiedClosure
-                workflow.ActionExecuted -= handler;
+                workflow.ActionExecuted -= OnActionExecuted;
 
                 if (!exportOperation)
                 {
@@ -177,10 +179,7 @@ namespace WorkflowsCore
                             TaskContinuationOptions.ExecuteSynchronously);
                     workflow.ResetOperationToParent();
                 }
-            };
-
-            workflow.ActionExecuted += handler;
-            return tcs.Task;
+            }
         }
 
         public static async Task WaitForActionWithWasExecutedCheck(this WorkflowBase workflow, string action)
@@ -215,16 +214,26 @@ namespace WorkflowsCore
                 return tcs.Task;
             }
 
-            EventHandler<WorkflowBase<TState>.StateChangedEventArgs> handler = null;
             var registration = currentCancellationToken.Register(
                 () =>
                 {
-                    // ReSharper disable once AccessToModifiedClosure
-                    workflow.StateChanged -= handler;
+                    workflow.StateChanged -= OnStateChanged;
                     tcs.TrySetCanceled();
                 },
                 false);
-            handler = (o, args) =>
+
+            workflow.StateChanged += OnStateChanged;
+            if (checkInitialState && !anyState)
+            {
+                workflow.RunViaWorkflowTaskScheduler(
+                    () => OnStateChanged(
+                        workflow,
+                        new WorkflowBase<TState>.StateChangedEventArgs(workflow.PreviousState, workflow.State)));
+            }
+
+            return tcs.Task;
+
+            void OnStateChanged(object sender, WorkflowBase<TState>.StateChangedEventArgs args)
             {
                 if (currentCancellationToken.IsCancellationRequested)
                 {
@@ -233,25 +242,13 @@ namespace WorkflowsCore
 
                 if (anyState || EqualityComparer<TState>.Default.Equals(args.NewState, state))
                 {
-                    // ReSharper disable once AccessToModifiedClosure
-                    workflow.StateChanged -= handler;
+                    workflow.StateChanged -= OnStateChanged;
                     if (tcs.TrySetResult(true))
                     {
                         registration.Dispose();
                     }
                 }
-            };
-
-            workflow.StateChanged += handler;
-            if (checkInitialState && !anyState)
-            {
-                workflow.RunViaWorkflowTaskScheduler(
-                    () => handler(
-                        workflow,
-                        new WorkflowBase<TState>.StateChangedEventArgs(workflow.PreviousState, workflow.State)));
             }
-
-            return tcs.Task;
         }
 
         public static Task<IDisposable> WaitForReadyAndStartOperation(
@@ -353,6 +350,13 @@ namespace WorkflowsCore
                 return await WaitForEventCore(workflow, eventCondition);
             }
 
+            Task<Event> t1 = null;
+            Task<Event> t2 = null;
+            var index = await workflow.WaitForAny(
+                () => t1 = WaitForEventCore(workflow, eventCondition),
+                () => t2 = FindLatestEventOrWaitForever());
+            return await (index == 0 ? t1 : t2);
+
             async Task<Event> FindLatestEventOrWaitForever()
             {
                 var res = await workflow.RunViaWorkflowTaskScheduler(w => w.FindLatestEvent(eventCondition), forceExecution: true);
@@ -363,13 +367,67 @@ namespace WorkflowsCore
 
                 return res;
             }
+        }
 
-            Task<Event> t1 = null;
-            Task<Event> t2 = null;
-            var index = await workflow.WaitForAny(
-                () => t1 = WaitForEventCore(workflow, eventCondition),
-                () => t2 = FindLatestEventOrWaitForever());
-            return await (index == 0 ? t1 : t2);
+        public static Task<T> Unwrap<T>(this Task<T> task, WorkflowBase workflow)
+        {
+            return task.ContinueWith(
+                t =>
+                {
+                    if (t.IsFaulted || !t.IsCanceled)
+                    {
+                        return t;
+                    }
+
+                    if (!workflow.IsCancellationRequested)
+                    {
+                        throw new InvalidOperationException("Unexpected cancellation");
+                    }
+
+                    return workflow.CompletedTask.ContinueWith(
+                        ct =>
+                        {
+                            if (ct.IsCanceled || !ct.IsFaulted)
+                            {
+                                throw new TaskCanceledException(t);
+                            }
+
+                            ExceptionDispatchInfo.Capture(ct.Exception.GetBaseException()).Throw();
+                            return t.Result; // Never called
+                        },
+                        Utilities.CurrentCancellationToken);
+                },
+                Utilities.CurrentCancellationToken).Unwrap();
+        }
+
+        public static Task Unwrap(this Task task, WorkflowBase workflow)
+        {
+            return task.ContinueWith(
+                t =>
+                {
+                    if (t.IsFaulted || !t.IsCanceled)
+                    {
+                        return t;
+                    }
+
+                    if (!workflow.IsCancellationRequested)
+                    {
+                        throw new InvalidOperationException("Unexpected cancellation");
+                    }
+
+                    return workflow.CompletedTask.ContinueWith(
+                        ct =>
+                        {
+                            if (ct.IsCanceled || !ct.IsFaulted)
+                            {
+                                throw new TaskCanceledException(t);
+                            }
+
+                            ExceptionDispatchInfo.Capture(ct.Exception.GetBaseException()).Throw();
+                        },
+                        Utilities.CurrentCancellationToken);
+                },
+                Utilities.CurrentCancellationToken).Unwrap();
         }
 
         private static Task<Event> WaitForEventCore(this WorkflowBase workflow, Func<Event, bool> eventCondition)
@@ -383,15 +441,18 @@ namespace WorkflowsCore
                 return tcs.Task;
             }
 
-            EventHandler<WorkflowBase.EventLoggedEventArgs> handler = null;
             var registration = currentCancellationToken.Register(
                 () =>
                 {
-                    workflow.EventLogged -= handler;
+                    workflow.EventLogged -= OnEventLogged;
                     tcs.TrySetCanceled();
                 },
                 false);
-            handler = (o, args) =>
+
+            workflow.EventLogged += OnEventLogged;
+            return tcs.Task;
+
+            void OnEventLogged(object sender, WorkflowBase.EventLoggedEventArgs args)
             {
                 if (currentCancellationToken.IsCancellationRequested)
                 {
@@ -400,16 +461,13 @@ namespace WorkflowsCore
 
                 if (eventCondition(args.Event))
                 {
-                    workflow.EventLogged -= handler;
+                    workflow.EventLogged -= OnEventLogged;
                     if (tcs.TrySetResult(args.Event))
                     {
                         registration.Dispose();
                     }
                 }
-            };
-
-            workflow.EventLogged += handler;
-            return tcs.Task;
+            }
         }
 
         private static void WaitAnyCore(
