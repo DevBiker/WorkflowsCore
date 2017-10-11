@@ -870,6 +870,7 @@ namespace WorkflowsCore.Tests
 
                 Assert.Equal(1, _workflowRepo.NumberOfCompletedWorkflows);
                 Assert.Equal(WorkflowBase.WorkflowCompletedEvent, Workflow.EventLog.Last().EventName);
+                Assert.True(Workflow.OnCompletedWasCalled);
                 await AssertWorkflowCancellationTokenCanceled();
             }
 
@@ -1021,6 +1022,7 @@ namespace WorkflowsCore.Tests
         public sealed class TestWorkflow : WorkflowBase
         {
             private readonly bool _canceledChild;
+            private readonly bool _allowOnCompleted;
             private readonly bool _allowOnCanceled;
             private readonly bool _allowOnFaulted;
             private readonly bool _delayInitialization;
@@ -1046,6 +1048,7 @@ namespace WorkflowsCore.Tests
                 : base(workflowRepoFactory, 3)
             {
                 _canceledChild = canceledChild;
+                _allowOnCompleted = !doNotComplete;
                 _allowOnCanceled = allowOnCanceled && !allowOnFaulted;
                 _badCancellation = badCancellation;
                 _failCancellation = failCancellation;
@@ -1081,6 +1084,8 @@ namespace WorkflowsCore.Tests
             }
 
             public IList<Event> EventLog => GetDataFieldAsync<IList<Event>>(nameof(EventLog), forceExecution: true).Result;
+
+            public bool OnCompletedWasCalled { get; private set; }
 
             public void SetInitializationCompleted() => _initializationOperation.Dispose();
 
@@ -1172,6 +1177,13 @@ namespace WorkflowsCore.Tests
 
             protected override bool IsActionAllowed(string action, NamedValues parameters) =>
                 ActionsAllowed && action != NotAllowedAction;
+
+            protected override void OnCompleted()
+            {
+                Assert.True(_allowOnCompleted);
+                base.OnCompleted();
+                OnCompletedWasCalled = true;
+            }
 
             protected override void OnCanceled(Exception exception)
             {

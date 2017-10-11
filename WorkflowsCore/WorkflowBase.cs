@@ -450,6 +450,10 @@ namespace WorkflowsCore
 
         protected abstract Task RunAsync();
 
+        protected virtual void OnCompleted()
+        {
+        }
+
         protected virtual void OnCanceled(Exception exception)
         {
         }
@@ -696,6 +700,7 @@ namespace WorkflowsCore
                         {
                             LogEvent(WorkflowCompletedEvent);
                             CreateWorkflowRepositoryAndDoAction(r => r.MarkWorkflowAsCompleted(this));
+                            OnCompleted();
                         }
 
                         break;
