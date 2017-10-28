@@ -915,12 +915,16 @@ namespace WorkflowsCore.Tests
             [Fact]
             public async Task UnexpectedCancellationOfChildActivitiesShouldMarkWorkflowAsFaulted()
             {
-                Workflow = new TestWorkflow(() => _workflowRepo, canceledChild: true, allowOnCanceled: false);
+                Workflow = new TestWorkflow(() => _workflowRepo, canceledChild: true, allowOnCanceled: false, allowOnFaulted: true);
                 StartWorkflow();
 
-                await WaitUntilWorkflowFailed<TaskCanceledException>();
+                await WaitUntilWorkflowFailed<InvalidOperationException>();
 
                 Assert.Equal(1, _workflowRepo.NumberOfFailedWorkflows);
+                Assert.True(Workflow.OnFaultedWasCalled);
+                var lastEvent = Workflow.EventLog.Last();
+                Assert.Equal(WorkflowBase.WorkflowFaultedEvent, lastEvent.EventName);
+                Assert.NotNull(lastEvent.Parameters?["Exception"]);
                 await AssertWorkflowCancellationTokenCanceled();
             }
 
@@ -1010,6 +1014,25 @@ namespace WorkflowsCore.Tests
                 await AssertWorkflowCancellationTokenCanceled();
             }
 
+
+            [Fact]
+            public async Task ExceptionOnWorkflowCompletionProcessingShouldBeReportedCorrectly()
+            {
+                Workflow = new TestWorkflow(() => _workflowRepo, doNotComplete: false, completionException: true, allowOnFaulted: true);
+                StartWorkflow();
+
+                await WaitUntilWorkflowFailed<ArgumentOutOfRangeException>();
+
+                Assert.Equal(0, _workflowRepo.NumberOfFailedWorkflows);
+                Assert.Equal(0, _workflowRepo.NumberOfCompletedWorkflows);
+                Assert.True(Workflow.OnFaultedWasCalled);
+                Assert.False(Workflow.OnCompletedWasCalled);
+                var lastEvent = Workflow.EventLog.Last();
+                Assert.Equal(WorkflowBase.WorkflowFaultedEvent, lastEvent.EventName);
+                Assert.NotNull(lastEvent.Parameters?["Exception"]);
+                await AssertWorkflowCancellationTokenCanceled();
+            }
+
             private async Task AssertWorkflowCancellationTokenCanceled()
             {
                 // ReSharper disable once PossibleNullReferenceException
@@ -1044,7 +1067,8 @@ namespace WorkflowsCore.Tests
                 bool failCancellation = false,
                 bool allowOnFaulted = false,
                 bool delayInitialization = false,
-                bool doInit = false)
+                bool doInit = false,
+                bool completionException = false)
                 : base(workflowRepoFactory, 3)
             {
                 _canceledChild = canceledChild;
@@ -1055,6 +1079,7 @@ namespace WorkflowsCore.Tests
                 _timeout = fail ? -2 : (!doNotComplete ? 1 : Timeout.Infinite);
                 _allowOnFaulted = allowOnFaulted;
                 _delayInitialization = delayInitialization;
+                CompletionException = completionException;
                 if (doInit)
                 {
                     OnInit();
@@ -1064,6 +1089,8 @@ namespace WorkflowsCore.Tests
             public bool ActionsAllowed { get; set; } = true;
 
             public string NotAllowedAction { get; set; }
+
+            public bool CompletionException { get; }
 
             public CancellationToken CurrentCancellationToken { get; private set; }
 
@@ -1229,6 +1256,11 @@ namespace WorkflowsCore.Tests
             public void MarkWorkflowAsCompleted(WorkflowBase workflow)
             {
                 Assert.NotNull(workflow);
+                if (((TestWorkflow)workflow).CompletionException)
+                {
+                    throw new ArgumentOutOfRangeException();
+                }
+
                 ++NumberOfCompletedWorkflows;
             }
 

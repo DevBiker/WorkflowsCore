@@ -68,7 +68,7 @@ namespace WorkflowsCore
                         [nameof(PreloadWorkflow.WorkflowEngine)] = this
                     });
 
-            await _preloadWorkflow.StartedTask;
+            await _preloadWorkflow.StartedTask.Unwrap(_preloadWorkflow);
         }
 
         public Task<WorkflowBase> GetActiveWorkflowByIdAsync(object id)

@@ -110,10 +110,7 @@ namespace WorkflowsCore.StateMachines
         {
             private readonly Func<Task> _taskFactory;
 
-            public DoHandler(Func<Task> taskFactory)
-            {
-                _taskFactory = taskFactory;
-            }
+            public DoHandler(Func<Task> taskFactory) => _taskFactory = taskFactory;
 
             public override async Task<State<TState, TInternalState>> ExecuteAsync()
             {
@@ -197,6 +194,7 @@ namespace WorkflowsCore.StateMachines
 
         public new AsyncOperation<TState, TInternalState, TR> Invoke<TR>(Func<TR> func) => base.Invoke(func);
 
+        // TODO: Add IfThen()
         public AsyncOperation<TState, TInternalState> If(Func<Task<bool>> taskFactory, string description = null)
         {
             var handler = new IfHandler(Parent, taskFactory, description);
@@ -465,10 +463,7 @@ namespace WorkflowsCore.StateMachines
                 _taskFactory = taskFactory;
             }
 
-            public override Task<State<TState, TInternalState>> ExecuteAsync()
-            {
-                throw new NotImplementedException();
-            }
+            public override Task<State<TState, TInternalState>> ExecuteAsync() => throw new NotImplementedException();
 
             public override async Task<State<TState, TInternalState>> ExecuteAsync(TData data)
             {
@@ -495,10 +490,7 @@ namespace WorkflowsCore.StateMachines
 
             public AsyncOperation<TState, TInternalState, TData> Child { get; }
 
-            public override Task<State<TState, TInternalState>> ExecuteAsync()
-            {
-                throw new NotImplementedException();
-            }
+            public override Task<State<TState, TInternalState>> ExecuteAsync() => throw new NotImplementedException();
 
             public override async Task<State<TState, TInternalState>> ExecuteAsync(TData data)
             {
@@ -530,10 +522,7 @@ namespace WorkflowsCore.StateMachines
 
             public AsyncOperation<TState, TInternalState, TR> Child { get; }
 
-            public override Task<State<TState, TInternalState>> ExecuteAsync()
-            {
-                throw new NotImplementedException();
-            }
+            public override Task<State<TState, TInternalState>> ExecuteAsync() => throw new NotImplementedException();
 
             public override async Task<State<TState, TInternalState>> ExecuteAsync(TData data)
             {
@@ -558,10 +547,7 @@ namespace WorkflowsCore.StateMachines
 
             public AsyncOperation<TState, TInternalState, TData> Child { get; }
 
-            public override Task<State<TState, TInternalState>> ExecuteAsync()
-            {
-                throw new NotImplementedException();
-            }
+            public override Task<State<TState, TInternalState>> ExecuteAsync() => throw new NotImplementedException();
 
             public override async Task<State<TState, TInternalState>> ExecuteAsync(TData data)
             {
@@ -592,10 +578,7 @@ namespace WorkflowsCore.StateMachines
 
             public AsyncOperation<TState, TInternalState, TData> Child { get; }
 
-            public override Task<State<TState, TInternalState>> ExecuteAsync()
-            {
-                throw new NotImplementedException();
-            }
+            public override Task<State<TState, TInternalState>> ExecuteAsync() => throw new NotImplementedException();
 
             public override async Task<State<TState, TInternalState>> ExecuteAsync(TData data)
             {

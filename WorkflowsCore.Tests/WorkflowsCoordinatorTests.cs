@@ -365,7 +365,7 @@ namespace WorkflowsCore.Tests
 
         [Fact]
         public async Task LongInitializationWithCancellationShouldWork()
-        {
+        { // TODO: Unstable
             _workflowsCoordinator.RegisterWorkflowDependency(
                 WorkflowNames.Name1,
                 TestWorkflow.Action1,

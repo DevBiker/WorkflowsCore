@@ -654,6 +654,15 @@ namespace WorkflowsCore
                 catch (Exception ex)
                 {
                     exception = GetAggregatedExceptions(exception, ex);
+                    try
+                    {
+                        LogEvent(WorkflowFaultedEvent, new Dictionary<string, object> { ["Exception"] = exception });
+                        OnFaulted(exception);
+                    }
+                    catch (Exception ex2)
+                    {
+                        exception = GetAggregatedExceptions(exception, ex2);
+                    }
                 }
                 finally
                 {
@@ -716,10 +725,11 @@ namespace WorkflowsCore
                         }
                         else
                         {
-                            exception = new TaskCanceledException("Unexpected cancellation of child activity");
+                            exception = new InvalidOperationException("Unexpected cancellation of child activity");
                             var exceptionCopy = exception;
                             LogEvent(WorkflowFaultedEvent, new Dictionary<string, object> { ["Exception"] = exceptionCopy });
                             CreateWorkflowRepositoryAndDoAction(r => r.MarkWorkflowAsFailed(this, exceptionCopy));
+                            OnFaulted(exceptionCopy);
                         }
 
                         break;
@@ -727,10 +737,6 @@ namespace WorkflowsCore
                         exception = new ArgumentOutOfRangeException();
                         break;
                 }
-            }
-            catch (Exception ex)
-            {
-                exception = GetAggregatedExceptions(exception, ex);
             }
             finally
             {
